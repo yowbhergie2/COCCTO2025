@@ -183,7 +183,8 @@
 
     function showAlert(message, type = 'success') {
       const colors = {
-        success: { bg: '#e6f9ed', border: '#00b528', text: '#00b528', icon: 'check-circle' },
+        /* Updated Theme: Indigo Success */
+        success: { bg: '#e0e7ff', border: '#4f46e5', text: '#4338ca', icon: 'check-circle' },
         error: { bg: '#fee', border: '#ef4444', text: '#ef4444', icon: 'exclamation-circle' },
         info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6', icon: 'info-circle' }
       };
