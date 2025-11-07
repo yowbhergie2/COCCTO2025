@@ -1,0 +1,183 @@
+// HistoricalBalanceService.gs - F1: Initial Balance Migration
+
+/**
+ * Save historical balance entry
+ * @param {Object} formData - Contains employeeId, month, year, earned, used, dateOfIssuance
+ * @returns {Object} Result with success status and message
+ */
+function saveHistoricalBalance(formData) {
+  try {
+    // Parse and validate input
+    const employeeId = parseInt(formData.employeeId);
+    const month = formData.month;
+    const year = parseInt(formData.year);
+    const cocEarned = parseFloat(formData.cocEarned);
+    const cocUsed = parseFloat(formData.cocUsed);
+    const dateOfIssuance = new Date(formData.dateOfIssuance);
+    
+    // Validation 1: Check employee exists
+    const employee = getEmployeeById(employeeId);
+    if (!employee) {
+      return {
+        success: false,
+        message: 'Employee not found'
+      };
+    }
+    
+    // Validation 2: COC Earned must not exceed 40 hours (monthly cap)
+    if (cocEarned > 40) {
+      return {
+        success: false,
+        message: 'COC Earned cannot exceed 40 hours per month (monthly accrual cap)'
+      };
+    }
+    
+    // Validation 3: COC Used cannot exceed COC Earned
+    if (cocUsed > cocEarned) {
+      return {
+        success: false,
+        message: 'COC Used cannot exceed COC Earned'
+      };
+    }
+    
+    // Validation 4: Date of Issuance must be on or after the last day of the earned month
+    const lastDayOfMonth = new Date(year, getMonthNumber(month), 0);
+    if (dateOfIssuance < lastDayOfMonth) {
+      return {
+        success: false,
+        message: 'Date of Issuance must be on or after ' + formatDate(lastDayOfMonth)
+      };
+    }
+    
+    // Calculate Remaining balance
+    const remaining = cocEarned - cocUsed;
+    
+    // Calculate Valid Until date: (Date of Issuance + 1 Year) - 1 Day
+    const validUntil = new Date(dateOfIssuance);
+    validUntil.setFullYear(validUntil.getFullYear() + 1);
+    validUntil.setDate(validUntil.getDate() - 1);
+    
+    // Check if this would exceed the 120-hour total cap
+    const currentBalance = getEmployeeCurrentBalance(employeeId);
+    if (currentBalance + remaining > 120) {
+      return {
+        success: false,
+        message: `Adding ${remaining} hours would exceed the 120-hour total balance cap. Current balance: ${currentBalance} hours.`
+      };
+    }
+    
+    // Create BatchID
+    const batchId = getNextId('CreditBatches', 'A');
+    const currentEmail = getCurrentUserEmail();
+    const currentDate = new Date();
+    
+    // Prepare CreditBatches row
+    const batchRow = [
+      batchId,                    // A: BatchID
+      employeeId,                 // B: EmployeeID
+      month,                      // C: EarnedMonth
+      year,                       // D: EarnedYear
+      dateOfIssuance,             // E: DateOfIssuance
+      validUntil,                 // F: ValidUntil
+      cocEarned,                  // G: OriginalHours
+      remaining,                  // H: RemainingHours
+      'Active',                   // I: Status
+      currentEmail,               // J: CertifiedBy
+      currentDate,                // K: CertifiedDate
+      'Historical data migration' // L: Notes
+    ];
+    
+    // Append to CreditBatches
+    appendToSheet('CreditBatches', batchRow);
+    
+    // Create ledger entries
+    const transactionIdEarned = getNextId('Ledger', 'A');
+    
+    // Ledger entry for Earned
+    const ledgerEarnedRow = [
+      transactionIdEarned,
+      employeeId,
+      currentDate,
+      'InitialBalance',
+      cocEarned,
+      batchId,
+      'HIST-' + batchId,
+      month,
+      year,
+      currentEmail,
+      'Historical balance migration - Earned',
+      currentDate
+    ];
+    appendToSheet('Ledger', ledgerEarnedRow);
+    
+    // If COC was used, create another ledger entry
+    if (cocUsed > 0) {
+      const transactionIdUsed = getNextId('Ledger', 'A');
+      const ledgerUsedRow = [
+        transactionIdUsed,
+        employeeId,
+        currentDate,
+        'InitialBalance',
+        -cocUsed,
+        batchId,
+        'HIST-' + batchId,
+        month,
+        year,
+        currentEmail,
+        'Historical balance migration - Used',
+        currentDate
+      ];
+      appendToSheet('Ledger', ledgerUsedRow);
+    }
+    
+    return {
+      success: true,
+      message: `Historical balance saved successfully. Remaining balance: ${remaining} hours, Valid Until: ${formatDate(validUntil)}`
+    };
+    
+  } catch (error) {
+    Logger.log('Error in saveHistoricalBalance: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error saving historical balance: ' + error.message
+    };
+  }
+}
+
+/**
+ * Get month number from month name (0-indexed for JavaScript Date)
+ */
+function getMonthNumber(monthName) {
+  const months = {
+    'January': 0, 'February': 1, 'March': 2, 'April': 3,
+    'May': 4, 'June': 5, 'July': 6, 'August': 7,
+    'September': 8, 'October': 9, 'November': 10, 'December': 11
+  };
+  return months[monthName];
+}
+
+/**
+ * Get employee's current total balance (sum of all Active RemainingHours)
+ */
+function getEmployeeCurrentBalance(employeeId) {
+  const sheet = getDbSheet('CreditBatches');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  // Get column indices
+  const employeeIdIndex = headers.indexOf('EmployeeID');
+  const statusIndex = headers.indexOf('Status');
+  const remainingIndex = headers.indexOf('RemainingHours');
+  
+  let totalBalance = 0;
+  
+  // Skip header row (index 0)
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[employeeIdIndex] == employeeId && row[statusIndex] === 'Active') {
+      totalBalance += parseFloat(row[remainingIndex]) || 0;
+    }
+  }
+  
+  return totalBalance;
+}
