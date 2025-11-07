@@ -292,18 +292,15 @@
       // Validate: COC Used cannot exceed COC Earned
       if (used > earned) {
         console.log('[HistoryForm] Validation FAILED: Used > Earned');
-        // PAKI-AYOS: Ginawang modal din ito
-        // showMessage('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)', 'error');
         showErrorModal('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)');
         usedInput.focus();
         return false;
-      } // <-- PAKI-AYOS: Idinagdag ang nawawalang closing brace
+      }
 
       // Validate: COC Earned cannot exceed 40 hours
       if (earned > 40) {
         console.log('[HistoryForm] Validation FAILED: Earned > 40');
-        // showMessage('Error: COC Earned cannot exceed 40 hours per month', 'error'); // <-- PALITAN ITO
-        showErrorModal('Error: COC Earned cannot exceed 40 hours per month'); // <-- NG ITO
+        showErrorModal('Error: COC Earned cannot exceed 40 hours per month');
         earnedInput.focus();
         return false;
       }
@@ -317,8 +314,7 @@
       data.employeeId = document.getElementById('employeeId').value;
 
       if (!data.employeeId) {
-        // showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error'); // <-- PALITAN ITO
-        showErrorModal('Error: Employee ID is missing. Please close and reopen the form.'); // <-- NG ITO
+        showErrorModal('Error: Employee ID is missing. Please close and reopen the form.');
         return false;
       }
 
@@ -329,53 +325,38 @@
       google.script.run
         .withSuccessHandler(result => {
           if (result.success) {
-            showMessage(result.message, 'success');
+            // Show success message briefly before closing
+            const container = document.getElementById('messageContainer');
+            if (container) {
+              container.style.cssText = `
+                background: #e0e7ff;
+                border: 1px solid #4f46e5;
+                color: #4338ca;
+                padding: 1rem;
+                border-radius: 8px;
+                font-weight: 500;
+                font-size: 0.9375rem;
+                margin-bottom: 1.5rem;
+                display: block;
+              `;
+              container.textContent = result.message;
+              container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
             setTimeout(() => {
               hideOverlay(true);
             }, 2000);
           } else {
-            // showMessage(result.message, 'error'); // <-- PALITAN ITO
-            showErrorModal(result.message); // <-- NG ITO
+            showErrorModal(result.message);
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Historical Balance';
           }
         })
         .withFailureHandler(err => {
-          // showMessage('Error: ' + err.message, 'error'); // <-- PALITAN ITO
-          showErrorModal('Error: ' + err.message); // <-- NG ITO
+          showErrorModal('Error: ' + err.message);
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save Historical Balance';
         })
         .saveHistoricalBalance(data);
-
-      return false; // Prevent default form submission
-    }
-
-    function showMessage(message, type) {
-      const colors = {
-        /* Updated Theme: Indigo Success */
-        success: { bg: '#e0e7ff', border: '#4f46e5', text: '#4338ca' },
-        error: { bg: '#fee', border: '#ef4444', text: '#ef4444' },
-        info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
-      };
-      const color = colors[type];
-
-      const container = document.getElementById('messageContainer');
-      container.style.cssText = `
-        background: ${color.bg};
-        border: 1px solid ${color.border};
-        color: ${color.text};
-        padding: 1rem;
-        border-radius: 8px;
-        font-weight: 500;
-        font-size: 0.9375rem;
-        margin-bottom: 1.5rem;
-        display: block;
-      `;
-      container.textContent = message;
-
-      // Scroll to top to make sure error is visible
-      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Note: hideOverlay() function is provided by the parent scope (EmployeesScript)
@@ -385,10 +366,15 @@
     function showErrorModal(message) {
       const modal = document.getElementById('errorModal');
       const modalMessage = document.getElementById('errorModalMessage');
-      if (modal && modalMessage) {
-        modalMessage.textContent = message;
-        modal.style.display = 'flex'; // Show the modal
+
+      if (!modal || !modalMessage) {
+        console.error('showErrorModal: Modal elements not found. Message:', message);
+        alert(message);  // Fallback to browser alert
+        return;
       }
+
+      modalMessage.textContent = message;
+      modal.style.display = 'flex'; // Show the modal
     }
 
     function hideErrorModal() {
