@@ -178,24 +178,10 @@
   </div>
 
   <script>
-    // AYOS: I-wrap ang initialization sa DOMContentLoaded
-    // para siguradong loaded na lahat bago tawagin.
-    document.addEventListener("DOMContentLoaded", function() {
-      try {
-        populateYears(); 
-      } catch (e) {
-        console.error("Error populating years:", e);
-        // Magpakita ng error sa user kung 'di gumana
-        const yearSelect = document.getElementById('year');
-        if(yearSelect) {
-          yearSelect.innerHTML = '<option value="">Error loading years</option>';
-        }
-      }
-    });
-
     /**
-     * BAGONG FUNCTION: Para sa dynamic year dropdown
+     * DYNAMIC FUNCTION: Para sa dynamic year dropdown
      * Magsisimula sa 2024 hanggang sa current year
+     * Auto-updates every year!
      */
     function populateYears() {
       const yearSelect = document.getElementById('year');
@@ -203,16 +189,31 @@
         console.error('populateYears: Could not find #year select element.');
         return; // Guard clause
       }
-      
+
       const startYear = 2024;
-      const currentYear = new Date().getFullYear(); // e.g., 2025
-      
+      const currentYear = new Date().getFullYear(); // e.g., 2025, 2026, etc.
+
       for (let i = currentYear; i >= startYear; i--) {
         const option = document.createElement('option');
         option.value = i;
         option.textContent = i;
         yearSelect.appendChild(option);
       }
+    }
+
+    // FIX: Call populateYears() directly instead of waiting for DOMContentLoaded
+    // because this HTML is loaded dynamically into a modal overlay
+    try {
+      populateYears();
+    } catch (e) {
+      console.error("Error populating years:", e);
+      // Magpakita ng error sa user kung 'di gumana
+      setTimeout(function() {
+        const yearSelect = document.getElementById('year');
+        if(yearSelect) {
+          yearSelect.innerHTML = '<option value="">Error loading years</option>';
+        }
+      }, 100);
     }
 
     // TINANGGAL: buong loadEmployees() function. Hindi na kailangan dito.
