@@ -182,10 +182,22 @@
     function calculateRemaining() {
       const earned = parseFloat(document.getElementById('cocEarned').value) || 0;
       const used = parseFloat(document.getElementById('cocUsed').value) || 0;
-      const remaining = Math.max(0, earned - used);
-      
-      document.getElementById('remainingBalance').textContent = remaining.toFixed(1) + ' hours';
-      
+      const remaining = earned - used;
+
+      const remainingDisplay = document.getElementById('remainingBalance');
+      remainingDisplay.textContent = remaining.toFixed(1) + ' hours';
+
+      // Visual feedback: turn red if negative
+      if (remaining < 0) {
+        remainingDisplay.style.color = '#ef4444'; // Red
+        remainingDisplay.parentElement.parentElement.style.background = '#fee';
+        remainingDisplay.parentElement.parentElement.style.borderColor = '#ef4444';
+      } else {
+        remainingDisplay.style.color = '#4338ca'; // Indigo
+        remainingDisplay.parentElement.parentElement.style.background = '#f5f3ff';
+        remainingDisplay.parentElement.parentElement.style.borderColor = '#c7d2fe';
+      }
+
       // Validate that used doesn't exceed earned
       if (used > earned) {
         document.getElementById('cocUsed').setCustomValidity('COC Used cannot exceed COC Earned');
@@ -219,7 +231,27 @@
     // Form submission
     document.getElementById('historyForm').addEventListener('submit', function(e) {
       e.preventDefault();
-      
+
+      // *** FIX: Manual validation before submitting ***
+      const earnedInput = document.getElementById('cocEarned');
+      const usedInput = document.getElementById('cocUsed');
+      const earned = parseFloat(earnedInput.value) || 0;
+      const used = parseFloat(usedInput.value) || 0;
+
+      // Validate: COC Used cannot exceed COC Earned
+      if (used > earned) {
+        showMessage('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)', 'error');
+        usedInput.focus();
+        return;
+      }
+
+      // Validate: COC Earned cannot exceed 40 hours
+      if (earned > 40) {
+        showMessage('Error: COC Earned cannot exceed 40 hours per month', 'error');
+        earnedInput.focus();
+        return;
+      }
+
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
 
@@ -231,7 +263,7 @@
         showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error');
         return;
       }
-      
+
       const saveBtn = document.getElementById('saveBtn');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving...';
