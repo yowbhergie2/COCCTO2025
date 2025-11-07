@@ -5,10 +5,11 @@
 
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-icon" style="background: #e6f9ed; color: #00b528;">
+    <!-- Updated Theme: Indigo Stat Card -->
+    <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;">
       <i class="fas fa-coins"></i>
     </div>
-    <div class="stat-value" style="color: #00b528;" id="totalActiveCOC">0.0</div>
+    <div class="stat-value" style="color: #4f46e5;" id="totalActiveCOC">0.0</div>
     <div class="stat-label">Total Active COC (hrs)</div>
   </div>
 
