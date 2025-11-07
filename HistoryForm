@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: white;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1a1f36;
+    }
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #e8ebed;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #00d632;
+      box-shadow: 0 0 0 3px rgba(0,214,50,0.1);
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9375rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00d632 0%, #00b528 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(0,214,50,0.3);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: white;
+      color: #1a1f36;
+      border: 1px solid #e8ebed;
+    }
+    .btn-secondary:hover {
+      border-color: #00d632;
+      color: #00d632;
+      background: #f6faf8;
+    }
+  </style>
+</head>
+<body>
+  <div style="width: 700px; padding: 2rem;">
+    <div style="margin-bottom: 2rem;">
+      <h2 style="font-size: 1.5rem; font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem;">Log Historical Balance</h2>
+      <p style="color: #697386; font-size: 0.9375rem; margin-bottom: 1rem;">Enter historical COC data for initial system setup</p>
+      <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem;">
+        <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
+          <strong>Note:</strong> This tool is for migrating existing balances from the old system. 
+          The Date of Issuance determines when credits expire (Valid Until = Date of Issuance + 1 Year - 1 Day).
+        </p>
+      </div>
+    </div>
+
+    <form id="historyForm">
+      <!-- Employee Selection -->
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
+        <select name="employeeId" id="employeeId" required class="form-input">
+          <option value="">-- Select Employee --</option>
+        </select>
+      </div>
+
+      <!-- Month and Year -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label class="form-label">Earned Month <span style="color: #ef4444;">*</span></label>
+          <select name="month" id="month" required class="form-input">
+            <option value="">-- Select Month --</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Earned Year <span style="color: #ef4444;">*</span></label>
+          <select name="year" id="year" required class="form-input">
+            <option value="">-- Select Year --</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- COC Earned and Used -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div>
+          <label class="form-label">COC Earned (hours) <span style="color: #ef4444;">*</span></label>
+          <input type="number" name="cocEarned" id="cocEarned" required 
+                 min="0" max="40" step="0.5" class="form-input"
+                 oninput="calculateRemaining()">
+          <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;">Maximum: 40 hours per month</p>
+        </div>
+        <div>
+          <label class="form-label">COC Used (hours) <span style="color: #ef4444;">*</span></label>
+          <input type="number" name="cocUsed" id="cocUsed" required 
+                 min="0" step="0.5" value="0" class="form-input"
+                 oninput="calculateRemaining()">
+        </div>
+      </div>
+
+      <!-- Remaining Balance (calculated) -->
+      <div style="background: #f6faf8; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.875rem; font-weight: 600; color: #1a1f36;">Remaining Balance:</span>
+          <span id="remainingBalance" style="font-size: 1.5rem; font-weight: 700; color: #00b528;">0.0 hours</span>
+        </div>
+      </div>
+
+      <!-- Date of Issuance -->
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label">Date of Issuance (Certificate Date) <span style="color: #ef4444;">*</span></label>
+        <input type="date" name="dateOfIssuance" id="dateOfIssuance" required class="form-input"
+               onchange="calculateValidUntil()">
+        <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;">Must be on or after the last day of the earned month</p>
+      </div>
+
+      <!-- Valid Until (calculated) -->
+      <div id="validUntilContainer" style="display: none; background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">Credits Valid Until:</span>
+          <span id="validUntilDate" style="font-size: 1.125rem; font-weight: 700; color: #1e40af;">--</span>
+        </div>
+        <p style="font-size: 0.8125rem; color: #3b82f6; margin: 0.5rem 0 0 0;">Formula: (Date of Issuance + 1 Year) - 1 Day</p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
+        <button type="button" onclick="parent.hideOverlay()" class="btn btn-secondary">Cancel</button>
+        <button type="submit" id="saveBtn" class="btn btn-primary">Save Historical Balance</button>
+      </div>
+    </form>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" style="margin-top: 1rem;"></div>
+  </div>
+
+  <script>
+    // Load employees on page load
+    loadEmployees();
+
+    function loadEmployees() {
+      google.script.run
+        .withSuccessHandler(employees => {
+          const select = document.getElementById('employeeId');
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            select.appendChild(option);
+          });
+        })
+        .withFailureHandler(err => {
+          showMessage('Error loading employees: ' + err.message, 'error');
+        })
+        .getEmployeesForDropdown();
+    }
+
+    function calculateRemaining() {
+      const earned = parseFloat(document.getElementById('cocEarned').value) || 0;
+      const used = parseFloat(document.getElementById('cocUsed').value) || 0;
+      const remaining = Math.max(0, earned - used);
+      
+      document.getElementById('remainingBalance').textContent = remaining.toFixed(1) + ' hours';
+      
+      // Validate that used doesn't exceed earned
+      if (used > earned) {
+        document.getElementById('cocUsed').setCustomValidity('COC Used cannot exceed COC Earned');
+      } else {
+        document.getElementById('cocUsed').setCustomValidity('');
+      }
+    }
+
+    function calculateValidUntil() {
+      const dateInput = document.getElementById('dateOfIssuance').value;
+      if (!dateInput) {
+        document.getElementById('validUntilContainer').style.display = 'none';
+        return;
+      }
+
+      // Calculate Valid Until: (Date of Issuance + 1 Year) - 1 Day
+      const dateOfIssuance = new Date(dateInput + 'T00:00:00');
+      const validUntil = new Date(dateOfIssuance);
+      validUntil.setFullYear(validUntil.getFullYear() + 1);
+      validUntil.setDate(validUntil.getDate() - 1);
+
+      // Format date as MM/DD/YYYY
+      const formatted = (validUntil.getMonth() + 1).toString().padStart(2, '0') + '/' +
+                       validUntil.getDate().toString().padStart(2, '0') + '/' +
+                       validUntil.getFullYear();
+
+      document.getElementById('validUntilDate').textContent = formatted;
+      document.getElementById('validUntilContainer').style.display = 'block';
+    }
+
+    // Form submission
+    document.getElementById('historyForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            setTimeout(() => {
+              parent.hideOverlay();
+              // Refresh employee list if on employees view
+              if (parent.currentView === 'employees') {
+                parent.loadEmployees();
+              }
+            }, 2000);
+          } else {
+            showMessage(result.message, 'error');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Historical Balance';
+          }
+        })
+        .withFailureHandler(err => {
+          showMessage('Error: ' + err.message, 'error');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Historical Balance';
+        })
+        .saveHistoricalBalance(data);
+    });
+
+    function showMessage(message, type) {
+      const colors = {
+        success: { bg: '#e6f9ed', border: '#00b528', text: '#00b528' },
+        error: { bg: '#fee', border: '#ef4444', text: '#ef4444' },
+        info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
+      };
+      const color = colors[type];
+      
+      const container = document.getElementById('messageContainer');
+      container.style.cssText = `
+        background: ${color.bg}; 
+        border: 1px solid ${color.border}; 
+        color: ${color.text};
+        padding: 1rem; 
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.9375rem;
+      `;
+      container.textContent = message;
+    }
+  </script>
+</body>
+</html>
