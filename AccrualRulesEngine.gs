@@ -205,9 +205,9 @@ function getDayType(date) {
     return 'Holiday';
   }
 
-  // Check if it's a weekend (Saturday = 6, Sunday = 0)
+  // Check if it's a weekend using configured weekend days
   const dayOfWeek = date.getDay();
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
+  if (isWeekendDay(dayOfWeek)) {
     return 'Weekend';
   }
 

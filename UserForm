@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <?!= include('Styles'); ?>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <div style="
+    width: 90%;
+    max-width: 500px;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  ">
+    <div style="margin-bottom: 2rem;">
+      <h2 style="font-size: 1.5rem; font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem;" id="formTitle">
+        Add HR User
+      </h2>
+      <p style="color: #697386; font-size: 0.9375rem;">
+        Manage HR Staff user accounts and permissions
+      </p>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
+
+    <form id="userForm" onsubmit="return handleFormSubmit(event)">
+      <input type="hidden" id="userId" name="userId" value="">
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Email Address <span style="color: #ef4444;">*</span></label>
+        <input type="email" name="email" id="email" required class="form-input"
+               placeholder="user@example.com">
+        <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;">
+          This will be the user's login email
+        </p>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Full Name <span style="color: #ef4444;">*</span></label>
+        <input type="text" name="fullName" id="fullName" required class="form-input"
+               placeholder="Juan Dela Cruz">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Role <span style="color: #ef4444;">*</span></label>
+        <select name="role" id="role" required class="form-input">
+          <option value="HR Staff">HR Staff</option>
+          <option value="HR Admin">HR Admin</option>
+        </select>
+        <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;">
+          HR Admin has full access. HR Staff has limited access.
+        </p>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label">Status <span style="color: #ef4444;">*</span></label>
+        <select name="status" id="status" required class="form-input">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
+        <button type="button" onclick="hideOverlay(false)" class="btn btn-secondary">Cancel</button>
+        <button type="submit" id="saveBtn" class="btn btn-primary">Save User</button>
+      </div>
+    </form>
+
+    <!-- Error Modal -->
+    <div id="errorModal" style="
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    ">
+      <div style="
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+      ">
+        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Error</h3>
+        <p id="errorModalMessage" style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;"></p>
+        <button type="button" onclick="hideErrorModal()" class="btn btn-primary" style="background: #ef4444; width: 100%; justify-content: center;">
+          Okay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check if we're editing (userId passed in params)
+    function initForm() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const userId = urlParams.get('userId');
+
+      if (userId) {
+        // Edit mode
+        document.getElementById('formTitle').textContent = 'Edit HR User';
+        document.getElementById('userId').value = userId;
+
+        // Load user data
+        google.script.run
+          .withSuccessHandler(user => {
+            if (user) {
+              document.getElementById('email').value = user.email;
+              document.getElementById('fullName').value = user.fullName;
+              document.getElementById('role').value = user.role;
+              document.getElementById('status').value = user.status;
+            }
+          })
+          .withFailureHandler(err => {
+            showErrorModal('Error loading user: ' + err.message);
+          })
+          .getHRUserById(parseInt(userId));
+      }
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const formData = new FormData(document.getElementById('userForm'));
+      const data = Object.fromEntries(formData);
+
+      const userId = data.userId ? parseInt(data.userId) : null;
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      const serverFunc = userId ? 'updateHRUser' : 'createHRUser';
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            setTimeout(() => {
+              hideOverlay(true);
+            }, 1500);
+          } else {
+            showErrorModal(result.message);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save User';
+          }
+        })
+        .withFailureHandler(err => {
+          showErrorModal('Error: ' + err.message);
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save User';
+        })
+        [serverFunc](userId, data);
+    }
+
+    function showMessage(message, type) {
+      const colors = {
+        success: { bg: '#e0e7ff', border: '#4f46e5', text: '#4338ca' },
+        error: { bg: '#fee', border: '#ef4444', text: '#ef4444' },
+        info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
+      };
+      const color = colors[type];
+
+      const container = document.getElementById('messageContainer');
+      if (!container) return;
+
+      container.style.cssText = `
+        background: ${color.bg};
+        border: 1px solid ${color.border};
+        color: ${color.text};
+        padding: 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.9375rem;
+        margin-bottom: 1.5rem;
+        display: block;
+      `;
+      container.textContent = message;
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showErrorModal(message) {
+      const modal = document.getElementById('errorModal');
+      const modalMessage = document.getElementById('errorModalMessage');
+
+      if (!modal || !modalMessage) {
+        alert(message);
+        return;
+      }
+
+      modalMessage.textContent = message;
+      modal.style.display = 'flex';
+    }
+
+    function hideErrorModal() {
+      const modal = document.getElementById('errorModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // Initialize form
+    initForm();
+  </script>
+</body>
+</html>

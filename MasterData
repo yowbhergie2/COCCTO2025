@@ -1,32 +1,176 @@
 <div class="page-header">
-  <h1 class="page-title">Master Data</h1>
-  <p class="page-subtitle">Manage offices and positions</p>
+  <h1 class="page-title">Master Data & Configuration</h1>
+  <p class="page-subtitle">Manage system settings, holidays, users, and master data</p>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+<!-- Tab Navigation for F2 Configuration -->
+<div style="margin-bottom: 1.5rem; border-bottom: 2px solid #e8ebed;">
+  <div style="display: flex; gap: 0.5rem;">
+    <button onclick="showConfigTab('basic')" id="tab-basic" class="config-tab active">
+      <i class="fas fa-database"></i> Basic Data
+    </button>
+    <button onclick="showConfigTab('holidays')" id="tab-holidays" class="config-tab">
+      <i class="fas fa-calendar-alt"></i> Holidays
+    </button>
+    <button onclick="showConfigTab('weekend')" id="tab-weekend" class="config-tab">
+      <i class="fas fa-calendar-week"></i> Weekend Config
+    </button>
+    <button onclick="showConfigTab('users')" id="tab-users" class="config-tab">
+      <i class="fas fa-users"></i> HR Users
+    </button>
+  </div>
+</div>
+
+<style>
+  .config-tab {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: #697386;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .config-tab:hover {
+    color: #4f46e5;
+  }
+
+  .config-tab.active {
+    color: #4f46e5;
+    border-bottom-color: #4f46e5;
+  }
+
+  .config-section {
+    display: none;
+  }
+
+  .config-section.active {
+    display: block;
+  }
+</style>
+
+<!-- Tab 1: Basic Data (Offices & Positions) -->
+<div id="section-basic" class="config-section active">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Offices</div>
+        <button onclick="addMasterDataItem('office')" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+          <i class="fas fa-plus"></i> Add
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="officesList">
+          <div style="text-align: center; padding: 2rem; color: #697386;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Positions</div>
+        <button onclick="addMasterDataItem('position')" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+          <i class="fas fa-plus"></i> Add
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="positionsList">
+          <div style="text-align: center; padding: 2rem; color: #697386;">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 2: Holidays -->
+<div id="section-holidays" class="config-section">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Offices</div>
-      <button onclick="addMasterDataItem('office')" class="btn btn-primary" style="padding: 0.5rem 1rem;">
-        <i class="fas fa-plus"></i> Add
+      <div class="card-title">Holiday Calendar</div>
+      <button onclick="addHoliday()" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add Holiday
       </button>
     </div>
     <div class="card-body">
-      <div id="officesList">
+      <p style="color: #697386; margin-bottom: 1.5rem;">
+        Define official holidays for COC accrual calculations. Holidays use a 1.5x accrual rate.
+      </p>
+      <div id="holidaysList">
         <div style="text-align: center; padding: 2rem; color: #697386;">Loading...</div>
       </div>
     </div>
   </div>
+</div>
 
+<!-- Tab 3: Weekend Configuration -->
+<div id="section-weekend" class="config-section">
   <div class="card">
     <div class="card-header">
-      <div class="card-title">Positions</div>
-      <button onclick="addMasterDataItem('position')" class="btn btn-primary" style="padding: 0.5rem 1rem;">
-        <i class="fas fa-plus"></i> Add
+      <div class="card-title">Weekend Days Configuration</div>
+    </div>
+    <div class="card-body">
+      <p style="color: #697386; margin-bottom: 1.5rem;">
+        Select which days of the week are considered "weekends" for COC accrual. Weekends use a 1.5x accrual rate.
+      </p>
+
+      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;" id="weekendDaysCheckboxes">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="1" class="weekend-checkbox"> Monday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="2" class="weekend-checkbox"> Tuesday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="3" class="weekend-checkbox"> Wednesday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="4" class="weekend-checkbox"> Thursday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="5" class="weekend-checkbox"> Friday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="6" class="weekend-checkbox"> Saturday
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" value="0" class="weekend-checkbox"> Sunday
+          </label>
+        </div>
+      </div>
+
+      <div style="text-align: right;">
+        <button onclick="saveWeekendConfig()" class="btn btn-primary">
+          <i class="fas fa-save"></i> Save Weekend Configuration
+        </button>
+      </div>
+
+      <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin-top: 1.5rem;">
+        <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
+          <i class="fas fa-info-circle"></i> <strong>Current Weekend Days:</strong> <span id="currentWeekendDays">Loading...</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 4: HR Users -->
+<div id="section-users" class="config-section">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">HR Staff Accounts</div>
+      <button onclick="addUser()" class="btn btn-primary">
+        <i class="fas fa-user-plus"></i> Add User
       </button>
     </div>
     <div class="card-body">
-      <div id="positionsList">
+      <p style="color: #697386; margin-bottom: 1.5rem;">
+        Manage HR Staff user accounts and permissions. HR Admins have full access, HR Staff have limited access.
+      </p>
+      <div id="usersList">
         <div style="text-align: center; padding: 2rem; color: #697386;">Loading...</div>
       </div>
     </div>
