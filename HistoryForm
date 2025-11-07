@@ -86,7 +86,7 @@
       </div>
     </div>
 
-    <form id="historyForm">
+    <form id="historyForm" onsubmit="return handleFormSubmit(event)">
       <!-- 
         TINANGGAL: Employee Selection Dropdown.
         PINALITAN: Hidden input. Ang value nito ay ise-set ng 'EmployeesScript'
@@ -228,40 +228,46 @@
       document.getElementById('validUntilContainer').style.display = 'block';
     }
 
-    // Form submission
-    document.getElementById('historyForm').addEventListener('submit', function(e) {
+    // Form submission handler (called by inline onsubmit)
+    function handleFormSubmit(e) {
       e.preventDefault();
+      console.log('[HistoryForm] Form submitted, validating...');
 
-      // *** FIX: Manual validation before submitting ***
+      // *** VALIDATION: Manual validation before submitting ***
       const earnedInput = document.getElementById('cocEarned');
       const usedInput = document.getElementById('cocUsed');
       const earned = parseFloat(earnedInput.value) || 0;
       const used = parseFloat(usedInput.value) || 0;
 
+      console.log('[HistoryForm] Earned:', earned, 'Used:', used);
+
       // Validate: COC Used cannot exceed COC Earned
       if (used > earned) {
+        console.log('[HistoryForm] Validation FAILED: Used > Earned');
         showMessage('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)', 'error');
         usedInput.focus();
-        return;
+        return false;
       }
 
       // Validate: COC Earned cannot exceed 40 hours
       if (earned > 40) {
+        console.log('[HistoryForm] Validation FAILED: Earned > 40');
         showMessage('Error: COC Earned cannot exceed 40 hours per month', 'error');
         earnedInput.focus();
-        return;
+        return false;
       }
 
-      const formData = new FormData(e.target);
+      console.log('[HistoryForm] Validation PASSED, submitting...');
+
+      const formData = new FormData(document.getElementById('historyForm'));
       const data = Object.fromEntries(formData);
 
       // Kunin ang employeeId mula sa hidden input
-      // Siguraduhin na ang ID ay na-set ng parent script
       data.employeeId = document.getElementById('employeeId').value;
 
       if (!data.employeeId) {
         showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error');
-        return;
+        return false;
       }
 
       const saveBtn = document.getElementById('saveBtn');
@@ -273,7 +279,7 @@
           if (result.success) {
             showMessage(result.message, 'success');
             setTimeout(() => {
-              hideOverlay(true); // I-pass ang 'true' para i-refresh ang parent
+              hideOverlay(true);
             }, 2000);
           } else {
             showMessage(result.message, 'error');
@@ -282,12 +288,14 @@
           }
         })
         .withFailureHandler(err => {
-          showMessage('Error: 'Dina-process pa. ' + err.message, 'error');
+          showMessage('Error: ' + err.message, 'error');
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save Historical Balance';
         })
         .saveHistoricalBalance(data);
-    });
+
+      return false; // Prevent default form submission
+    }
 
     function showMessage(message, type) {
       const colors = {
