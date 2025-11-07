@@ -985,7 +985,18 @@
 
     // ==================== UTILITY ====================
     function showOverlay(content) {
-      document.getElementById('overlayContent').innerHTML = content;
+      const container = document.getElementById('overlayContent');
+      container.innerHTML = content;
+      
+      // Extract and execute scripts from injected HTML
+      const scripts = container.querySelectorAll('script');
+      scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+        document.body.removeChild(newScript);
+      });
+      
       document.getElementById('overlay').classList.add('active');
     }
 
