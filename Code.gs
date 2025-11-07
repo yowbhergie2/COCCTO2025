@@ -75,7 +75,27 @@ function formatDate(date, format = 'MM/dd/yyyy') {
 
 /**
  * Include HTML partial
+ * Special handling for HistoryForm to pre-populate years
  */
 function include(filename) {
+  // Special case: HistoryForm needs server-side year population
+  if (filename === 'HistoryForm') {
+    // Generate year options server-side
+    const startYear = 2024;
+    const currentYear = new Date().getFullYear();
+
+    let yearOptions = '<option value="">-- Select Year --</option>';
+    for (let i = currentYear; i >= startYear; i--) {
+      yearOptions += '<option value="' + i + '">' + i + '</option>';
+    }
+
+    // Create template and inject year options
+    const template = HtmlService.createTemplateFromFile(filename);
+    template.yearOptions = yearOptions;
+
+    return template.evaluate().getContent();
+  }
+
+  // Default: return file content as-is
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
