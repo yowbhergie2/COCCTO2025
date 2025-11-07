@@ -23,6 +23,29 @@ function saveHistoricalBalance(formData) {
         message: 'Employee not found'
       };
     }
+
+    // *** BAGONG VALIDATION: Check for duplicates ***
+    const data = getSheetData('CreditBatches');
+    const headers = getSheetHeaders('CreditBatches');
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('EarnedMonth');
+    const yearIndex = headers.indexOf('EarnedYear');
+    const notesIndex = headers.indexOf('Notes');
+
+    const isDuplicate = data.some(row => {
+      return row[employeeIdIndex] == employeeId &&
+             row[monthIndex] == month &&
+             row[yearIndex] == year &&
+             row[notesIndex] && row[notesIndex].toString().includes('Historical data migration');
+    });
+
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: `A historical balance for ${month} ${year} already exists for this employee.`
+      };
+    }
+    // *** END - BAGONG VALIDATION ***
     
     // Validation 2: COC Earned must not exceed 40 hours (monthly cap)
     if (cocEarned > 40) {
