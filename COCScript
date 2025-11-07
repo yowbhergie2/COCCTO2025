@@ -1,0 +1,66 @@
+<script>
+  /**
+   * Show overtime logging form
+   */
+  function showOvertimeForm() {
+    showOverlay('OvertimeForm', {});
+  }
+
+  /**
+   * Show certificate generation form (Phase 3)
+   */
+  function showCertificateForm() {
+    showAlert('Certificate Generation coming in Phase 3', 'info');
+  }
+
+  /**
+   * Show CTO logging form (Phase 4)
+   */
+  function showCTOForm() {
+    showAlert('CTO Logging coming in Phase 4', 'info');
+  }
+
+  /**
+   * Show uncertified COC report
+   */
+  function showUncertifiedReport() {
+    // For now, show a simple alert
+    // In Phase 3, this will show a detailed report
+    showAlert('Loading uncertified logs report...', 'info');
+
+    google.script.run
+      .withSuccessHandler(logs => {
+        if (logs.length === 0) {
+          showAlert('No uncertified overtime logs found', 'info');
+          return;
+        }
+
+        // Group by employee
+        const grouped = {};
+        logs.forEach(log => {
+          const key = log.employeeId;
+          if (!grouped[key]) {
+            grouped[key] = {
+              employeeId: log.employeeId,
+              logs: []
+            };
+          }
+          grouped[key].logs.push(log);
+        });
+
+        // Build simple report
+        let report = 'UNCERTIFIED OVERTIME LOGS:\n\n';
+        Object.keys(grouped).forEach(empId => {
+          const data = grouped[empId];
+          const total = data.logs.reduce((sum, log) => sum + parseFloat(log.cocEarned || 0), 0);
+          report += `Employee ID ${empId}: ${data.logs.length} entries, ${total.toFixed(1)} hours\n`;
+        });
+
+        showAlert(report, 'info');
+      })
+      .withFailureHandler(err => {
+        showAlert('Error loading uncertified logs: ' + err.message, 'error');
+      })
+      .getAllUncertifiedLogs();
+  }
+</script>

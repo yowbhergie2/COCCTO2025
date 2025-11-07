@@ -2,10 +2,69 @@
   <h1 class="page-title">COC Management</h1>
   <p class="page-subtitle">Manage compensatory overtime credits</p>
 </div>
+
+<!-- Log Overtime Section -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <i class="fas fa-clock"></i> Log Overtime (Add COC)
+  </div>
+  <div class="card-body">
+    <p style="color: #697386; margin-bottom: 1.5rem;">
+      Record approved overtime work for employees. Each entry will be saved as "Uncertified" until a certificate is generated.
+    </p>
+    <button class="btn btn-primary" onclick="showOvertimeForm()">
+      <i class="fas fa-plus"></i> Log New Overtime
+    </button>
+  </div>
+</div>
+
+<!-- Generate Certificate Section -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <i class="fas fa-certificate"></i> Generate COC Certificate (Activate Credits)
+  </div>
+  <div class="card-body">
+    <p style="color: #697386; margin-bottom: 1.5rem;">
+      Issue a certificate to activate uncertified overtime credits for an employee. This sets the expiration date and makes credits available for use.
+    </p>
+    <button class="btn btn-secondary" onclick="showCertificateForm()" disabled>
+      <i class="fas fa-award"></i> Generate Certificate
+    </button>
+    <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
+      <i class="fas fa-info-circle"></i> Coming in Phase 3
+    </p>
+  </div>
+</div>
+
+<!-- Log CTO Section -->
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <i class="fas fa-calendar-check"></i> Log CTO (Use COC)
+  </div>
+  <div class="card-body">
+    <p style="color: #697386; margin-bottom: 1.5rem;">
+      Record compensatory time off taken by employees. The system will automatically debit from their oldest active credits (FIFO).
+    </p>
+    <button class="btn btn-secondary" onclick="showCTOForm()" disabled>
+      <i class="fas fa-calendar-minus"></i> Log CTO Usage
+    </button>
+    <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
+      <i class="fas fa-info-circle"></i> Coming in Phase 4
+    </p>
+  </div>
+</div>
+
+<!-- View Uncertified Report -->
 <div class="card">
-  <div class="card-body" style="text-align: center; padding: 4rem;">
-    <i class="fas fa-business-time" style="font-size: 4rem; color: #e8ebed; margin-bottom: 1.5rem;"></i>
-    <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">COC Management</h3>
-    <p style="color: #697386;">Coming in Phase 2</p>
+  <div class="card-header">
+    <i class="fas fa-list-alt"></i> Uncertified COC Report
+  </div>
+  <div class="card-body">
+    <p style="color: #697386; margin-bottom: 1.5rem;">
+      View all logged overtime that is still uncertified and needs a certificate to be generated.
+    </p>
+    <button class="btn btn-secondary" onclick="showUncertifiedReport()">
+      <i class="fas fa-file-alt"></i> View Uncertified Logs
+    </button>
   </div>
 </div>
