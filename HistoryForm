@@ -305,13 +305,13 @@
         info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
       };
       const color = colors[type];
-      
+
       const container = document.getElementById('messageContainer');
       container.style.cssText = `
-        background: ${color.bg}; 
-        border: 1px solid ${color.border}; 
+        background: ${color.bg};
+        border: 1px solid ${color.border};
         color: ${color.text};
-        padding: 1rem; 
+        padding: 1rem;
         border-radius: 8px;
         font-weight: 500;
         font-size: 0.9375rem;
@@ -319,28 +319,8 @@
       container.textContent = message;
     }
 
-    /**
-     * In-page function galing sa parent, kailangan dito para gumana
-     * ang 'Cancel' button at 'hideOverlay()' after success.
-     * @param {boolean} [shouldRefresh=false] - I-set sa true para i-refresh ang data sa parent.
-     */
-    function hideOverlay(shouldRefresh = false) {
-      // Check kung andyan 'yung function sa parent scope
-      if (typeof window.parent.hideOverlay === 'function') {
-         // I-tawag ang parent function.
-         // 'shouldRefresh' ay custom logic na idinagdag ko
-         window.parent.hideOverlay(shouldRefresh); 
-      } else {
-         // Fallback kung wala talaga (para lang 'di mag-error)
-         const overlay = window.parent.document.getElementById('modalOverlay');
-         if (overlay) {
-           overlay.remove();
-           if (shouldRefresh && window.parent.currentView === 'employees' && window.parent.selectedEmployee) {
-             window.parent.displayHistoricalBalances(window.parent.selectedEmployee.employeeId);
-           }
-         }
-      }
-    }
+    // Note: hideOverlay() function is provided by the parent scope (EmployeesScript)
+    // No need to redefine it here
   </script>
 </body>
 </html>

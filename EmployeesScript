@@ -441,7 +441,28 @@
     
     google.script.run
       .withSuccessHandler(html => {
-        overlay.innerHTML = html;
+        // FIX: Scripts in innerHTML don't execute, so we need to extract and run them manually
+        // Create a temporary container to parse the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        // Extract script tags
+        const scripts = tempDiv.querySelectorAll('script');
+        const scriptContents = [];
+        scripts.forEach(script => {
+          scriptContents.push(script.textContent);
+          script.remove(); // Remove from tempDiv so we don't duplicate
+        });
+
+        // Set the HTML (without scripts)
+        overlay.innerHTML = tempDiv.innerHTML;
+
+        // Execute scripts by creating new script elements
+        scriptContents.forEach(content => {
+          const scriptElement = document.createElement('script');
+          scriptElement.textContent = content;
+          overlay.appendChild(scriptElement);
+        });
 
         // If params are provided, set them
         if (params.employeeId) {
@@ -451,22 +472,6 @@
             empSelect.disabled = true; // Lock to selected employee
           }
         }
-
-        // FIX: Manually trigger year population for HistoryForm if the function exists
-        // This is a backup in case the inline script doesn't run properly
-        setTimeout(() => {
-          const yearSelect = overlay.querySelector('#year');
-          if (yearSelect && yearSelect.options.length <= 1) {
-            console.log('[showOverlay] Year dropdown empty, manually triggering population...');
-            // Try to call the populateYears function if it exists in the iframe's context
-            const iframe = overlay.querySelector('iframe');
-            if (iframe && iframe.contentWindow && typeof iframe.contentWindow.populateYears === 'function') {
-              iframe.contentWindow.populateYears();
-            }
-          } else if (yearSelect) {
-            console.log('[showOverlay] Year dropdown has ' + yearSelect.options.length + ' options');
-          }
-        }, 200);
       })
       .withFailureHandler(err => {
         showAlert('Error loading form: ' + err.message, 'error');
@@ -477,13 +482,14 @@
 
   /**
    * Hides the modal overlay
+   * @param {boolean} shouldRefresh - Optional parameter to force refresh (always refreshes for employees view)
    */
-  function hideOverlay() {
+  function hideOverlay(shouldRefresh = true) {
     const overlay = document.getElementById('modalOverlay');
     if (overlay) {
       overlay.remove();
-      // After closing, refresh data
-      if (currentView === 'employees' && selectedEmployee) {
+      // After closing, refresh data if requested and on employees view
+      if (shouldRefresh && currentView === 'employees' && selectedEmployee) {
         displayHistoricalBalances(selectedEmployee.employeeId);
       }
     }
