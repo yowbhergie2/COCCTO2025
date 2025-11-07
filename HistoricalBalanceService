@@ -82,6 +82,11 @@ function saveHistoricalBalance(formData) {
     // Calculate Remaining balance
     const remaining = cocEarned - cocUsed;
     
+    // *** PAKI-AYOS (START): Idinagdag ang logic para sa status ***
+    // Tingnan kung 0 ang remaining, gawing "Used" ang status. Kung hindi, "Active".
+    const status = remaining > 0 ? 'Active' : 'Used';
+    // *** PAKI-AYOS (END) ***
+    
     // Calculate Valid Until date: (Date of Issuance + 1 Year) - 1 Day
     const validUntil = new Date(dateOfIssuance);
     validUntil.setFullYear(validUntil.getFullYear() + 1);
@@ -111,7 +116,7 @@ function saveHistoricalBalance(formData) {
       validUntil,                 // F: ValidUntil
       cocEarned,                  // G: OriginalHours
       remaining,                  // H: RemainingHours
-      'Active',                   // I: Status
+      status,                     // I: Status  <-- PAKI-AYOS: Pinalitan ng 'status' variable
       currentEmail,               // J: CertifiedBy
       currentDate,                // K: CertifiedDate
       'Historical data migration' // L: Notes
