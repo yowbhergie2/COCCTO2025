@@ -442,6 +442,7 @@
     google.script.run
       .withSuccessHandler(html => {
         overlay.innerHTML = html;
+
         // If params are provided, set them
         if (params.employeeId) {
           const empSelect = overlay.querySelector('#employeeId');
@@ -450,6 +451,22 @@
             empSelect.disabled = true; // Lock to selected employee
           }
         }
+
+        // FIX: Manually trigger year population for HistoryForm if the function exists
+        // This is a backup in case the inline script doesn't run properly
+        setTimeout(() => {
+          const yearSelect = overlay.querySelector('#year');
+          if (yearSelect && yearSelect.options.length <= 1) {
+            console.log('[showOverlay] Year dropdown empty, manually triggering population...');
+            // Try to call the populateYears function if it exists in the iframe's context
+            const iframe = overlay.querySelector('iframe');
+            if (iframe && iframe.contentWindow && typeof iframe.contentWindow.populateYears === 'function') {
+              iframe.contentWindow.populateYears();
+            }
+          } else if (yearSelect) {
+            console.log('[showOverlay] Year dropdown has ' + yearSelect.options.length + ' options');
+          }
+        }, 200);
       })
       .withFailureHandler(err => {
         showAlert('Error loading form: ' + err.message, 'error');

@@ -187,36 +187,64 @@
       const yearSelect = document.getElementById('year');
       if (!yearSelect) {
         console.error('populateYears: Could not find #year select element.');
-        return; // Guard clause
+        return false;
       }
 
       const startYear = 2024;
-      const currentYear = new Date().getFullYear(); // e.g., 2025, 2026, etc.
+      const currentYear = new Date().getFullYear();
 
+      console.log('[HistoryForm] Populating years from ' + startYear + ' to ' + currentYear);
+
+      // Clear existing options (keep placeholder)
+      yearSelect.innerHTML = '<option value="">-- Select Year --</option>';
+
+      // Populate years from current year down to 2024
       for (let i = currentYear; i >= startYear; i--) {
         const option = document.createElement('option');
         option.value = i;
         option.textContent = i;
         yearSelect.appendChild(option);
       }
+
+      console.log('[HistoryForm] Successfully populated ' + (currentYear - startYear + 1) + ' years');
+      return true;
     }
 
-    // FIX: Call populateYears() directly instead of waiting for DOMContentLoaded
-    // because this HTML is loaded dynamically into a modal overlay
-    try {
-      populateYears();
-    } catch (e) {
-      console.error("Error populating years:", e);
-      // Magpakita ng error sa user kung 'di gumana
-      setTimeout(function() {
-        const yearSelect = document.getElementById('year');
-        if(yearSelect) {
-          yearSelect.innerHTML = '<option value="">Error loading years</option>';
+    /**
+     * Retry logic: Try to populate years with exponential backoff
+     */
+    (function initYearDropdown() {
+      let attempts = 0;
+      const maxAttempts = 20;
+      const delays = [0, 10, 20, 50, 100, 100, 100, 200, 200, 200, 500];
+
+      function tryPopulate() {
+        attempts++;
+        console.log('[HistoryForm] Attempt ' + attempts + ' to populate years...');
+
+        const success = populateYears();
+
+        if (success) {
+          console.log('[HistoryForm] Years populated successfully on attempt ' + attempts);
+        } else if (attempts < maxAttempts) {
+          const delay = delays[Math.min(attempts - 1, delays.length - 1)] || 500;
+          console.log('[HistoryForm] Retrying in ' + delay + 'ms...');
+          setTimeout(tryPopulate, delay);
+        } else {
+          console.error('[HistoryForm] Failed to populate years after ' + maxAttempts + ' attempts');
+          // Last resort: try one more time after 1 second
+          setTimeout(function() {
+            const yearSelect = document.getElementById('year');
+            if (yearSelect && yearSelect.options.length <= 1) {
+              yearSelect.innerHTML = '<option value="">Error: Could not load years. Please refresh.</option>';
+            }
+          }, 1000);
         }
-      }, 100);
-    }
+      }
 
-    // TINANGGAL: buong loadEmployees() function. Hindi na kailangan dito.
+      // Start immediately
+      tryPopulate();
+    })();
 
     function calculateRemaining() {
       const earned = parseFloat(document.getElementById('cocEarned').value) || 0;
