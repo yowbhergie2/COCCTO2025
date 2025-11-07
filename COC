@@ -1,0 +1,11 @@
+<div class="page-header">
+  <h1 class="page-title">COC Management</h1>
+  <p class="page-subtitle">Manage compensatory overtime credits</p>
+</div>
+<div class="card">
+  <div class="card-body" style="text-align: center; padding: 4rem;">
+    <i class="fas fa-business-time" style="font-size: 4rem; color: #e8ebed; margin-bottom: 1.5rem;"></i>
+    <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">COC Management</h3>
+    <p style="color: #697386;">Coming in Phase 2</p>
+  </div>
+</div>
