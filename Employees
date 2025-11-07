@@ -1,0 +1,42 @@
+<div class="page-header">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <h1 class="page-title">Employee Management</h1>
+      <p class="page-subtitle">Manage employee records and historical COC balances</p>
+    </div>
+    <button onclick="addNewEmployee()" class="btn btn-primary">
+      <i class="fas fa-plus"></i>
+      <span>Add Employee</span>
+    </button>
+  </div>
+</div>
+
+<div class="split-view">
+  <!-- Left Panel: Employee List -->
+  <div class="split-panel">
+    <div class="panel-header">
+      <div class="panel-title">Employee List</div>
+    </div>
+    <div class="search-container">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="employeeSearch" placeholder="Search employees..." 
+             class="search-input" oninput="filterEmployees()">
+    </div>
+    <div class="panel-body" id="employeeListContainer">
+      <div class="empty-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading employees...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Employee Details -->
+  <div class="split-panel" id="employeeDetailsPanel">
+    <div class="panel-body">
+      <div class="empty-state" style="padding: 4rem 2rem;">
+        <i class="fas fa-user-circle"></i>
+        <p>Select an employee to view details</p>
+      </div>
+    </div>
+  </div>
+</div>
