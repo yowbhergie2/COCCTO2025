@@ -1,0 +1,136 @@
+<script>
+  /**
+   * Refreshes both master data lists (Offices and Positions)
+   */
+  function refreshMasterData() {
+    // Load Offices
+    google.script.run
+      .withSuccessHandler(offices => {
+        const list = document.getElementById('officesList');
+        list.innerHTML = '';
+        if (offices.length === 0) {
+          list.innerHTML = '<p style="text-align: center; color: #697386;">No offices found</p>';
+          return;
+        }
+        offices.sort().forEach(office => {
+          list.appendChild(createMasterDataItem(office, 'office'));
+        });
+      })
+      .withFailureHandler(err => {
+        showAlert('Error loading offices: ' + err.message, 'error');
+      })
+      .getAllOffices();
+
+    // Load Positions
+    google.script.run
+      .withSuccessHandler(positions => {
+        const list = document.getElementById('positionsList');
+        list.innerHTML = '';
+        if (positions.length === 0) {
+          list.innerHTML = '<p style="text-align: center; color: #697386;">No positions found</p>';
+          return;
+        }
+        positions.sort().forEach(position => {
+          list.appendChild(createMasterDataItem(position, 'position'));
+        });
+      })
+      .withFailureHandler(err => {
+        showAlert('Error loading positions: ' + err.message, 'error');
+      })
+      .getAllPositions();
+  }
+
+  /**
+   * Creates a list item for master data
+   */
+  function createMasterDataItem(name, type) {
+    const div = document.createElement('div');
+    div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; border-bottom: 1px solid #f0f2f5;';
+    
+    const text = document.createElement('span');
+    text.textContent = name;
+    text.style.color = '#1a1f36';
+    
+    const buttons = document.createElement('div');
+    buttons.style.display = 'flex';
+    buttons.style.gap = '0.5rem';
+    
+    buttons.innerHTML = `
+      <button onclick="editMasterDataItem('${name}', '${type}')" title="Edit"
+              style="color: #3b82f6; cursor: pointer; background: none; border: none; font-size: 0.875rem;">
+        <i class="fas fa-pencil-alt"></i>
+      </button>
+      <button onclick="deleteMasterDataItem('${name}', '${type}')" title="Delete"
+              style="color: #ef4444; cursor: pointer; background: none; border: none; font-size: 0.875rem;">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    `;
+    
+    div.appendChild(text);
+    div.appendChild(buttons);
+    return div;
+  }
+
+  /**
+   * Prompts user to add a new master data item
+   */
+  function addMasterDataItem(type) {
+    const name = prompt(`Enter new ${type} name:`);
+    if (name && name.trim() !== '') {
+      const serverFunc = (type === 'office') ? 'addOffice' : 'addPosition';
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showAlert(result.message, 'success');
+            refreshMasterData();
+          } else {
+            showAlert(result.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert('Error: ' + err.message, 'error'))
+        [serverFunc](name.trim());
+    }
+  }
+
+  /**
+   * Prompts user to edit a master data item
+   */
+  function editMasterDataItem(oldName, type) {
+    const newName = prompt(`Edit ${type} name:`, oldName);
+    if (newName && newName.trim() !== '' && newName !== oldName) {
+      const serverFunc = (type === 'office') ? 'updateOffice' : 'updatePosition';
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showAlert(result.message, 'success');
+            refreshMasterData();
+          } else {
+            showAlert(result.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert('Error: ' + err.message, 'error'))
+        [serverFunc](oldName, newName.trim());
+    }
+  }
+
+  /**
+   * Confirms and deletes a master data item
+   */
+  function deleteMasterDataItem(name, type) {
+    const confirmed = confirm(`Are you sure you want to delete "${name}"?`);
+    if (confirmed) {
+      const serverFunc = (type === 'office') ? 'deleteOffice' : 'deletePosition';
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showAlert(result.message, 'success');
+            refreshMasterData();
+          } else {
+            showAlert(result.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert('Error: ' + err.message, 'error'))
+        [serverFunc](name);
+    }
+  }
+</script>
