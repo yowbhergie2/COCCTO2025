@@ -1,0 +1,237 @@
+// LibraryService.gs - Master Data Management
+
+/**
+ * Get all offices from Libraries sheet (Column A)
+ */
+function getAllOffices() {
+  const sheet = getDbSheet('Libraries');
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+  
+  const offices = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
+    .map(row => row[0])
+    .filter(office => office !== '');
+  
+  return offices;
+}
+
+/**
+ * Get all positions from Libraries sheet (Column B)
+ */
+function getAllPositions() {
+  const sheet = getDbSheet('Libraries');
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+  
+  const positions = sheet.getRange(2, 2, lastRow - 1, 1).getValues()
+    .map(row => row[0])
+    .filter(position => position !== '');
+  
+  return positions;
+}
+
+/**
+ * Add office to Libraries
+ */
+function addOffice(officeName) {
+  try {
+    if (!officeName || officeName.trim() === '') {
+      return {
+        success: false,
+        message: 'Office name is required'
+      };
+    }
+    
+    const offices = getAllOffices();
+    if (offices.includes(officeName)) {
+      return {
+        success: false,
+        message: 'Office already exists'
+      };
+    }
+    
+    const sheet = getDbSheet('Libraries');
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow + 1, 1).setValue(officeName);
+    
+    return {
+      success: true,
+      message: 'Office added successfully'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error adding office: ' + error.message
+    };
+  }
+}
+
+/**
+ * Add position to Libraries
+ */
+function addPosition(positionName) {
+  try {
+    if (!positionName || positionName.trim() === '') {
+      return {
+        success: false,
+        message: 'Position name is required'
+      };
+    }
+    
+    const positions = getAllPositions();
+    if (positions.includes(positionName)) {
+      return {
+        success: false,
+        message: 'Position already exists'
+      };
+    }
+    
+    const sheet = getDbSheet('Libraries');
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow + 1, 2).setValue(positionName);
+    
+    return {
+      success: true,
+      message: 'Position added successfully'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error adding position: ' + error.message
+    };
+  }
+}
+
+/**
+ * Update office name
+ */
+function updateOffice(oldName, newName) {
+  try {
+    if (!newName || newName.trim() === '') {
+      return {
+        success: false,
+        message: 'Office name is required'
+      };
+    }
+    
+    const sheet = getDbSheet('Libraries');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === oldName) {
+        sheet.getRange(i + 1, 1).setValue(newName);
+        return {
+          success: true,
+          message: 'Office updated successfully'
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      message: 'Office not found'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error updating office: ' + error.message
+    };
+  }
+}
+
+/**
+ * Update position name
+ */
+function updatePosition(oldName, newName) {
+  try {
+    if (!newName || newName.trim() === '') {
+      return {
+        success: false,
+        message: 'Position name is required'
+      };
+    }
+    
+    const sheet = getDbSheet('Libraries');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === oldName) {
+        sheet.getRange(i + 1, 2).setValue(newName);
+        return {
+          success: true,
+          message: 'Position updated successfully'
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      message: 'Position not found'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error updating position: ' + error.message
+    };
+  }
+}
+
+/**
+ * Delete office
+ */
+function deleteOffice(officeName) {
+  try {
+    const sheet = getDbSheet('Libraries');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === officeName) {
+        sheet.getRange(i + 1, 1).clearContent();
+        return {
+          success: true,
+          message: 'Office deleted successfully'
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      message: 'Office not found'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error deleting office: ' + error.message
+    };
+  }
+}
+
+/**
+ * Delete position
+ */
+function deletePosition(positionName) {
+  try {
+    const sheet = getDbSheet('Libraries');
+    const data = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === positionName) {
+        sheet.getRange(i + 1, 2).clearContent();
+        return {
+          success: true,
+          message: 'Position deleted successfully'
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      message: 'Position not found'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error deleting position: ' + error.message
+    };
+  }
+}
