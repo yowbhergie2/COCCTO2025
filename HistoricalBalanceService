@@ -13,7 +13,7 @@ function saveHistoricalBalance(formData) {
     const year = parseInt(formData.year);
     const cocEarned = parseFloat(formData.cocEarned);
     const cocUsed = parseFloat(formData.cocUsed);
-    const dateOfIssuance = new Date(formData.dateOfIssuance);
+    const dateOfIssuanceStr = formData.dateOfIssuance;
     
     // Validation 1: Check employee exists
     const employee = getEmployeeById(employeeId);
@@ -41,7 +41,14 @@ function saveHistoricalBalance(formData) {
     }
     
     // Validation 4: Date of Issuance must be on or after the last day of the earned month
-    const lastDayOfMonth = new Date(year, getMonthNumber(month), 0);
+    // Get last day of the earned month
+    const lastDayOfMonth = new Date(year, getMonthNumber(month) + 1, 0);
+    lastDayOfMonth.setHours(0, 0, 0, 0);
+    
+    // Parse and normalize dateOfIssuance
+    const dateOfIssuance = new Date(dateOfIssuanceStr + 'T00:00:00');
+    dateOfIssuance.setHours(0, 0, 0, 0);
+    
     if (dateOfIssuance < lastDayOfMonth) {
       return {
         success: false,
