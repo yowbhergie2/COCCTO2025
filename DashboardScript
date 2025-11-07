@@ -1,0 +1,18 @@
+<script>
+  /**
+   * Loads the statistics for the dashboard
+   */
+  function loadDashboardStats() {
+    // Placeholder: This will be implemented in Phase 5
+    // For now, we just log to the console to show it's working
+    console.log('loadDashboardStats() called. Stats will be loaded here in a future phase.');
+    
+    // --- TODO: FUTURE ---
+    // google.script.run.withSuccessHandler(stats => {
+    //   document.getElementById('totalActiveCOC').textContent = stats.totalActiveCOC || '0.0';
+    //   document.getElementById('totalUncertifiedCOC').textContent = stats.totalUncertifiedCOC || '0.0';
+    //   document.getElementById('expiringCOC').textContent = stats.expiringCOC || '0.0';
+    //   document.getElementById('activeEmployees').textContent = stats.activeEmployees || '0';
+    // }).getDashboardStats();
+  }
+</script>
