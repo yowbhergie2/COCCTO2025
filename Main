@@ -29,9 +29,30 @@
               <i class="fas fa-users"></i>
               <span>Employees</span>
             </div>
-            <div class="nav-link" onclick="navigateTo('coc')" data-view="coc">
-              <i class="fas fa-business-time"></i>
-              <span>COC</span>
+            <div class="nav-dropdown" id="cocDropdown">
+              <div class="nav-dropdown-toggle" onclick="toggleDropdown('cocDropdown')">
+                <i class="fas fa-business-time"></i>
+                <span>COC</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="nav-dropdown-menu">
+                <div class="nav-dropdown-item" onclick="navigateToCOCPage('logovertime')" data-view="logovertime">
+                  <i class="fas fa-clock"></i>
+                  <span>Log Overtime</span>
+                </div>
+                <div class="nav-dropdown-item disabled" data-view="generatecertificate">
+                  <i class="fas fa-certificate"></i>
+                  <span>Generate Certificate</span>
+                </div>
+                <div class="nav-dropdown-item disabled" data-view="logcto">
+                  <i class="fas fa-calendar-check"></i>
+                  <span>Log CTO</span>
+                </div>
+                <div class="nav-dropdown-item" onclick="navigateToCOCPage('uncertifiedreport')" data-view="uncertifiedreport">
+                  <i class="fas fa-list-alt"></i>
+                  <span>Uncertified Report</span>
+                </div>
+              </div>
             </div>
             <div class="nav-link" onclick="navigateTo('reports')" data-view="reports">
               <i class="fas fa-chart-line"></i>
@@ -98,15 +119,72 @@
     }
 
     /**
+     * Toggle dropdown menu
+     */
+    function toggleDropdown(dropdownId) {
+      const dropdown = document.getElementById(dropdownId);
+      const isOpen = dropdown.classList.contains('open');
+
+      // Close all dropdowns first
+      document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+
+      // Toggle this dropdown
+      if (!isOpen) {
+        dropdown.classList.add('open');
+      }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!event.target.closest('.nav-dropdown')) {
+        document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
+
+    /**
+     * Navigate to COC sub-page
+     */
+    function navigateToCOCPage(page) {
+      // Close dropdown
+      document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+
+      // Update active states
+      document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.nav-dropdown-item').forEach(item => item.classList.remove('active'));
+      document.querySelector(`.nav-dropdown-item[data-view="${page}"]`)?.classList.add('active');
+      document.querySelector('#cocDropdown .nav-dropdown-toggle').classList.add('active');
+
+      currentView = page;
+
+      showMainContentSpinner();
+
+      setTimeout(() => {
+        switch(page) {
+          case 'logovertime': loadLogOvertimeView(); break;
+          case 'generatecertificate': loadGenerateCertificateView(); break;
+          case 'logcto': loadLogCTOView(); break;
+          case 'uncertifiedreport': loadUncertifiedReportView(); break;
+        }
+      }, 50);
+    }
+
+    /**
      * Main navigation function
      */
     function navigateTo(view) {
       if (currentView === view) return; // Do nothing if clicking the same tab
 
+      // Close all dropdowns
+      document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+
+      // Clear dropdown active states
+      document.querySelectorAll('.nav-dropdown-toggle').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-dropdown-item').forEach(item => item.classList.remove('active'));
+
       document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
       document.querySelector(`.nav-link[data-view="${view}"]`).classList.add('active');
       currentView = view;
-      
+
       // *** FIX: Show spinner IMMEDIATELY ***
       showMainContentSpinner();
 
@@ -115,7 +193,6 @@
         switch(view) {
           case 'dashboard': loadDashboard(); break;
           case 'employees': loadEmployeesView(); break;
-          case 'coc': loadCOCView(); break;
           case 'reports': loadReportsView(); break;
           case 'masterdata': loadMasterDataView(); break;
         }
@@ -147,15 +224,48 @@
         .include('Employees');
     }
 
-    function loadCOCView() {
+    function loadLogOvertimeView() {
       google.script.run
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
         })
         .withFailureHandler(err => {
-          document.getElementById('mainContent').innerHTML = `<p>Error loading COC: ${err.message}</p>`;
+          document.getElementById('mainContent').innerHTML = `<p>Error loading Log Overtime: ${err.message}</p>`;
         })
-        .include('COC');
+        .include('LogOvertime');
+    }
+
+    function loadGenerateCertificateView() {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading Generate Certificate: ${err.message}</p>`;
+        })
+        .include('GenerateCertificate');
+    }
+
+    function loadLogCTOView() {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading Log CTO: ${err.message}</p>`;
+        })
+        .include('LogCTO');
+    }
+
+    function loadUncertifiedReportView() {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading Uncertified Report: ${err.message}</p>`;
+        })
+        .include('UncertifiedReport');
     }
 
     function loadReportsView() {
@@ -207,5 +317,6 @@
   <?!= include('EmployeesScript'); ?>
   <?!= include('DashboardScript'); ?>
   <?!= include('MasterDataScript'); ?>
+  <?!= include('COCScript'); ?>
 </body>
 </html>

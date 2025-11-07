@@ -1,0 +1,107 @@
+<div class="page-header">
+  <h1 class="page-title">Log CTO (Use COC)</h1>
+  <p class="page-subtitle">Record compensatory time off taken by employees</p>
+</div>
+
+<div class="card">
+  <div class="card-body" style="text-align: center; padding: 4rem 2rem;">
+    <div style="margin-bottom: 2rem;">
+      <i class="fas fa-calendar-check" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+    </div>
+
+    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">
+      Coming in Phase 4
+    </h2>
+
+    <p style="color: #697386; font-size: 1rem; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+      This feature will allow HR Staff to log compensatory time off usage by employees.
+      The system will automatically debit credits using FIFO (First-In, First-Out) logic.
+    </p>
+
+    <div class="info-box" style="text-align: left; max-width: 700px; margin: 0 auto;">
+      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
+        <i class="fas fa-lightbulb"></i> <strong>What this feature will do:</strong>
+      </p>
+      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
+        <li>Select an employee and enter CTO date(s) taken</li>
+        <li>Enter hours used (in 0.5 hour increments)</li>
+        <li>View employee's available balance before logging</li>
+        <li>System automatically debits from oldest active credits first (FIFO)</li>
+        <li>Prevent usage if insufficient balance</li>
+        <li>Show detailed transaction history in ledger</li>
+        <li>Track which certificates were used for each CTO</li>
+      </ul>
+    </div>
+
+    <div style="margin-top: 2rem;">
+      <button class="btn btn-secondary" disabled>
+        <i class="fas fa-lock"></i> Feature Locked
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview of Future Layout -->
+<div class="card" style="margin-top: 1.5rem; opacity: 0.5;">
+  <div class="card-header">
+    <div class="card-title">CTO Entry Form (Coming Soon)</div>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Employee</label>
+        <select class="form-input" disabled>
+          <option>-- Select Employee --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">CTO Date</label>
+        <input type="date" class="form-input" disabled>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Hours Used</label>
+      <input type="number" class="form-input" disabled placeholder="Enter hours (e.g., 4.0, 8.0)" step="0.5">
+    </div>
+
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <div style="font-size: 0.875rem; color: #697386;">Current Available Balance</div>
+          <div style="font-size: 2rem; font-weight: 700; color: #10b981;">0.0 hrs</div>
+        </div>
+        <div>
+          <div style="font-size: 0.875rem; color: #697386;">After This CTO</div>
+          <div style="font-size: 1.5rem; font-weight: 600; color: #697386;">0.0 hrs</div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #e8ebed; padding-top: 1rem; margin-top: 1rem;">
+        <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.5rem;">Credits to be Debited (FIFO):</div>
+        <div style="font-size: 0.875rem; color: #1a1f36; font-style: italic;">
+          No credits available
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: right; margin-top: 1.5rem;">
+      <button class="btn btn-primary" disabled>
+        <i class="fas fa-calendar-minus"></i> Log CTO Usage
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Ledger Preview -->
+<div class="card" style="margin-top: 1.5rem; opacity: 0.5;">
+  <div class="card-header">
+    <div class="card-title">Recent CTO Transactions (Coming Soon)</div>
+  </div>
+  <div class="card-body">
+    <div class="empty-state">
+      <i class="fas fa-receipt"></i>
+      <p>No CTO transactions yet</p>
+    </div>
+  </div>
+</div>

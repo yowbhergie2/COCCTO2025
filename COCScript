@@ -1,66 +1,273 @@
 <script>
+  // ========== LOG OVERTIME PAGE ==========
+
   /**
-   * Show overtime logging form
+   * Show overtime form overlay
    */
   function showOvertimeForm() {
     showOverlay('OvertimeForm', {});
   }
 
   /**
-   * Show certificate generation form (Phase 3)
+   * Load stats for Log Overtime page
    */
-  function showCertificateForm() {
-    showAlert('Certificate Generation coming in Phase 3', 'info');
-  }
-
-  /**
-   * Show CTO logging form (Phase 4)
-   */
-  function showCTOForm() {
-    showAlert('CTO Logging coming in Phase 4', 'info');
-  }
-
-  /**
-   * Show uncertified COC report
-   */
-  function showUncertifiedReport() {
-    // For now, show a simple alert
-    // In Phase 3, this will show a detailed report
-    showAlert('Loading uncertified logs report...', 'info');
-
+  function loadLogOvertimeStats() {
     google.script.run
-      .withSuccessHandler(logs => {
-        if (logs.length === 0) {
-          showAlert('No uncertified overtime logs found', 'info');
-          return;
-        }
-
-        // Group by employee
-        const grouped = {};
-        logs.forEach(log => {
-          const key = log.employeeId;
-          if (!grouped[key]) {
-            grouped[key] = {
-              employeeId: log.employeeId,
-              logs: []
-            };
-          }
-          grouped[key].logs.push(log);
-        });
-
-        // Build simple report
-        let report = 'UNCERTIFIED OVERTIME LOGS:\n\n';
-        Object.keys(grouped).forEach(empId => {
-          const data = grouped[empId];
-          const total = data.logs.reduce((sum, log) => sum + parseFloat(log.cocEarned || 0), 0);
-          report += `Employee ID ${empId}: ${data.logs.length} entries, ${total.toFixed(1)} hours\n`;
-        });
-
-        showAlert(report, 'info');
+      .withSuccessHandler(stats => {
+        document.getElementById('totalUncertifiedHours').textContent = stats.totalHours.toFixed(1);
+        document.getElementById('totalUncertifiedEntries').textContent = stats.totalEntries;
+        document.getElementById('employeesWithUncertified').textContent = stats.employeeCount;
       })
       .withFailureHandler(err => {
-        showAlert('Error loading uncertified logs: ' + err.message, 'error');
+        console.error('Error loading stats:', err);
+      })
+      .getUncertifiedStats();
+  }
+
+  // ========== UNCERTIFIED REPORT PAGE ==========
+
+  let allUncertifiedLogs = [];
+
+  /**
+   * Load uncertified report
+   */
+  function loadUncertifiedReport() {
+    // Load stats
+    loadUncertifiedReportStats();
+
+    // Load filter dropdowns
+    loadUncertifiedReportFilters();
+
+    // Load report data
+    google.script.run
+      .withSuccessHandler(logs => {
+        allUncertifiedLogs = logs;
+        renderUncertifiedReport(logs);
+      })
+      .withFailureHandler(err => {
+        document.getElementById('uncertifiedReportContainer').innerHTML = `
+          <div style="text-align: center; padding: 3rem; color: #ef4444;">
+            <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+            <p>Error loading report: ${err.message}</p>
+          </div>`;
       })
       .getAllUncertifiedLogs();
   }
+
+  /**
+   * Load stats for uncertified report
+   */
+  function loadUncertifiedReportStats() {
+    google.script.run
+      .withSuccessHandler(stats => {
+        document.getElementById('totalUncertifiedHours').textContent = stats.totalHours.toFixed(1);
+        document.getElementById('totalUncertifiedEntries').textContent = stats.totalEntries;
+        document.getElementById('employeesWithUncertified').textContent = stats.employeeCount;
+        document.getElementById('oldestUncertified').textContent = stats.oldestDate || '--';
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading stats:', err);
+      })
+      .getUncertifiedReportStats();
+  }
+
+  /**
+   * Load filter dropdowns
+   */
+  function loadUncertifiedReportFilters() {
+    // Load employees for filter
+    google.script.run
+      .withSuccessHandler(employees => {
+        const select = document.getElementById('filterEmployee');
+        if (!select) return;
+
+        employees.forEach(emp => {
+          const option = document.createElement('option');
+          option.value = emp.id;
+          option.textContent = emp.name;
+          select.appendChild(option);
+        });
+      })
+      .getEmployeesForDropdown();
+
+    // Populate years (2024 to current year)
+    const yearSelect = document.getElementById('filterYear');
+    if (yearSelect) {
+      const currentYear = new Date().getFullYear();
+      for (let year = currentYear; year >= 2024; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+      }
+    }
+  }
+
+  /**
+   * Render uncertified report table
+   */
+  function renderUncertifiedReport(logs) {
+    const container = document.getElementById('uncertifiedReportContainer');
+    if (!container) return;
+
+    if (logs.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-check-circle"></i>
+          <p>No uncertified logs found</p>
+        </div>`;
+      return;
+    }
+
+    // Group by employee
+    const grouped = {};
+    logs.forEach(log => {
+      const key = log.employeeId;
+      if (!grouped[key]) {
+        grouped[key] = {
+          employeeName: log.employeeName,
+          logs: [],
+          totalHours: 0
+        };
+      }
+      grouped[key].logs.push(log);
+      grouped[key].totalHours += log.cocEarned;
+    });
+
+    let html = '<div style="padding: 1.5rem;">';
+
+    Object.keys(grouped).forEach(employeeId => {
+      const group = grouped[employeeId];
+
+      html += `
+        <div style="margin-bottom: 2rem; border: 1px solid #e8ebed; border-radius: 8px; overflow: hidden;">
+          <div style="background: #f8f9fa; padding: 1rem 1.5rem; border-bottom: 1px solid #e8ebed;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 600; color: #1a1f36; font-size: 1rem;">${group.employeeName}</div>
+                <div style="font-size: 0.875rem; color: #697386;">Employee ID: ${employeeId}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 0.875rem; color: #697386;">Total Uncertified</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #4f46e5;">${group.totalHours.toFixed(1)} hrs</div>
+              </div>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead style="background: #fafbfc;">
+                <tr>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date Worked</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Day Type</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">AM In</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">AM Out</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">PM In</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">PM Out</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
+                </tr>
+              </thead>
+              <tbody>`;
+
+      group.logs.forEach(log => {
+        const dayTypeColor = log.dayType === 'Weekday' ? '#3b82f6' : (log.dayType === 'Holiday' ? '#ef4444' : '#10b981');
+        html += `
+          <tr style="border-bottom: 1px solid #f0f2f5;">
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.dateWorked}</td>
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.month} ${log.year}</td>
+            <td style="padding: 0.75rem;">
+              <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${dayTypeColor}15; color: ${dayTypeColor};">
+                ${log.dayType}
+              </span>
+            </td>
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.amIn || '--'}</td>
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.amOut || '--'}</td>
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.pmIn || '--'}</td>
+            <td style="padding: 0.75rem; font-size: 0.875rem;">${log.pmOut || '--'}</td>
+            <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">${log.cocEarned.toFixed(1)}</td>
+          </tr>`;
+      });
+
+      html += `
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  /**
+   * Filter uncertified report
+   */
+  function filterUncertifiedReport() {
+    const employeeFilter = document.getElementById('filterEmployee').value;
+    const monthFilter = document.getElementById('filterMonth').value;
+    const yearFilter = document.getElementById('filterYear').value;
+
+    let filtered = allUncertifiedLogs;
+
+    if (employeeFilter) {
+      filtered = filtered.filter(log => log.employeeId == employeeFilter);
+    }
+
+    if (monthFilter) {
+      filtered = filtered.filter(log => log.month === monthFilter);
+    }
+
+    if (yearFilter) {
+      filtered = filtered.filter(log => log.year == yearFilter);
+    }
+
+    renderUncertifiedReport(filtered);
+  }
+
+  /**
+   * Clear filters
+   */
+  function clearFilters() {
+    document.getElementById('filterEmployee').value = '';
+    document.getElementById('filterMonth').value = '';
+    document.getElementById('filterYear').value = '';
+    renderUncertifiedReport(allUncertifiedLogs);
+  }
+
+  /**
+   * Export to CSV
+   */
+  function exportToCSV() {
+    if (allUncertifiedLogs.length === 0) {
+      showAlert('No data to export', 'error');
+      return;
+    }
+
+    let csv = 'Employee Name,Employee ID,Date Worked,Month,Year,Day Type,AM In,AM Out,PM In,PM Out,COC Earned\n';
+
+    allUncertifiedLogs.forEach(log => {
+      csv += `"${log.employeeName}",${log.employeeId},"${log.dateWorked}","${log.month}",${log.year},"${log.dayType}","${log.amIn || ''}","${log.amOut || ''}","${log.pmIn || ''}","${log.pmOut || ''}",${log.cocEarned}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `uncertified-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    showAlert('Report exported successfully', 'success');
+  }
+
+  // ========== AUTO-LOAD ON PAGE CHANGE ==========
+
+  // Detect current page and auto-load content
+  setTimeout(() => {
+    if (currentView === 'logovertime') {
+      loadLogOvertimeStats();
+    } else if (currentView === 'uncertifiedreport') {
+      loadUncertifiedReport();
+    }
+  }, 100);
 </script>
