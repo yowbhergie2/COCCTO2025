@@ -80,11 +80,14 @@
       <p style="color: #697386; font-size: 0.9375rem; margin-bottom: 1rem;">Enter historical COC data for initial system setup</p>
       <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem;">
         <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
-          <strong>Note:</strong> This tool is for migrating existing balances from the old system. 
+          <strong>Note:</strong> This tool is for migrating existing balances from the old system.
           The Date of Issuance determines when credits expire (Valid Until = Date of Issuance + 1 Year - 1 Day).
         </p>
       </div>
     </div>
+
+    <!-- Success/Error Messages (moved to top for better visibility) -->
+    <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
 
     <form id="historyForm" onsubmit="return handleFormSubmit(event)">
       <!-- 
@@ -171,9 +174,6 @@
         <button type="submit" id="saveBtn" class="btn btn-primary">Save Historical Balance</button>
       </div>
     </form>
-
-    <!-- Success/Error Messages -->
-    <div id="messageContainer" style="margin-top: 1rem;"></div>
   </div>
 
   <script>
@@ -315,8 +315,13 @@
         border-radius: 8px;
         font-weight: 500;
         font-size: 0.9375rem;
+        margin-bottom: 1.5rem;
+        display: block;
       `;
       container.textContent = message;
+
+      // Scroll to top to make sure error is visible
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Note: hideOverlay() function is provided by the parent scope (EmployeesScript)
