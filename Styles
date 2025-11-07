@@ -89,6 +89,64 @@
   .nav-link i {
     font-size: 1rem;
   }
+  
+  /* === NEW: COC Dropdown Styles === */
+  .nav-dropdown-container {
+    position: relative;
+  }
+  
+  .nav-chevron {
+    font-size: 0.625rem;
+    margin-left: 0.25rem;
+    transition: transform 0.2s ease;
+  }
+  
+  .nav-link.active .nav-chevron {
+    /* Optional: rotate arrow when active */
+    /* transform: rotate(180deg); */
+  }
+  
+  .nav-dropdown-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: calc(100% + 0.5rem); /* Position below the nav link */
+    left: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e8ebed;
+    z-index: 100;
+    width: 320px; /* Set a fixed width like the screenshot */
+    padding: 0.5rem;
+  }
+  
+  .nav-dropdown-menu.show {
+    display: block; /* Show when JS adds this class */
+  }
+  
+  .nav-dropdown-header {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1a1f36;
+    padding: 0.75rem 1rem;
+  }
+  
+  .nav-dropdown-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    color: #4b5563;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .nav-dropdown-link:hover {
+    background: #f5f3ff;
+    color: #4f46e5;
+  }
+  /* === END OF NEW STYLES === */
+  
   .user-info {
     display: flex;
     align-items: center;
