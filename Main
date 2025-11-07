@@ -29,10 +29,36 @@
               <i class="fas fa-users"></i>
               <span>Employees</span>
             </div>
-            <div class="nav-link" onclick="navigateTo('coc')" data-view="coc">
-              <i class="fas fa-business-time"></i>
-              <span>COC</span>
+            
+            <!-- === MODIFIED COC DROPDOWN === -->
+            <div class="nav-dropdown-container">
+              <!-- This is the main "COC" button that toggles the menu -->
+              <div class="nav-link" onclick="toggleDropdown(event, 'coc-dropdown')" data-view="coc">
+                <i class="fas fa-business-time"></i>
+                <span>COC</span>
+                <!-- Dropdown arrow -->
+                <i class="fas fa-chevron-down nav-chevron"></i>
+              </div>
+              
+              <!-- This is the dropdown menu itself, styled after your screenshot -->
+              <div class="nav-dropdown-menu" id="coc-dropdown">
+                <div class="nav-dropdown-header">COC Management</div>
+                <div class="nav-dropdown-link" onclick="navigateTo('coc_log_overtime')">
+                  Log Overtime (Add COC)
+                </div>
+                <div class="nav-dropdown-link" onclick="navigateTo('coc_generate_cert')">
+                  Generate COC Certificate (Activate Credits)
+                </div>
+                <div class="nav-dropdown-link" onclick="navigateTo('coc_log_cto')">
+                  Log CTO (Use COC)
+                </div>
+                <div class="nav-dropdown-link" onclick="navigateTo('coc_report')">
+                  Uncertified COC Report
+                </div>
+              </div>
             </div>
+            <!-- === END OF MODIFICATION === -->
+            
             <div class="nav-link" onclick="navigateTo('reports')" data-view="reports">
               <i class="fas fa-chart-line"></i>
               <span>Reports</span>
@@ -101,26 +127,94 @@
      * Main navigation function
      */
     function navigateTo(view) {
-      if (currentView === view) return; // Do nothing if clicking the same tab
+      // Don't reload if clicking the same view
+      if (currentView === view) {
+         closeAllDropdowns(); // Still close dropdown if a sub-link is clicked
+         return;
+      }
 
       document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
-      document.querySelector(`.nav-link[data-view="${view}"]`).classList.add('active');
-      currentView = view;
+      closeAllDropdowns(); // Close dropdown on navigation
       
-      // *** FIX: Show spinner IMMEDIATELY ***
+      // === MODIFIED: Added logic to highlight parent "COC" link ===
+      const parentMap = {
+        'coc_log_overtime': 'coc',
+        'coc_generate_cert': 'coc',
+        'coc_log_cto': 'coc',
+        'coc_report': 'coc'
+      };
+      const activeView = parentMap[view] || view;
+      
+      const activeLink = document.querySelector(`.nav-link[data-view="${activeView}"]`);
+      if (activeLink) {
+        activeLink.classList.add('active');
+      }
+      // === END OF MODIFICATION ===
+      
+      currentView = view;
       showMainContentSpinner();
 
-      // Load content after a short delay to let spinner render
       setTimeout(() => {
         switch(view) {
           case 'dashboard': loadDashboard(); break;
           case 'employees': loadEmployeesView(); break;
-          case 'coc': loadCOCView(); break;
+          
+          // === MODIFIED: All COC links load specific views ===
+          case 'coc':
+            loadCOCView(); // Keep loading the main COC view for the parent link
+            break;
+          case 'coc_log_overtime':
+            loadSpecificCOCView('COC_LogOvertime'); 
+            break;
+          case 'coc_generate_cert':
+            loadSpecificCOCView('COC_GenerateCert'); 
+            break;
+          case 'coc_log_cto':
+            loadSpecificCOCView('COC_LogCTO'); 
+            break;
+          case 'coc_report':
+            loadSpecificCOCView('COC_Report'); 
+            break;
+            
           case 'reports': loadReportsView(); break;
           case 'masterdata': loadMasterDataView(); break;
         }
       }, 50); // 50ms delay
     }
+    
+    // === NEW: Functions to control the dropdown menu ===
+    
+    /**
+     * Toggles a specific dropdown menu.
+     * @param {Event} event - The click event.
+     * @param {string} dropdownId - The ID of the dropdown menu to toggle.
+     */
+    function toggleDropdown(event, dropdownId) {
+      event.stopPropagation(); // Prevents window.onclick from firing
+      const dropdown = document.getElementById(dropdownId);
+      const isShown = dropdown.classList.contains('show');
+      closeAllDropdowns(); // Close all others first
+      if (!isShown) {
+        dropdown.classList.add('show');
+      }
+    }
+
+    /**
+     * Closes all open dropdown menus.
+     */
+    function closeAllDropdowns() {
+      document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
+        menu.classList.remove('show');
+      });
+    }
+
+    // Add a global click listener to close dropdowns when clicking outside
+    window.onclick = function(event) {
+      if (!event.target.closest('.nav-dropdown-container')) {
+        closeAllDropdowns();
+      }
+    }
+    // === END OF NEW FUNCTIONS ===
 
     function loadDashboard() {
       google.script.run
@@ -156,6 +250,18 @@
           document.getElementById('mainContent').innerHTML = `<p>Error loading COC: ${err.message}</p>`;
         })
         .include('COC');
+    }
+
+    // === NEW: Function to load specific COC placeholder pages ===
+    function loadSpecificCOCView(viewName) {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading view: ${err.message}</p>`;
+        })
+        .include(viewName); // e.g., 'COC_LogOvertime'
     }
 
     function loadReportsView() {
