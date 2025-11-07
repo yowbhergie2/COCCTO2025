@@ -1,0 +1,474 @@
+<script>
+  /**
+   * Loads all employees into the list
+   */
+  function loadEmployees() {
+    const container = document.getElementById('employeeListContainer');
+    // Ensure container exists before setting innerHTML
+    if (container) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading employees...</p>
+        </div>`;
+    } else {
+      console.error('loadEmployees: could not find employeeListContainer');
+      // If the container isn't found, the main content might have failed to load
+      document.getElementById('mainContent').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error: Could not load Employees view component.</p></div>';
+      return;
+    }
+      
+    google.script.run
+      .withSuccessHandler(employees => {
+        allEmployees = employees;
+        renderEmployeeList(allEmployees);
+        if (selectedEmployee) {
+          // Re-select employee if one was selected before
+          displayEmployeeDetails(selectedEmployee.employeeId);
+        } else {
+          // This should be the default state from Employees.html, but we ensure it
+          document.getElementById('employeeDetailsPanel').innerHTML = `
+            <div class="panel-body">
+              <div class="empty-state" style="padding: 4rem 2rem;">
+                <i class="fas fa-user-circle"></i>
+                <p>Select an employee to view details</p>
+              </div>
+            </div>`;
+        }
+      })
+      .withFailureHandler(err => {
+        // *** FIX: Re-acquire the container element inside the callback ***
+        // This makes sure we are referencing it correctly.
+        const failContainer = document.getElementById('employeeListContainer');
+        if (failContainer) {
+          failContainer.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading employees</p></div>';
+        }
+        // Also log the raw error to the console for debugging
+        console.error('Failed to load employees:', err);
+        showAlert('Error: ' + (err.message || 'Unknown server error'), 'error');
+      })
+      .getAllEmployees();
+  }
+
+  /**
+   * Renders the employee list array into HTML
+   */
+  function renderEmployeeList(employees) {
+    const container = document.getElementById('employeeListContainer');
+    container.innerHTML = '';
+    
+    if (employees.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No employees found</p></div>';
+      return;
+    }
+    
+    // Sort active employees first, then by last name
+    // *** UPDATED TO BE SAFER ***
+    employees.sort((a, b) => {
+      const statusA = a.status || 'Inactive';
+      const statusB = b.status || 'Inactive';
+      const lastNameA = a.lastName || '';
+      const lastNameB = b.lastName || '';
+
+      if (statusA === 'Active' && statusB !== 'Active') return -1;
+      if (statusA !== 'Active' && statusB === 'Active') return 1;
+      return lastNameA.localeCompare(lastNameB);
+    });
+    
+    employees.forEach(emp => {
+      const div = document.createElement('div');
+      div.className = 'employee-list-item';
+      
+      // Check if this employee is the currently selected one
+      if (selectedEmployee && emp.employeeId === selectedEmployee.employeeId) {
+        div.classList.add('active');
+      }
+      
+      div.onclick = (event) => displayEmployeeDetails(emp.employeeId, event.currentTarget);
+      
+      const fullName = [emp.firstName, emp.middleInitial, emp.lastName, emp.suffix].filter(Boolean).join(' ');
+      
+      div.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="employee-name">${fullName || 'N/A'}</div>
+          <span class="badge ${emp.status === 'Active' ? 'badge-success' : 'badge-inactive'}">
+            ${emp.status}
+          </span>
+        </div>
+        <div class="employee-meta">${emp.position || 'No Position'} | ${emp.office || 'No Office'}</div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  /**
+   * Loads Offices and Positions into global JS variables for forms
+   */
+  function loadDropdownData() {
+    google.script.run
+      .withSuccessHandler(o => offices = o)
+      .getAllOffices();
+    google.script.run
+      .withSuccessHandler(p => positions = p)
+      .getAllPositions();
+  }
+
+  /**
+   * Filters the employee list based on search input
+   */
+  function filterEmployees() {
+    const searchTerm = document.getElementById('employeeSearch').value.toLowerCase();
+    const filtered = allEmployees.filter(emp => {
+      const fullName = [emp.firstName, emp.lastName, emp.position, emp.office].filter(Boolean).join(' ').toLowerCase();
+      return fullName.includes(searchTerm);
+    });
+    renderEmployeeList(filtered);
+  }
+
+  /**
+   * Displays details for a selected employee
+   */
+  function displayEmployeeDetails(employeeId, clickedElement) {
+    const employee = allEmployees.find(e => e.employeeId === employeeId);
+    if (!employee) return;
+    
+    selectedEmployee = employee;
+    
+    // Highlight active employee in list
+    document.querySelectorAll('.employee-list-item').forEach(item => item.classList.remove('active'));
+    if (clickedElement) {
+      clickedElement.classList.add('active');
+    }
+    
+    const panel = document.getElementById('employeeDetailsPanel');
+    panel.innerHTML = '<div class="panel-body"><div class="empty-state" style="padding: 4rem 2rem;"><i class="fas fa-spinner fa-spin"></i><p>Loading details...</p></div></div>';
+    
+    // Generate Office options
+    const officeOptions = offices.map(o => 
+      `<option value="${o}" ${o === employee.office ? 'selected' : ''}>${o}</option>`
+    ).join('');
+    
+    // Generate Position options
+    const positionOptions = positions.map(p => 
+      `<option value="${p}" ${p === employee.position ? 'selected' : ''}>${p}</option>`
+    ).join('');
+    
+    // *** FIX: Wrap entire content in <div class="panel-body"> ***
+    panel.innerHTML = `
+      <div class="panel-body">
+        <form id="employeeForm" onsubmit="saveEmployee(event)">
+          <input type="hidden" name="employeeId" value="${employee.employeeId}">
+          
+          <div class="details-section">
+            <div class="section-header">
+              <i class="fas fa-user-edit"></i> Employee Details
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" name="lastName" class="form-input" value="${employee.lastName || ''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" name="firstName" class="form-input" value="${employee.firstName || ''}">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Middle Initial</label>
+                <input type="text" name="middleInitial" class="form-input" value="${employee.middleInitial || ''}" maxlength="2">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Suffix</label>
+                <input type="text" name="suffix" class="form-input" value="${employee.suffix || ''}" maxlength="5">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Position</label>
+                <select name="position" class="form-input">
+                  <option value="">-- Select Position --</option>
+                  ${positionOptions}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Office</label>
+                <select name="office" class="form-input">
+                  <option value="">-- Select Office --</option>
+                  ${officeOptions}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-input">
+                <option value="Active" ${employee.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Inactive" ${employee.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+              </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid #e8ebed; padding-top: 1.5rem; margin-top: 1rem;">
+              <button type="submit" id="saveEmployeeBtn" class="btn btn-primary">Save Changes</button>
+            </div>
+          </div>
+        </form>
+        
+        <div class="details-section">
+          <div class="section-header-cyan">
+            <i class="fas fa-history"></i> Historical Balances
+          </div>
+          <div class="info-box">
+            <p>This section shows historical balances migrated from the old system. This is based on <strong>F1: Initial Balance Migration</strong>.</p>
+          </div>
+          <div style="text-align: right; margin-bottom: 1.5rem;">
+            <button class="btn btn-secondary" onclick="addHistoricalBalance()">
+              <i class="fas fa-plus"></i> Log Historical Balance
+            </button>
+          </div>
+          <div id="historicalBalanceList">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading historical balances...</p></div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // After rendering, load the historical balances
+    displayHistoricalBalances(employee.employeeId);
+  }
+
+  /**
+   * Displays the "Add New Employee" form
+   */
+  function addNewEmployee() {
+    selectedEmployee = null;
+    
+    // De-select employee in list
+    document.querySelectorAll('.employee-list-item').forEach(item => item.classList.remove('active'));
+    
+    const panel = document.getElementById('employeeDetailsPanel');
+    
+    // Generate Office options
+    const officeOptions = offices.map(o => `<option value="${o}">${o}</option>`).join('');
+    // Generate Position options
+    const positionOptions = positions.map(p => `<option value="${p}">${p}</option>`).join('');
+    
+    // *** FIX: Wrap entire content in <div class="panel-body"> ***
+    panel.innerHTML = `
+      <div class="panel-body">
+        <form id="employeeForm" onsubmit="saveEmployee(event)">
+          <input type="hidden" name="employeeId" value="">
+          
+          <div class="details-section">
+            <div class="section-header">
+              <i class="fas fa-user-plus"></i> Add New Employee
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" name="lastName" class="form-input" value="" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" name="firstName" class="form-input" value="" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Middle Initial</label>
+                <input type="text" name="middleInitial" class="form-input" value="" maxlength="2">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Suffix</label>
+                <input type="text" name="suffix" class="form-input" value="" maxlength="5">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Position</label>
+                <select name="position" class="form-input">
+                  <option value="">-- Select Position --</option>
+                  ${positionOptions}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Office</label>
+                <select name="office" class="form-input">
+                  <option value="">-- Select Office --</option>
+                  ${officeOptions}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-input">
+                <option value="Active" selected>Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid #e8ebed; padding-top: 1.5rem; margin-top: 1rem;">
+              <button type="submit" id="saveEmployeeBtn" class="btn btn-primary">Create Employee</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    `;
+  }
+
+  /**
+   * Saves employee form (Create or Update)
+   */
+  function saveEmployee(event) {
+    event.preventDefault();
+    const btn = document.getElementById('saveEmployeeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving...';
+    
+    const form = document.getElementById('employeeForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    const employeeId = data.employeeId;
+    const serverFunc = employeeId ? 'updateEmployee' : 'createEmployee';
+    
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.success) {
+          showAlert(result.message, 'success');
+          // If new employee, set ID for details view
+          if (!employeeId) {
+            selectedEmployee = { employeeId: result.employeeId };
+          }
+          loadEmployees(); // Reload list and details
+        } else {
+          showAlert(result.message, 'error');
+          btn.disabled = false;
+          btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+      })
+      [serverFunc](employeeId || data, data); // (id, data) for update, (data) for create
+  }
+
+  /**
+   * Loads and displays historical balances for an employee
+   */
+  function displayHistoricalBalances(employeeId) {
+    const list = document.getElementById('historicalBalanceList');
+    list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+    
+    google.script.run
+      .withSuccessHandler(records => {
+        if (records.length === 0) {
+          list.innerHTML = '<div class="empty-state"><i class="fas fa-archive"></i><p>No historical records found</p></div>';
+          return;
+        }
+        
+        list.innerHTML = `
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Month/Year</th>
+                  <th>Earned</th>
+                  <th>Used</th>
+                  <th>Remaining</th>
+                  <th>Date of Issuance</th>
+                  <th>Valid Until</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${records.map(r => `
+                  <tr>
+                    <td>${r.month} ${r.year}</td>
+                    <td>${r.cocEarned}</td>
+                    <td>${r.cocUsed}</td>
+                    <td style="font-weight: 600;">${r.remaining}</td>
+                    <td>${r.dateOfIssuance}</td>
+                    <td>${r.validUntil}</td>
+                    <td>
+                      <span class="badge ${r.status === 'Active' ? 'badge-success' : 'badge-inactive'}">
+                        ${r.status}
+                      </span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      })
+      .withFailureHandler(err => {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading records</p></div>';
+        showAlert('Error loading historical records: ' + err.message, 'error');
+      })
+      .getEmployeeHistoricalBalances(employeeId);
+  }
+
+  /**
+   * Shows the overlay for historical balance form
+   */
+  function addHistoricalBalance() {
+    if (!selectedEmployee) {
+      showAlert('Please select an employee first', 'error');
+      return;
+    }
+    showOverlay('HistoryForm', { employeeId: selectedEmployee.employeeId });
+  }
+
+  /**
+   * Generic function to show an overlay with a form
+   */
+  function showOverlay(formName, params = {}) {
+    let overlay = document.getElementById('modalOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'modalOverlay';
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 100;
+        display: flex; align-items: center; justify-content: center;
+      `;
+      document.body.appendChild(overlay);
+    }
+    
+    overlay.innerHTML = '<div style="color: white; font-size: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Loading form...</div>';
+    
+    google.script.run
+      .withSuccessHandler(html => {
+        overlay.innerHTML = html;
+        // If params are provided, set them
+        if (params.employeeId) {
+          const empSelect = overlay.querySelector('#employeeId');
+          if (empSelect) {
+            empSelect.value = params.employeeId;
+            empSelect.disabled = true; // Lock to selected employee
+          }
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error loading form: ' + err.message, 'error');
+        hideOverlay();
+      })
+      .include(formName);
+  }
+
+  /**
+   * Hides the modal overlay
+   */
+  function hideOverlay() {
+    const overlay = document.getElementById('modalOverlay');
+    if (overlay) {
+      overlay.remove();
+      // After closing, refresh data
+      if (currentView === 'employees' && selectedEmployee) {
+        displayHistoricalBalances(selectedEmployee.employeeId);
+      }
+    }
+  }
+</script>
