@@ -57,13 +57,17 @@ function appendToSheet(sheetName, rowData) {
 
 /**
  * Update row by ID
+ * @param {string} sheetName - Name of the sheet
+ * @param {number} id - ID to search for
+ * @param {Array} updatedData - New row data
+ * @param {number} idColumn - Column index (0-indexed, default 0)
  */
-function updateRowById(sheetName, id, updatedData, idColumn = 1) {
+function updateRowById(sheetName, id, updatedData, idColumn = 0) {
   const sheet = getDbSheet(sheetName);
   const data = sheet.getDataRange().getValues();
-  
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][idColumn - 1] == id) {
+    if (data[i][idColumn] === id) {
       const range = sheet.getRange(i + 1, 1, 1, updatedData.length);
       range.setValues([updatedData]);
       return true;
@@ -74,13 +78,16 @@ function updateRowById(sheetName, id, updatedData, idColumn = 1) {
 
 /**
  * Delete row by ID
+ * @param {string} sheetName - Name of the sheet
+ * @param {number} id - ID to search for
+ * @param {number} idColumn - Column index (0-indexed, default 0)
  */
-function deleteRowById(sheetName, id, idColumn = 1) {
+function deleteRowById(sheetName, id, idColumn = 0) {
   const sheet = getDbSheet(sheetName);
   const data = sheet.getDataRange().getValues();
-  
+
   for (let i = 1; i < data.length; i++) {
-    if (data[i][idColumn - 1] == id) {
+    if (data[i][idColumn] === id) {
       sheet.deleteRow(i + 1);
       return true;
     }
@@ -90,26 +97,31 @@ function deleteRowById(sheetName, id, idColumn = 1) {
 
 /**
  * Find rows by criteria
+ * @param {string} sheetName - Name of the sheet
+ * @param {Object} criteria - Key-value pairs to match (uses strict equality)
  */
 function findRows(sheetName, criteria) {
   const data = getSheetData(sheetName);
   const headers = getSheetHeaders(sheetName);
-  
+
   return data.filter(row => {
     return Object.keys(criteria).every(key => {
       const colIndex = headers.indexOf(key);
       if (colIndex === -1) return false;
-      return row[colIndex] == criteria[key];
+      return row[colIndex] === criteria[key];
     });
   });
 }
 
 /**
  * Get row by ID
+ * @param {string} sheetName - Name of the sheet
+ * @param {number} id - ID to search for
+ * @param {number} idColumn - Column index (0-indexed, default 0)
  */
 function getRowById(sheetName, id, idColumn = 0) {
   const data = getSheetData(sheetName);
-  return data.find(row => row[idColumn] == id) || null;
+  return data.find(row => row[idColumn] === id) || null;
 }
 
 /**

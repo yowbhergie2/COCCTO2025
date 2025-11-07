@@ -33,9 +33,9 @@ function saveHistoricalBalance(formData) {
     const notesIndex = headers.indexOf('Notes');
 
     const isDuplicate = data.some(row => {
-      return row[employeeIdIndex] == employeeId &&
-             row[monthIndex] == month &&
-             row[yearIndex] == year &&
+      return row[employeeIdIndex] === employeeId &&
+             row[monthIndex] === month &&
+             row[yearIndex] === year &&
              row[notesIndex] && row[notesIndex].toString().includes('Historical data migration');
     });
 
@@ -196,7 +196,16 @@ function getMonthNumber(monthName) {
  */
 function getEmployeeCurrentBalance(employeeId) {
   const sheet = getDbSheet('CreditBatches');
+  if (!sheet) {
+    Logger.log('getEmployeeCurrentBalance: CreditBatches sheet not found');
+    return 0;
+  }
+
   const data = sheet.getDataRange().getValues();
+  if (!data || data.length <= 1) {
+    return 0;  // No data or only headers
+  }
+
   const headers = data[0];
   
   // Get column indices
@@ -209,7 +218,7 @@ function getEmployeeCurrentBalance(employeeId) {
   // Skip header row (index 0)
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (row[employeeIdIndex] == employeeId && row[statusIndex] === 'Active') {
+    if (row[employeeIdIndex] === employeeId && row[statusIndex] === 'Active') {
       totalBalance += parseFloat(row[remainingIndex]) || 0;
     }
   }

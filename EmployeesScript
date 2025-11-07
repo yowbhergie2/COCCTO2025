@@ -55,6 +55,10 @@
    */
   function renderEmployeeList(employees) {
     const container = document.getElementById('employeeListContainer');
+    if (!container) {
+      console.error('renderEmployeeList: Container element not found');
+      return;
+    }
     container.innerHTML = '';
     
     if (employees.length === 0) {
@@ -117,6 +121,11 @@
    * Filters the employee list based on search input
    */
   function filterEmployees() {
+    if (!allEmployees || !Array.isArray(allEmployees)) {
+      console.error('filterEmployees: Employee data not loaded');
+      return;
+    }
+
     const searchTerm = document.getElementById('employeeSearch').value.toLowerCase();
     const filtered = allEmployees.filter(emp => {
       const fullName = [emp.firstName, emp.lastName, emp.position, emp.office].filter(Boolean).join(' ').toLowerCase();
@@ -139,19 +148,23 @@
     if (clickedElement) {
       clickedElement.classList.add('active');
     }
-    
+
     const panel = document.getElementById('employeeDetailsPanel');
+    if (!panel) {
+      console.error('displayEmployeeDetails: Panel element not found');
+      return;
+    }
     panel.innerHTML = '<div class="panel-body"><div class="empty-state" style="padding: 4rem 2rem;"><i class="fas fa-spinner fa-spin"></i><p>Loading details...</p></div></div>';
-    
-    // Generate Office options
-    const officeOptions = offices.map(o => 
-      `<option value="${o}" ${o === employee.office ? 'selected' : ''}>${o}</option>`
-    ).join('');
-    
-    // Generate Position options
-    const positionOptions = positions.map(p => 
-      `<option value="${p}" ${p === employee.position ? 'selected' : ''}>${p}</option>`
-    ).join('');
+
+    // Generate Office options (with loading fallback)
+    const officeOptions = (offices && offices.length > 0)
+      ? offices.map(o => `<option value="${o}" ${o === employee.office ? 'selected' : ''}>${o}</option>`).join('')
+      : '<option value="">Loading offices...</option>';
+
+    // Generate Position options (with loading fallback)
+    const positionOptions = (positions && positions.length > 0)
+      ? positions.map(p => `<option value="${p}" ${p === employee.position ? 'selected' : ''}>${p}</option>`).join('')
+      : '<option value="">Loading positions...</option>';
     
     // *** FIX: Wrap entire content in <div class="panel-body"> ***
     panel.innerHTML = `
@@ -321,8 +334,13 @@
   function saveEmployee(event) {
     event.preventDefault();
     const btn = document.getElementById('saveEmployeeBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Saving...';
+    if (!btn) {
+      console.error('saveEmployee: Save button not found');
+      // Continue with save anyway, just without button feedback
+    } else {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Saving...';
+    }
     
     const form = document.getElementById('employeeForm');
     const formData = new FormData(form);
@@ -342,14 +360,18 @@
           loadEmployees(); // Reload list and details
         } else {
           showAlert(result.message, 'error');
-          btn.disabled = false;
-          btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+          }
         }
       })
       .withFailureHandler(err => {
         showAlert('Error: ' + err.message, 'error');
-        btn.disabled = false;
-        btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = employeeId ? 'Save Changes' : 'Create Employee';
+        }
       })
       [serverFunc](employeeId || data, data); // (id, data) for update, (data) for create
   }
@@ -359,6 +381,10 @@
    */
   function displayHistoricalBalances(employeeId) {
     const list = document.getElementById('historicalBalanceList');
+    if (!list) {
+      console.error('displayHistoricalBalances: List container element not found');
+      return;
+    }
     list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
     
     google.script.run
