@@ -16,7 +16,8 @@ function onOpen() {
  * Displays the main modal interface (1400x800px)
  */
 function showMainModal() {
-  const html = HtmlService.createHtmlOutputFromFile('Main')
+  const html = HtmlService.createTemplateFromFile('Main')
+    .evaluate()
     .setWidth(1400)
     .setHeight(800);
   SpreadsheetApp.getUi().showModalDialog(html, 'CompTime Tracker');
@@ -56,10 +57,19 @@ function getCurrentTimestamp() {
 
 /**
  * Format date to Manila timezone
+ * *** UPDATED TO BE SAFER ***
  */
 function formatDate(date, format = 'MM/dd/yyyy') {
-  if (!date) return '';
+  if (!date) return ''; // Return empty if no date provided
+  
   const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // Check for 'Invalid Date'
+  // isNaN(dateObj.getTime()) is the standard way to check this
+  if (isNaN(dateObj.getTime())) {
+    return ''; // Return empty string if date is invalid (e.g., from "N/A" or "pending")
+  }
+  
   return Utilities.formatDate(dateObj, 'Asia/Manila', format);
 }
 
