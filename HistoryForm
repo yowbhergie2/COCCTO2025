@@ -9,7 +9,8 @@
       margin: 0;
       padding: 0;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: white;
+      /* Background is transparent to let overlay show */
+      background: transparent; 
     }
     .form-label {
       display: block;
@@ -29,8 +30,9 @@
     }
     .form-input:focus {
       outline: none;
-      border-color: #00d632;
-      box-shadow: 0 0 0 3px rgba(0,214,50,0.1);
+      /* Updated Theme: Indigo Focus Ring */
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
     .btn {
       padding: 0.75rem 1.5rem;
@@ -45,11 +47,13 @@
       gap: 0.5rem;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #00d632 0%, #00b528 100%);
+      /* Updated Theme: Indigo Gradient */
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
       color: white;
     }
     .btn-primary:hover {
-      box-shadow: 0 4px 12px rgba(0,214,50,0.3);
+      /* Updated Theme: Indigo Shadow */
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
       transform: translateY(-1px);
     }
     .btn-secondary {
@@ -58,14 +62,19 @@
       border: 1px solid #e8ebed;
     }
     .btn-secondary:hover {
-      border-color: #00d632;
-      color: #00d632;
-      background: #f6faf8;
+      /* Updated Theme: Indigo Light Hover */
+      border-color: #4f46e5;
+      color: #4f46e5;
+      background: #f5f3ff;
     }
   </style>
 </head>
 <body>
-  <div style="width: 700px; padding: 2rem;">
+  <!-- 
+    FIX: Added white background, border-radius, and shadow to this container 
+    to fix the transparency issue from the screenshot.
+  -->
+  <div style="width: 700px; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
     <div style="margin-bottom: 2rem;">
       <h2 style="font-size: 1.5rem; font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem;">Log Historical Balance</h2>
       <p style="color: #697386; font-size: 0.9375rem; margin-bottom: 1rem;">Enter historical COC data for initial system setup</p>
@@ -78,13 +87,11 @@
     </div>
 
     <form id="historyForm">
-      <!-- Employee Selection -->
-      <div style="margin-bottom: 1rem;">
-        <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
-        <select name="employeeId" id="employeeId" required class="form-input">
-          <option value="">-- Select Employee --</option>
-        </select>
-      </div>
+      <!-- 
+        TINANGGAL: Employee Selection Dropdown.
+        PINALITAN: Hidden input. Ang value nito ay ise-set ng 'EmployeesScript'
+      -->
+      <input type="hidden" name="employeeId" id="employeeId" value="">
 
       <!-- Month and Year -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -108,11 +115,10 @@
         </div>
         <div>
           <label class="form-label">Earned Year <span style="color: #ef4444;">*</span></label>
+          <!-- INALIS ANG HARDCODED YEARS -->
           <select name="year" id="year" required class="form-input">
             <option value="">-- Select Year --</option>
-            <option value="2023">2023</option>
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
+            <!-- Years ay ipo-populate ng script -->
           </select>
         </div>
       </div>
@@ -135,10 +141,11 @@
       </div>
 
       <!-- Remaining Balance (calculated) -->
-      <div style="background: #f6faf8; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+      <div style="background: #f5f3ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 0.875rem; font-weight: 600; color: #1a1f36;">Remaining Balance:</span>
-          <span id="remainingBalance" style="font-size: 1.5rem; font-weight: 700; color: #00b528;">0.0 hours</span>
+          <!-- Updated Theme: Indigo Text -->
+          <span id="remainingBalance" style="font-size: 1.5rem; font-weight: 700; color: #4338ca;">0.0 hours</span>
         </div>
       </div>
 
@@ -171,25 +178,44 @@
   </div>
 
   <script>
-    // Load employees on page load
-    loadEmployees();
+    // AYOS: I-wrap ang initialization sa DOMContentLoaded
+    // para siguradong loaded na lahat bago tawagin.
+    document.addEventListener("DOMContentLoaded", function() {
+      try {
+        populateYears(); 
+      } catch (e) {
+        console.error("Error populating years:", e);
+        // Magpakita ng error sa user kung 'di gumana
+        const yearSelect = document.getElementById('year');
+        if(yearSelect) {
+          yearSelect.innerHTML = '<option value="">Error loading years</option>';
+        }
+      }
+    });
 
-    function loadEmployees() {
-      google.script.run
-        .withSuccessHandler(employees => {
-          const select = document.getElementById('employeeId');
-          employees.forEach(emp => {
-            const option = document.createElement('option');
-            option.value = emp.id;
-            option.textContent = emp.name;
-            select.appendChild(option);
-          });
-        })
-        .withFailureHandler(err => {
-          showMessage('Error loading employees: ' + err.message, 'error');
-        })
-        .getEmployeesForDropdown();
+    /**
+     * BAGONG FUNCTION: Para sa dynamic year dropdown
+     * Magsisimula sa 2024 hanggang sa current year
+     */
+    function populateYears() {
+      const yearSelect = document.getElementById('year');
+      if (!yearSelect) {
+        console.error('populateYears: Could not find #year select element.');
+        return; // Guard clause
+      }
+      
+      const startYear = 2024;
+      const currentYear = new Date().getFullYear(); // e.g., 2025
+      
+      for (let i = currentYear; i >= startYear; i--) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        yearSelect.appendChild(option);
+      }
     }
+
+    // TINANGGAL: buong loadEmployees() function. Hindi na kailangan dito.
 
     function calculateRemaining() {
       const earned = parseFloat(document.getElementById('cocEarned').value) || 0;
@@ -234,6 +260,15 @@
       
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
+
+      // Kunin ang employeeId mula sa hidden input
+      // Siguraduhin na ang ID ay na-set ng parent script
+      data.employeeId = document.getElementById('employeeId').value;
+
+      if (!data.employeeId) {
+        showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error');
+        return;
+      }
       
       const saveBtn = document.getElementById('saveBtn');
       saveBtn.disabled = true;
@@ -244,11 +279,7 @@
           if (result.success) {
             showMessage(result.message, 'success');
             setTimeout(() => {
-              hideOverlay();
-              // Refresh employee list if on employees view
-              if (window.currentView === 'employees') {
-                if (typeof loadEmployees === 'function') loadEmployees();
-              }
+              hideOverlay(true); // I-pass ang 'true' para i-refresh ang parent
             }, 2000);
           } else {
             showMessage(result.message, 'error');
@@ -257,7 +288,7 @@
           }
         })
         .withFailureHandler(err => {
-          showMessage('Error: ' + err.message, 'error');
+          showMessage('Error: 'Dina-process pa. ' + err.message, 'error');
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save Historical Balance';
         })
@@ -266,7 +297,8 @@
 
     function showMessage(message, type) {
       const colors = {
-        success: { bg: '#e6f9ed', border: '#00b528', text: '#00b528' },
+        /* Updated Theme: Indigo Success */
+        success: { bg: '#e0e7ff', border: '#4f46e5', text: '#4338ca' },
         error: { bg: '#fee', border: '#ef4444', text: '#ef4444' },
         info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
       };
@@ -283,6 +315,29 @@
         font-size: 0.9375rem;
       `;
       container.textContent = message;
+    }
+
+    /**
+     * In-page function galing sa parent, kailangan dito para gumana
+     * ang 'Cancel' button at 'hideOverlay()' after success.
+     * @param {boolean} [shouldRefresh=false] - I-set sa true para i-refresh ang data sa parent.
+     */
+    function hideOverlay(shouldRefresh = false) {
+      // Check kung andyan 'yung function sa parent scope
+      if (typeof window.parent.hideOverlay === 'function') {
+         // I-tawag ang parent function.
+         // 'shouldRefresh' ay custom logic na idinagdag ko
+         window.parent.hideOverlay(shouldRefresh); 
+      } else {
+         // Fallback kung wala talaga (para lang 'di mag-error)
+         const overlay = window.parent.document.getElementById('modalOverlay');
+         if (overlay) {
+           overlay.remove();
+           if (shouldRefresh && window.parent.currentView === 'employees' && window.parent.selectedEmployee) {
+             window.parent.displayHistoricalBalances(window.parent.selectedEmployee.employeeId);
+           }
+         }
+      }
     }
   </script>
 </body>
