@@ -1,0 +1,11 @@
+<div class="page-header">
+  <h1 class="page-title">Reports</h1>
+  <p class="page-subtitle">View analytics and generate reports</p>
+</div>
+<div class="card">
+  <div class="card-body" style="text-align: center; padding: 4rem;">
+    <i class="fas fa-chart-line" style="font-size: 4rem; color: #e8ebed; margin-bottom: 1.5rem;"></i>
+    <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Reports & Analytics</h3>
+    <p style="color: #697386;">Coming in Phase 5</p>
+  </div>
+</div>
