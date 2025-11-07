@@ -161,7 +161,7 @@
 
       <!-- Action Buttons -->
       <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
-        <button type="button" onclick="parent.hideOverlay()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="hideOverlay()" class="btn btn-secondary">Cancel</button>
         <button type="submit" id="saveBtn" class="btn btn-primary">Save Historical Balance</button>
       </div>
     </form>
@@ -244,10 +244,10 @@
           if (result.success) {
             showMessage(result.message, 'success');
             setTimeout(() => {
-              parent.hideOverlay();
+              hideOverlay();
               // Refresh employee list if on employees view
-              if (parent.currentView === 'employees') {
-                parent.loadEmployees();
+              if (window.currentView === 'employees') {
+                if (typeof loadEmployees === 'function') loadEmployees();
               }
             }, 2000);
           } else {
