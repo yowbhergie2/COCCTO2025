@@ -81,18 +81,45 @@
         .getCurrentUserEmail();
     }
 
+    /**
+     * Helper function to show a main loading spinner
+     */
+    function showMainContentSpinner() {
+      document.getElementById('mainContent').innerHTML = `
+        <div style="
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          height: calc(100vh - 200px); 
+          color: #697386;
+        ">
+          <i class="fas fa-spinner fa-spin" style="font-size: 2.5rem; opacity: 0.5;"></i>
+        </div>`;
+    }
+
+    /**
+     * Main navigation function
+     */
     function navigateTo(view) {
+      if (currentView === view) return; // Do nothing if clicking the same tab
+
       document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
       document.querySelector(`.nav-link[data-view="${view}"]`).classList.add('active');
       currentView = view;
       
-      switch(view) {
-        case 'dashboard': loadDashboard(); break;
-        case 'employees': loadEmployeesView(); break;
-        case 'coc': loadCOCView(); break;
-        case 'reports': loadReportsView(); break;
-        case 'masterdata': loadMasterDataView(); break;
-      }
+      // *** FIX: Show spinner IMMEDIATELY ***
+      showMainContentSpinner();
+
+      // Load content after a short delay to let spinner render
+      setTimeout(() => {
+        switch(view) {
+          case 'dashboard': loadDashboard(); break;
+          case 'employees': loadEmployeesView(); break;
+          case 'coc': loadCOCView(); break;
+          case 'reports': loadReportsView(); break;
+          case 'masterdata': loadMasterDataView(); break;
+        }
+      }, 50); // 50ms delay
     }
 
     function loadDashboard() {
@@ -100,6 +127,9 @@
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
           loadDashboardStats();
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading dashboard: ${err.message}</p>`;
         })
         .include('Dashboard');
     }
@@ -111,6 +141,9 @@
           loadEmployees();
           loadDropdownData();
         })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading employees: ${err.message}</p>`;
+        })
         .include('Employees');
     }
 
@@ -118,6 +151,9 @@
       google.script.run
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading COC: ${err.message}</p>`;
         })
         .include('COC');
     }
@@ -127,6 +163,9 @@
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
         })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading reports: ${err.message}</p>`;
+        })
         .include('Reports');
     }
 
@@ -135,6 +174,9 @@
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
           refreshMasterData();
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading master data: ${err.message}</p>`;
         })
         .include('MasterData');
     }
