@@ -4,6 +4,8 @@
   <base target="_top">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PAKI-DAGDAG: Font Awesome para sa error icon sa modal -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
       margin: 0;
@@ -73,15 +75,27 @@
   <!-- 
     FIX: Added white background, border-radius, and shadow to this container 
     to fix the transparency issue from the screenshot.
+    
+    *** PAKI-AYOS (START): Ginawang responsive ang width ***
   -->
-  <div style="width: 700px; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+  <div style="
+    width: 90%; /* Ginawang responsive */
+    max-width: 700px; /* Itinakda ang maximum width */
+    padding: 2rem; 
+    background: white; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    /* Ang margin auto ay tinanggal dahil ang overlay na ang nagse-center (justify-content: center) */
+  ">
+  <!-- *** PAKI-AYOS (END) *** -->
+
     <div style="margin-bottom: 2rem;">
       <h2 style="font-size: 1.5rem; font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem;">Log Historical Balance</h2>
       <p style="color: #697386; font-size: 0.9375rem; margin-bottom: 1rem;">Enter historical COC data for initial system setup</p>
+      <!-- PAKI-AYOS: Inalis yung formula sa note -->
       <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem;">
         <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
           <strong>Note:</strong> This tool is for migrating existing balances from the old system.
-          The Date of Issuance determines when credits expire (Valid Until = Date of Issuance + 1 Year - 1 Day).
         </p>
       </div>
     </div>
@@ -160,12 +174,12 @@
       </div>
 
       <!-- Valid Until (calculated) -->
+      <!-- PAKI-AYOS: Inalis yung formula <p> tag -->
       <div id="validUntilContainer" style="display: none; background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin-bottom: 2rem;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">Credits Valid Until:</span>
           <span id="validUntilDate" style="font-size: 1.125rem; font-weight: 700; color: #1e40af;">--</span>
         </div>
-        <p style="font-size: 0.8125rem; color: #3b82f6; margin: 0.5rem 0 0 0;">Formula: (Date of Issuance + 1 Year) - 1 Day</p>
       </div>
 
       <!-- Action Buttons -->
@@ -174,6 +188,40 @@
         <button type="submit" id="saveBtn" class="btn btn-primary">Save Historical Balance</button>
       </div>
     </form>
+
+    <!-- PAKI-DAGDAG: Error Modal Structure -->
+    <div id="errorModal" style="
+      display: none; /* Hidden by default */
+      position: fixed; 
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4); /* Dim background */
+      z-index: 200; /* On top of the form */
+      justify-content: center;
+      align-items: center;
+      /* Tiniyak na ang padding ay nasa modal container, hindi sa overlay */
+      padding: 1rem; 
+    ">
+      <div style="
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+      ">
+        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Error</h3>
+        <p id="errorModalMessage" style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;">
+          <!-- Error message goes here -->
+        </p>
+        <button type="button" onclick="hideErrorModal()" class="btn btn-primary" style="background: #ef4444; width: 100%; justify-content: center;">
+          Okay
+        </button>
+      </div>
+    </div>
+    <!-- PAKI-DAGDAG (END) -->
+
   </div>
 
   <script>
@@ -244,15 +292,18 @@
       // Validate: COC Used cannot exceed COC Earned
       if (used > earned) {
         console.log('[HistoryForm] Validation FAILED: Used > Earned');
-        showMessage('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)', 'error');
+        // PAKI-AYOS: Ginawang modal din ito
+        // showMessage('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)', 'error');
+        showErrorModal('Error: COC Used (' + used + ' hours) cannot exceed COC Earned (' + earned + ' hours)');
         usedInput.focus();
         return false;
-      }
+      } // <-- PAKI-AYOS: Idinagdag ang nawawalang closing brace
 
       // Validate: COC Earned cannot exceed 40 hours
       if (earned > 40) {
         console.log('[HistoryForm] Validation FAILED: Earned > 40');
-        showMessage('Error: COC Earned cannot exceed 40 hours per month', 'error');
+        // showMessage('Error: COC Earned cannot exceed 40 hours per month', 'error'); // <-- PALITAN ITO
+        showErrorModal('Error: COC Earned cannot exceed 40 hours per month'); // <-- NG ITO
         earnedInput.focus();
         return false;
       }
@@ -266,7 +317,8 @@
       data.employeeId = document.getElementById('employeeId').value;
 
       if (!data.employeeId) {
-        showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error');
+        // showMessage('Error: Employee ID is missing. Please close and reopen the form.', 'error'); // <-- PALITAN ITO
+        showErrorModal('Error: Employee ID is missing. Please close and reopen the form.'); // <-- NG ITO
         return false;
       }
 
@@ -282,13 +334,15 @@
               hideOverlay(true);
             }, 2000);
           } else {
-            showMessage(result.message, 'error');
+            // showMessage(result.message, 'error'); // <-- PALITAN ITO
+            showErrorModal(result.message); // <-- NG ITO
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Historical Balance';
           }
         })
         .withFailureHandler(err => {
-          showMessage('Error: ' + err.message, 'error');
+          // showMessage('Error: ' + err.message, 'error'); // <-- PALITAN ITO
+          showErrorModal('Error: ' + err.message); // <-- NG ITO
           saveBtn.disabled = false;
           saveBtn.textContent = 'Save Historical Balance';
         })
@@ -326,6 +380,24 @@
 
     // Note: hideOverlay() function is provided by the parent scope (EmployeesScript)
     // No need to redefine it here
+
+    // --- PAKI-DAGDAG: New functions for Error Modal ---
+    function showErrorModal(message) {
+      const modal = document.getElementById('errorModal');
+      const modalMessage = document.getElementById('errorModalMessage');
+      if (modal && modalMessage) {
+        modalMessage.textContent = message;
+        modal.style.display = 'flex'; // Show the modal
+      }
+    }
+
+    function hideErrorModal() {
+      const modal = document.getElementById('errorModal');
+      if (modal) {
+        modal.style.display = 'none'; // Hide the modal
+      }
+    }
+    // --- PAKI-DAGDAG (END) ---
   </script>
 </body>
 </html>
