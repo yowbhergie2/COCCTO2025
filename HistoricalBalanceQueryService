@@ -1,0 +1,79 @@
+// HistoricalBalanceQueryService.gs - Query historical balance records
+
+/**
+ * Get all historical balance records for an employee
+ * @param {number} employeeId - The employee ID
+ * @returns {Array} Array of historical balance records
+ */
+function getEmployeeHistoricalBalances(employeeId) {
+  try {
+    const sheet = getDbSheet('CreditBatches');
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return [];
+    }
+    
+    const headers = data[0];
+    const records = [];
+    
+    // Get column indices
+    const batchIdIndex = headers.indexOf('BatchID');
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('EarnedMonth');
+    const yearIndex = headers.indexOf('EarnedYear');
+    const dateOfIssuanceIndex = headers.indexOf('DateOfIssuance');
+    const validUntilIndex = headers.indexOf('ValidUntil');
+    const originalHoursIndex = headers.indexOf('OriginalHours');
+    const remainingHoursIndex = headers.indexOf('RemainingHours');
+    const statusIndex = headers.indexOf('Status');
+    const notesIndex = headers.indexOf('Notes');
+    
+    // Process each row
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      
+      // Check if this is a historical balance entry for this employee
+      if (row[employeeIdIndex] == employeeId && 
+          row[notesIndex] && 
+          row[notesIndex].toString().includes('Historical data migration')) {
+        
+        // Calculate COC Used based on Original - Remaining
+        const cocEarned = parseFloat(row[originalHoursIndex]) || 0;
+        const remaining = parseFloat(row[remainingHoursIndex]) || 0;
+        const cocUsed = cocEarned - remaining;
+        
+        records.push({
+          batchId: row[batchIdIndex],
+          month: row[monthIndex],
+          year: row[yearIndex],
+          cocEarned: cocEarned.toFixed(1),
+          cocUsed: cocUsed.toFixed(1),
+          remaining: remaining.toFixed(1),
+          dateOfIssuance: formatDate(row[dateOfIssuanceIndex]),
+          validUntil: formatDate(row[validUntilIndex]),
+          status: row[statusIndex]
+        });
+      }
+    }
+    
+    // Sort by year and month (most recent first)
+    records.sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year;
+      }
+      const monthOrder = {
+        'January': 1, 'February': 2, 'March': 3, 'April': 4,
+        'May': 5, 'June': 6, 'July': 7, 'August': 8,
+        'September': 9, 'October': 10, 'November': 11, 'December': 12
+      };
+      return monthOrder[b.month] - monthOrder[a.month];
+    });
+    
+    return records;
+    
+  } catch (error) {
+    Logger.log('Error in getEmployeeHistoricalBalances: ' + error.toString());
+    return [];
+  }
+}
