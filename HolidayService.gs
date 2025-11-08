@@ -232,3 +232,61 @@ function bulkImportHolidays(holidaysArray) {
     };
   }
 }
+
+/**
+ * Populate Philippine holidays for 2024-2025
+ * This is a one-time setup function
+ */
+function populatePhilippineHolidays() {
+  const holidays = [
+    // 2024 Regular Holidays
+    { holidayName: "New Year's Day", holidayDate: '2024-01-01' },
+    { holidayName: 'Maundy Thursday', holidayDate: '2024-03-28' },
+    { holidayName: 'Good Friday', holidayDate: '2024-03-29' },
+    { holidayName: 'Araw ng Kagitingan (Day of Valor)', holidayDate: '2024-04-09' },
+    { holidayName: 'Labor Day', holidayDate: '2024-05-01' },
+    { holidayName: 'Independence Day', holidayDate: '2024-06-12' },
+    { holidayName: 'Eid al-Adha (Feast of Sacrifice)', holidayDate: '2024-06-17' },
+    { holidayName: 'Ninoy Aquino Day', holidayDate: '2024-08-21' },
+    { holidayName: 'National Heroes Day', holidayDate: '2024-08-26' },
+    { holidayName: 'Bonifacio Day', holidayDate: '2024-11-30' },
+    { holidayName: 'Christmas Day', holidayDate: '2024-12-25' },
+    { holidayName: 'Rizal Day', holidayDate: '2024-12-30' },
+
+    // 2024 Special Non-Working Days
+    { holidayName: 'Chinese New Year', holidayDate: '2024-02-10' },
+    { holidayName: 'EDSA People Power Revolution Anniversary', holidayDate: '2024-02-25' },
+    { holidayName: 'Black Saturday', holidayDate: '2024-03-30' },
+    { holidayName: 'All Saints Day', holidayDate: '2024-11-01' },
+    { holidayName: 'All Souls Day', holidayDate: '2024-11-02' },
+    { holidayName: 'Feast of the Immaculate Conception of Mary', holidayDate: '2024-12-08' },
+    { holidayName: 'Christmas Eve (Special)', holidayDate: '2024-12-24' },
+    { holidayName: 'Last Day of the Year', holidayDate: '2024-12-31' },
+
+    // 2025 Regular Holidays
+    { holidayName: "New Year's Day", holidayDate: '2025-01-01' },
+    { holidayName: 'Maundy Thursday', holidayDate: '2025-04-17' },
+    { holidayName: 'Good Friday', holidayDate: '2025-04-18' },
+    { holidayName: 'Araw ng Kagitingan (Day of Valor)', holidayDate: '2025-04-09' },
+    { holidayName: 'Labor Day', holidayDate: '2025-05-01' },
+    { holidayName: 'Independence Day', holidayDate: '2025-06-12' },
+    { holidayName: 'Eid al-Adha (Feast of Sacrifice)', holidayDate: '2025-06-07' },
+    { holidayName: 'Ninoy Aquino Day', holidayDate: '2025-08-21' },
+    { holidayName: 'National Heroes Day', holidayDate: '2025-08-25' },
+    { holidayName: 'Bonifacio Day', holidayDate: '2025-11-30' },
+    { holidayName: 'Christmas Day', holidayDate: '2025-12-25' },
+    { holidayName: 'Rizal Day', holidayDate: '2025-12-30' },
+
+    // 2025 Special Non-Working Days
+    { holidayName: 'Chinese New Year', holidayDate: '2025-01-29' },
+    { holidayName: 'EDSA People Power Revolution Anniversary', holidayDate: '2025-02-25' },
+    { holidayName: 'Black Saturday', holidayDate: '2025-04-19' },
+    { holidayName: 'All Saints Day', holidayDate: '2025-11-01' },
+    { holidayName: 'All Souls Day', holidayDate: '2025-11-02' },
+    { holidayName: 'Feast of the Immaculate Conception of Mary', holidayDate: '2025-12-08' },
+    { holidayName: 'Christmas Eve (Special)', holidayDate: '2025-12-24' },
+    { holidayName: 'Last Day of the Year', holidayDate: '2025-12-31' }
+  ];
+
+  return bulkImportHolidays(holidays);
+}
