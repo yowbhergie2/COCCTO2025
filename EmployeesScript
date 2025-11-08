@@ -460,7 +460,20 @@
       showAlert('Please select an employee first', 'error');
       return;
     }
-    showOverlay('HistoryForm', { employeeId: selectedEmployee.employeeId });
+
+    // Check if employee has overtime logs
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.hasOvertimeLogs) {
+          showAlert('Cannot add Historical Balance: Employee already has overtime logs. Adding historical data would cause data conflicts.', 'error');
+        } else {
+          showOverlay('HistoryForm', { employeeId: selectedEmployee.employeeId });
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error checking overtime logs: ' + err.message, 'error');
+      })
+      .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
   }
 
   /**
