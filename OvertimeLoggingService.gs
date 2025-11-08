@@ -976,6 +976,32 @@ function getEmployeeLedger(employeeId) {
 }
 
 /**
+ * Convert time value to string format (HH:MM AM/PM)
+ */
+function formatTime(timeValue) {
+  if (!timeValue) return '';
+
+  try {
+    // If it's already a string, return it
+    if (typeof timeValue === 'string') return timeValue;
+
+    // If it's a Date object (Google Sheets time format)
+    if (timeValue instanceof Date) {
+      const hours = timeValue.getHours();
+      const minutes = timeValue.getMinutes();
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+      return `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+    }
+
+    return String(timeValue);
+  } catch (error) {
+    Logger.log('Error formatting time: ' + error.toString());
+    return '';
+  }
+}
+
+/**
  * Get detailed employee COC ledger with comprehensive balance information
  * Includes both historical data (from CreditBatches) and current overtime (from OvertimeLogs)
  * @param {number} employeeId - Employee ID
@@ -1147,10 +1173,10 @@ function getEmployeeLedgerDetailed(employeeId) {
               year: row[yearIndex],
               dateWorked: formatDate(new Date(row[dateWorkedIndex])),
               dayType: row[dayTypeIndex],
-              amIn: row[amInIndex] || '',
-              amOut: row[amOutIndex] || '',
-              pmIn: row[pmInIndex] || '',
-              pmOut: row[pmOutIndex] || '',
+              amIn: formatTime(row[amInIndex]),
+              amOut: formatTime(row[amOutIndex]),
+              pmIn: formatTime(row[pmInIndex]),
+              pmOut: formatTime(row[pmOutIndex]),
               cocEarned: cocEarned,
               validUntil: validUntil,
               status: status,
