@@ -145,6 +145,17 @@
     <!-- Success/Error Messages -->
     <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
 
+    <!-- Certificate Exists Warning -->
+    <div id="certificateWarning" style="display: none; margin-bottom: 1.5rem; background: #fee2e2; border: 2px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <i class="fas fa-ban" style="font-size: 1.5rem;"></i>
+        <div>
+          <div style="font-weight: 600; margin-bottom: 0.25rem;">Cannot Log Overtime</div>
+          <div id="certificateWarningMessage" style="font-size: 0.875rem;"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- COC Progress Display -->
     <div id="cocProgressContainer" style="display: none; margin-bottom: 1.5rem;">
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -395,15 +406,18 @@
 
       // Add event listeners to reload existing dates when selection changes
       document.getElementById('employeeId').addEventListener('change', () => {
+        checkIfCanLog();
         loadExistingDates();
         loadCOCProgress();
       });
       document.getElementById('month').addEventListener('change', () => {
+        checkIfCanLog();
         loadExistingDates();
         updateDateInputConstraints();
         loadCOCProgress();
       });
       document.getElementById('year').addEventListener('change', () => {
+        checkIfCanLog();
         loadExistingDates();
         updateDateInputConstraints();
         loadCOCProgress();
@@ -828,6 +842,63 @@
           existingDatabaseDates = [];
         })
         .getExistingOvertimeDates(parseInt(employeeId), month, parseInt(year));
+    }
+
+    // Check if can log overtime for selected month/year
+    function checkIfCanLog() {
+      const employeeId = document.getElementById('employeeId').value;
+      const month = document.getElementById('month').value;
+      const year = document.getElementById('year').value;
+
+      const warningDiv = document.getElementById('certificateWarning');
+      const warningMessage = document.getElementById('certificateWarningMessage');
+      const entryTableBody = document.getElementById('entryTableBody');
+      const saveBtn = document.getElementById('saveBtn');
+
+      if (!employeeId || !month || !year) {
+        warningDiv.style.display = 'none';
+        enableForm();
+        return;
+      }
+
+      // Call server to check if can log
+      google.script.run
+        .withSuccessHandler(result => {
+          if (!result.canLog) {
+            // Show warning and disable form
+            warningMessage.textContent = result.message;
+            warningDiv.style.display = 'block';
+            disableForm();
+          } else {
+            // Hide warning and enable form
+            warningDiv.style.display = 'none';
+            enableForm();
+          }
+        })
+        .withFailureHandler(err => {
+          console.error('Error checking if can log:', err);
+          warningDiv.style.display = 'none';
+          enableForm();
+        })
+        .canLogOvertimeForMonth(parseInt(employeeId), month, parseInt(year));
+    }
+
+    // Disable form entries
+    function disableForm() {
+      const saveBtn = document.getElementById('saveBtn');
+      const entryInputs = document.querySelectorAll('#entryTableBody input, #entryTableBody button');
+
+      if (saveBtn) saveBtn.disabled = true;
+      entryInputs.forEach(input => input.disabled = true);
+    }
+
+    // Enable form entries
+    function enableForm() {
+      const saveBtn = document.getElementById('saveBtn');
+      const entryInputs = document.querySelectorAll('#entryTableBody input, #entryTableBody button');
+
+      if (saveBtn) saveBtn.disabled = false;
+      entryInputs.forEach(input => input.disabled = false);
     }
 
     // Load and display COC progress

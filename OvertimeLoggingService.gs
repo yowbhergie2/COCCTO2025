@@ -684,19 +684,24 @@ function generateCOCCertificate(certificateData) {
     // Log certificate issuance
     logCertificateIssuance(certificateData.employeeId, certificateData.month, certificateData.year, certificateData.dateOfIssuance);
 
+    // Construct employee full name
+    const employeeFullName = [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
+      .filter(x => x)
+      .join(' ');
+
     // Generate PDF certificate
     try {
       const pdfUrl = generateCertificatePDF(certificateData, employee, validUntilDate, totalHours);
       return {
         success: true,
-        message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}.`,
+        message: `Certificate generated successfully for ${employeeFullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}.`,
         pdfUrl: pdfUrl
       };
     } catch (pdfError) {
       Logger.log('Error generating PDF: ' + pdfError.toString());
       return {
         success: true,
-        message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}. (PDF generation failed: ${pdfError.message})`
+        message: `Certificate generated successfully for ${employeeFullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}. (PDF generation failed: ${pdfError.message})`
       };
     }
 
@@ -1308,6 +1313,48 @@ function getEmployeeLedgerDetailed(employeeId) {
       totalEarned: 0,
       usedCOCs: 0,
       transactions: []
+    };
+  }
+}
+
+/**
+ * Check if certificate or historical balance exists for a month/year
+ * Used for early validation in the form
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {Object} Result with canLog flag and message
+ */
+function canLogOvertimeForMonth(employeeId, month, year) {
+  try {
+    // Check historical balance
+    const hasHistoricalBalance = checkHistoricalBalanceExists(employeeId, month, year);
+    if (hasHistoricalBalance) {
+      return {
+        canLog: false,
+        message: `Cannot log overtime for ${month} ${year}. A historical balance already exists for this period.`
+      };
+    }
+
+    // Check if certificate exists
+    const hasCertificate = checkExistingCertificate(employeeId, month, year);
+    if (hasCertificate) {
+      return {
+        canLog: false,
+        message: `Cannot log overtime for ${month} ${year}. A certificate has already been issued for this period. No additional overtime entries can be added.`
+      };
+    }
+
+    return {
+      canLog: true,
+      message: 'OK'
+    };
+
+  } catch (error) {
+    Logger.log('Error in canLogOvertimeForMonth: ' + error.toString());
+    return {
+      canLog: true,
+      message: 'OK'
     };
   }
 }
