@@ -201,6 +201,7 @@
                 <th style="width: 100px;">AM Out</th>
                 <th style="width: 100px;">PM In</th>
                 <th style="width: 100px;">PM Out</th>
+                <th style="width: 100px;">Hours Worked</th>
                 <th style="width: 100px;">COC Earned</th>
                 <th style="width: 80px;">Action</th>
               </tr>
@@ -212,7 +213,7 @@
         </div>
 
         <p style="color: #697386; font-size: 0.875rem; margin-top: 1rem;">
-          <i class="fas fa-info-circle"></i> <strong>Note:</strong> COC Earned is auto-calculated based on policy rules.
+          <i class="fas fa-info-circle"></i> <strong>Note:</strong> Hours Worked and COC Earned are auto-calculated based on policy rules.
           Weekdays: 5PM-7PM window (max 2 hrs × 1.0x). Weekends/Holidays: 8AM-12PM & 1PM-5PM windows × 1.5x rate.
         </p>
       </div>
@@ -783,6 +784,7 @@
         <td>
           <input type="time" class="pm-out" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
+        <td class="coc-earned-cell" id="hoursWorked-${rowCounter}">0.0</td>
         <td class="coc-earned-cell" id="cocEarned-${rowCounter}">0.0</td>
         <td>
           <button type="button" class="delete-row-btn" onclick="deleteRow(${rowCounter})">
@@ -810,6 +812,7 @@
 
       const dateInput = row.querySelector('.date-input');
       const dayTypeDiv = document.getElementById('dayType-' + rowId);
+      const hoursWorkedDiv = document.getElementById('hoursWorked-' + rowId);
       const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
 
       // Determine day type
@@ -834,18 +837,23 @@
       const pmIn = row.querySelector('.pm-in').value;
       const pmOut = row.querySelector('.pm-out').value;
 
-      // Calculate COC Earned
+      // Calculate Hours Worked and COC Earned
+      let hoursWorked = 0;
       let cocEarned = 0;
       if (dateInput.value && (amIn || amOut || pmIn || pmOut)) {
-        cocEarned = calculateCOC(dayType, amIn, amOut, pmIn, pmOut);
+        const result = calculateCOC(dayType, amIn, amOut, pmIn, pmOut);
+        hoursWorked = result.hoursWorked;
+        cocEarned = result.cocEarned;
       }
 
+      hoursWorkedDiv.textContent = hoursWorked.toFixed(1);
       cocEarnedDiv.textContent = cocEarned.toFixed(1);
       updateGrandTotal();
     }
 
     // Calculate COC based on day type and time inputs
     function calculateCOC(dayType, amIn, amOut, pmIn, pmOut) {
+      let totalHoursWorked = 0;
       let totalCOC = 0;
 
       if (dayType === 'Weekday') {
@@ -864,7 +872,8 @@
 
           if (effectiveOut > effectiveIn) {
             const hoursWorked = (effectiveOut - effectiveIn) / 60;
-            totalCOC = Math.min(hoursWorked, 2); // Max 2 hours
+            totalHoursWorked = hoursWorked;
+            totalCOC = Math.min(hoursWorked, 2); // Max 2 hours at 1.0x
           }
         }
       } else {
@@ -882,6 +891,7 @@
 
           if (effectiveAmOut > effectiveAmIn) {
             const amHoursWorked = (effectiveAmOut - effectiveAmIn) / 60;
+            totalHoursWorked += amHoursWorked;
             totalCOC += amHoursWorked * 1.5; // 1.5x rate
           }
         }
@@ -899,12 +909,16 @@
 
           if (effectivePmOut > effectivePmIn) {
             const pmHoursWorked = (effectivePmOut - effectivePmIn) / 60;
+            totalHoursWorked += pmHoursWorked;
             totalCOC += pmHoursWorked * 1.5; // 1.5x rate
           }
         }
       }
 
-      return totalCOC;
+      return {
+        hoursWorked: totalHoursWorked,
+        cocEarned: totalCOC
+      };
     }
 
     // Delete a row
