@@ -427,3 +427,80 @@ function getAllUncertifiedLogs() {
     return [];
   }
 }
+
+/**
+ * Get existing overtime dates for duplicate detection
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {Array<string>} Array of date strings in YYYY-MM-DD format
+ */
+function getExistingOvertimeDates(employeeId, month, year) {
+  try {
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return [];
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const dateWorkedIndex = headers.indexOf('DateWorked');
+
+    const existingDates = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      // Match employee, month, and year
+      if (row[employeeIdIndex] === employeeId &&
+          row[monthIndex] === month &&
+          row[yearIndex] === year) {
+
+        // Get the date and format as YYYY-MM-DD
+        const dateWorked = row[dateWorkedIndex];
+        if (dateWorked) {
+          const dateStr = formatDateForInput(dateWorked);
+          if (dateStr && !existingDates.includes(dateStr)) {
+            existingDates.push(dateStr);
+          }
+        }
+      }
+    }
+
+    return existingDates;
+
+  } catch (error) {
+    Logger.log('Error in getExistingOvertimeDates: ' + error.toString());
+    return [];
+  }
+}
+
+/**
+ * Format date for HTML date input (YYYY-MM-DD)
+ * @param {Date} date - Date object
+ * @returns {string} Date string in YYYY-MM-DD format
+ */
+function formatDateForInput(date) {
+  try {
+    if (!date) return '';
+
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    Logger.log('Error in formatDateForInput: ' + error.toString());
+    return '';
+  }
+}
