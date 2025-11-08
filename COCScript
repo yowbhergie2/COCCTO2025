@@ -1181,17 +1181,82 @@
     const dateOfIssuance = document.getElementById('dateOfIssuance');
 
     if (empSelect) {
-      empSelect.addEventListener('change', loadUncertifiedHours);
+      empSelect.addEventListener('change', function() {
+        loadUncertifiedMonthsFilter();
+        loadUncertifiedHours();
+      });
     }
     if (monthSelect) {
       monthSelect.addEventListener('change', loadUncertifiedHours);
     }
     if (yearSelectElem) {
-      yearSelectElem.addEventListener('change', loadUncertifiedHours);
+      yearSelectElem.addEventListener('change', function() {
+        loadUncertifiedMonthsFilter();
+        loadUncertifiedHours();
+      });
     }
     if (dateOfIssuance) {
       dateOfIssuance.addEventListener('change', updateValidUntilDisplay);
     }
+  }
+
+  /**
+   * Load and filter months to show only uncertified months
+   */
+  function loadUncertifiedMonthsFilter() {
+    const employeeId = document.getElementById('certEmployeeId')?.value;
+    const year = document.getElementById('certYear')?.value;
+    const monthSelect = document.getElementById('certMonth');
+
+    if (!employeeId || !year || !monthSelect) {
+      // Reset all months to enabled if no employee or year selected
+      if (monthSelect) {
+        const options = monthSelect.querySelectorAll('option');
+        options.forEach(option => {
+          if (option.value !== '') {
+            option.disabled = false;
+            option.textContent = option.value;
+          }
+        });
+      }
+      return;
+    }
+
+    // Fetch certified months from server
+    google.script.run
+      .withSuccessHandler(certifiedMonths => {
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December'];
+
+        // Reset month select
+        const selectedMonth = monthSelect.value;
+        const options = monthSelect.querySelectorAll('option');
+
+        options.forEach(option => {
+          if (option.value === '') return; // Skip placeholder
+
+          const monthValue = option.value;
+
+          // Check if this month is already certified
+          if (certifiedMonths.includes(monthValue)) {
+            option.disabled = true;
+            option.textContent = monthValue + ' (Already Certified)';
+
+            // If currently selected month is now disabled, clear selection
+            if (monthValue === selectedMonth) {
+              monthSelect.value = '';
+            }
+          } else {
+            option.disabled = false;
+            option.textContent = monthValue;
+          }
+        });
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading certified months:', err);
+        // On error, don't filter - show all months
+      })
+      .getCertifiedMonths(parseInt(employeeId), parseInt(year));
   }
 
   /**

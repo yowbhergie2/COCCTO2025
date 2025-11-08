@@ -76,21 +76,3 @@
     </form>
   </div>
 </div>
-
-<!-- Info Box -->
-<div class="card" style="max-width: 900px; margin: 1.5rem auto 0;">
-  <div class="card-body">
-    <div class="info-box">
-      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-lightbulb"></i> <strong>How Certificate Generation Works:</strong>
-      </p>
-      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
-        <li>Select employee, month, and year to see all uncertified overtime credits</li>
-        <li>Enter the Date of Issuance (typically the date you're issuing the certificate)</li>
-        <li>The system calculates Valid Until date: (Date of Issuance + 1 Year - 1 Day)</li>
-        <li>Upon generation, all uncertified credits become "Active" and available for CTO usage</li>
-        <li>System prevents duplicate certificates for the same employee/month/year</li>
-      </ul>
-    </div>
-  </div>
-</div>
