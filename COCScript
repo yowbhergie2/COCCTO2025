@@ -584,6 +584,16 @@
       }
     }
 
+    // Validate that PM In is not earlier than AM Out
+    if (amOutInput && amOutInput.value && pmInInput && pmInInput.value) {
+      const amOutMinutes = timeToMinutes(amOutInput.value);
+      const pmInMinutes = timeToMinutes(pmInInput.value);
+      if (pmInMinutes < amOutMinutes) {
+        pmInInput.classList.add('error');
+        isValid = false;
+      }
+    }
+
     // Check if date is filled but ALL time inputs are empty
     const dateInput = row.querySelector('.date-input');
     if (dateInput && dateInput.value) {
