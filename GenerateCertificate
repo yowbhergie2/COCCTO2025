@@ -62,6 +62,29 @@
     color: #697386;
     margin-bottom: 0.5rem;
   }
+
+  /* --- NEW: Style for Success Modal --- */
+  .success-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .success-modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
 </style>
 
 <div class="page-header">
@@ -118,6 +141,27 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- --- NEW: Success Modal --- -->
+<div id="successModalOverlay" class="success-modal-overlay">
+  <div class="success-modal-content">
+    <div style="margin-bottom: 1.5rem; text-align: center;">
+      <i class="fas fa-check-circle" style="font-size: 3rem; color: #10b981; margin-bottom: 1rem;"></i>
+      <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #1a1f36;">Success</h3>
+    </div>
+    <p id="successModalMessage" style="color: #697386; margin-bottom: 2rem; line-height: 1.6;">
+      Certificate generated successfully.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <button id="successModalPdfButton" class="btn btn-primary" style="width: 100%; justify-content: center;">
+        <i class="fas fa-file-pdf"></i> View/Download PDF
+      </button>
+      <button onclick="closeSuccessModal()" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+        Close
+      </button>
     </div>
   </div>
 </div>
