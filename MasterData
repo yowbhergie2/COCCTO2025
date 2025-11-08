@@ -15,9 +15,6 @@
     <button onclick="showConfigTab('weekend')" id="tab-weekend" class="config-tab">
       <i class="fas fa-calendar-week"></i> Weekend Config
     </button>
-    <button onclick="showConfigTab('users')" id="tab-users" class="config-tab">
-      <i class="fas fa-users"></i> HR Users
-    </button>
   </div>
 </div>
 
@@ -157,22 +154,3 @@
   </div>
 </div>
 
-<!-- Tab 4: HR Users -->
-<div id="section-users" class="config-section">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">HR Staff Accounts</div>
-      <button onclick="addUser()" class="btn btn-primary">
-        <i class="fas fa-user-plus"></i> Add User
-      </button>
-    </div>
-    <div class="card-body">
-      <p style="color: #697386; margin-bottom: 1.5rem;">
-        Manage HR Staff user accounts and permissions. HR Admins have full access, HR Staff have limited access.
-      </p>
-      <div id="usersList">
-        <div style="text-align: center; padding: 2rem; color: #697386;">Loading...</div>
-      </div>
-    </div>
-  </div>
-</div>

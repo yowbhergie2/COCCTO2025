@@ -16,8 +16,6 @@
       refreshHolidays();
     } else if (tabName === 'weekend') {
       refreshWeekendConfig();
-    } else if (tabName === 'users') {
-      refreshUsers();
     }
   }
 
@@ -303,92 +301,4 @@
       .setWeekendDays(selectedDays);
   }
 
-  // ========== USER MANAGEMENT ==========
-
-  /**
-   * Refresh users list
-   */
-  function refreshUsers() {
-    google.script.run
-      .withSuccessHandler(users => {
-        const list = document.getElementById('usersList');
-        if (!list) return;
-        list.innerHTML = '';
-
-        if (users.length === 0) {
-          list.innerHTML = '<p style="text-align: center; color: #697386;">No users found</p>';
-          return;
-        }
-
-        // Sort by full name
-        users.sort((a, b) => a.fullName.localeCompare(b.fullName));
-
-        // Create table
-        let html = '<table style="width: 100%; border-collapse: collapse;">';
-        html += '<thead><tr>';
-        html += '<th style="text-align: left; padding: 0.75rem; border-bottom: 2px solid #e8ebed; font-weight: 600;">Name</th>';
-        html += '<th style="text-align: left; padding: 0.75rem; border-bottom: 2px solid #e8ebed; font-weight: 600;">Email</th>';
-        html += '<th style="text-align: left; padding: 0.75rem; border-bottom: 2px solid #e8ebed; font-weight: 600;">Role</th>';
-        html += '<th style="text-align: center; padding: 0.75rem; border-bottom: 2px solid #e8ebed; font-weight: 600;">Status</th>';
-        html += '<th style="text-align: center; padding: 0.75rem; border-bottom: 2px solid #e8ebed; font-weight: 600;">Actions</th>';
-        html += '</tr></thead><tbody>';
-
-        users.forEach(user => {
-          html += '<tr>';
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${user.fullName}</td>`;
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${user.email}</td>`;
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${user.role}</td>`;
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5; text-align: center;">`;
-          html += `<span class="badge ${user.status === 'Active' ? 'badge-success' : 'badge-inactive'}">${user.status}</span>`;
-          html += `</td>`;
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5; text-align: center;">`;
-          html += `<button onclick="editUser(${user.userId})" style="color: #3b82f6; cursor: pointer; background: none; border: none; font-size: 0.875rem; margin-right: 0.5rem;"><i class="fas fa-pencil-alt"></i></button>`;
-          html += `<button onclick="deleteUser(${user.userId})" style="color: #ef4444; cursor: pointer; background: none; border: none; font-size: 0.875rem;"><i class="fas fa-trash-alt"></i></button>`;
-          html += `</td>`;
-          html += '</tr>';
-        });
-
-        html += '</tbody></table>';
-        list.innerHTML = html;
-      })
-      .withFailureHandler(err => {
-        showAlert('Error loading users: ' + err.message, 'error');
-      })
-      .getAllHRUsers();
-  }
-
-  /**
-   * Add new user
-   */
-  function addUser() {
-    showOverlay('UserForm', {});
-  }
-
-  /**
-   * Edit user
-   */
-  function editUser(userId) {
-    showOverlay('UserForm', { userId: userId });
-  }
-
-  /**
-   * Delete user (soft delete - set to Inactive)
-   */
-  function deleteUser(userId) {
-    if (confirm('Are you sure you want to deactivate this user?')) {
-      google.script.run
-        .withSuccessHandler(result => {
-          if (result.success) {
-            showAlert(result.message, 'success');
-            refreshUsers();
-          } else {
-            showAlert(result.message, 'error');
-          }
-        })
-        .withFailureHandler(err => {
-          showAlert('Error: ' + err.message, 'error');
-        })
-        .deleteHRUser(userId);
-    }
-  }
 </script>
