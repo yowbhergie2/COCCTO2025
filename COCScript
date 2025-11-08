@@ -50,12 +50,16 @@
 
     if (empSelect) {
       empSelect.addEventListener('change', () => {
+        checkIfCanLogOvertime();
+        loadCOCProgress();
         loadExistingDates();
         checkAddDayButtonState();
       });
     }
     if (monthSelect) {
       monthSelect.addEventListener('change', () => {
+        checkIfCanLogOvertime();
+        loadCOCProgress();
         loadExistingDates();
         updateDateInputConstraints();
         checkAddDayButtonState();
@@ -64,6 +68,8 @@
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
         updateMonthOptionsForYear();
+        checkIfCanLogOvertime();
+        loadCOCProgress();
         loadExistingDates();
         updateDateInputConstraints();
         checkAddDayButtonState();
@@ -225,6 +231,87 @@
         existingDatabaseDates = [];
       })
       .getExistingOvertimeDates(parseInt(employeeId), month, parseInt(year));
+  }
+
+  /**
+   * Check if can log overtime for selected month/year (certificate exists validation)
+   */
+  function checkIfCanLogOvertime() {
+    const employeeId = document.getElementById('employeeId')?.value;
+    const month = document.getElementById('month')?.value;
+    const year = document.getElementById('year')?.value;
+
+    const warningDiv = document.getElementById('certificateWarning');
+    const warningMessage = document.getElementById('certificateWarningMessage');
+
+    if (!warningDiv || !warningMessage) return;
+
+    if (!employeeId || !month || !year) {
+      warningDiv.style.display = 'none';
+      return;
+    }
+
+    // Call server to check if can log
+    google.script.run
+      .withSuccessHandler(result => {
+        if (!result.canLog) {
+          // Show warning and disable form
+          warningMessage.textContent = result.message;
+          warningDiv.style.display = 'block';
+
+          // Disable Add Day button and Save button
+          const addDayBtn = document.getElementById('addDayBtn');
+          const saveBtn = document.getElementById('saveBtn');
+          if (addDayBtn) addDayBtn.disabled = true;
+          if (saveBtn) saveBtn.disabled = true;
+        } else {
+          // Hide warning
+          warningDiv.style.display = 'none';
+        }
+      })
+      .withFailureHandler(err => {
+        console.error('Error checking if can log:', err);
+        warningDiv.style.display = 'none';
+      })
+      .canLogOvertimeForMonth(parseInt(employeeId), month, parseInt(year));
+  }
+
+  /**
+   * Load and display COC progress (X/40 and X/120)
+   */
+  function loadCOCProgress() {
+    const employeeId = document.getElementById('employeeId')?.value;
+    const month = document.getElementById('month')?.value;
+    const year = document.getElementById('year')?.value;
+
+    const progressContainer = document.getElementById('cocProgressContainer');
+
+    if (!progressContainer) return;
+
+    if (!employeeId || !month || !year) {
+      progressContainer.style.display = 'none';
+      return;
+    }
+
+    // Call server to get COC progress
+    google.script.run
+      .withSuccessHandler(progress => {
+        // Update monthly progress
+        document.getElementById('monthProgress').textContent = progress.monthTotal.toFixed(1);
+        document.getElementById('monthRemaining').textContent = progress.monthRemaining.toFixed(1);
+
+        // Update total balance progress
+        document.getElementById('totalProgress').textContent = progress.totalBalance.toFixed(1);
+        document.getElementById('totalRemaining').textContent = progress.totalRemaining.toFixed(1);
+
+        // Show the progress container
+        progressContainer.style.display = 'block';
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading COC progress:', err);
+        progressContainer.style.display = 'none';
+      })
+      .getEmployeeCOCProgress(parseInt(employeeId), month, parseInt(year));
   }
 
   /**
