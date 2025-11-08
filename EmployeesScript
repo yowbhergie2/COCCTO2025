@@ -345,8 +345,9 @@
     const form = document.getElementById('employeeForm');
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
-    
-    const employeeId = data.employeeId;
+
+    // Convert employeeId to number (FormData returns strings, but DB stores numbers)
+    const employeeId = data.employeeId ? parseInt(data.employeeId, 10) : null;
     const serverFunc = employeeId ? 'updateEmployee' : 'createEmployee';
     
     google.script.run
