@@ -1458,6 +1458,18 @@
           const remaining = tx.cocRemaining || 0;
 
           totalHistoricalEarned += earned;
+          totalHistoricalRemaining += remaining;
+
+          console.log('Historical transaction:', {
+            month: tx.month,
+            year: tx.year,
+            earned: earned,
+            used: used,
+            remaining: remaining,
+            dateOfIssuance: dateOfIssuanceDisplay,
+            validUntil: validUntilDisplay,
+            status: tx.status
+          });
 
           historicalRows += `
             <tr style="border-bottom: 1px solid #e1e4e8;">
@@ -1497,8 +1509,8 @@
           </div>
           <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 4px; border: 1px solid #e1e4e8;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600; color: #1a1f36; font-size: 0.75rem;">Total:</span>
-              <span style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+              <span style="font-weight: 600; color: #1a1f36; font-size: 0.75rem;">Total Remaining:</span>
+              <span style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalRemaining.toFixed(1)} hrs</span>
             </div>
           </div>
         `;
