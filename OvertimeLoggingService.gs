@@ -968,93 +968,148 @@ function getEmployeeLedger(employeeId) {
 
 /**
  * Get detailed employee COC ledger with comprehensive balance information
+ * Includes both historical data (from CreditBatches) and current overtime (from OvertimeLogs)
  * @param {number} employeeId - Employee ID
  * @returns {Object} Detailed ledger data with activeBalance, uncertifiedBalance, totalEarned, usedCOCs, and transactions array
  */
 function getEmployeeLedgerDetailed(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
-      return {
-        activeBalance: 0,
-        uncertifiedBalance: 0,
-        totalEarned: 0,
-        usedCOCs: 0,
-        transactions: []
-      };
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return {
-        activeBalance: 0,
-        uncertifiedBalance: 0,
-        totalEarned: 0,
-        usedCOCs: 0,
-        transactions: []
-      };
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
-    const dayTypeIndex = headers.indexOf('DayType');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const certifiedIndex = headers.indexOf('Certified');
-    const validUntilIndex = headers.indexOf('ValidUntil');
-
     let activeBalance = 0;
     let uncertifiedBalance = 0;
     let totalEarned = 0;
+    let usedCOCs = 0;
     const transactions = [];
 
     // Get current date for expiration checks
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
+    // ========================================
+    // PART 1: Get Historical Data from CreditBatches
+    // ========================================
+    const creditBatchesSheet = getDbSheet('CreditBatches');
+    if (creditBatchesSheet) {
+      const batchData = creditBatchesSheet.getDataRange().getValues();
+      if (batchData.length > 1) {
+        const batchHeaders = batchData[0];
+        const batchEmployeeIdIndex = batchHeaders.indexOf('EmployeeID');
+        const batchMonthIndex = batchHeaders.indexOf('EarnedMonth');
+        const batchYearIndex = batchHeaders.indexOf('EarnedYear');
+        const batchOriginalHoursIndex = batchHeaders.indexOf('OriginalHours');
+        const batchRemainingHoursIndex = batchHeaders.indexOf('RemainingHours');
+        const batchStatusIndex = batchHeaders.indexOf('Status');
+        const batchValidUntilIndex = batchHeaders.indexOf('ValidUntil');
+        const batchDateOfIssuanceIndex = batchHeaders.indexOf('DateOfIssuance');
 
-      if (row[employeeIdIndex] === employeeId) {
-        const certified = row[certifiedIndex] === 'Yes';
-        const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
-        const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+        for (let i = 1; i < batchData.length; i++) {
+          const row = batchData[i];
 
-        // Add to total earned (all-time total)
-        totalEarned += cocEarned;
+          if (row[batchEmployeeIdIndex] === employeeId) {
+            const originalHours = parseFloat(row[batchOriginalHoursIndex]) || 0;
+            const remainingHours = parseFloat(row[batchRemainingHoursIndex]) || 0;
+            const batchStatus = row[batchStatusIndex];
+            const validUntil = row[batchValidUntilIndex] ? new Date(row[batchValidUntilIndex]) : null;
+            const dateOfIssuance = row[batchDateOfIssuanceIndex] ? new Date(row[batchDateOfIssuanceIndex]) : null;
 
-        let status = 'Uncertified';
+            // Calculate used hours for this batch
+            const batchUsed = originalHours - remainingHours;
 
-        if (certified) {
-          if (validUntil) {
-            // Check if expired
-            if (validUntil < now) {
-              status = 'Expired';
-            } else {
-              status = 'Active';
-              activeBalance += cocEarned;
+            // Add to total earned
+            totalEarned += originalHours;
+
+            // Add to used COCs
+            if (batchUsed > 0) {
+              usedCOCs += batchUsed;
             }
-          } else {
-            // Certified but no valid until date (shouldn't happen, but handle gracefully)
-            status = 'Active';
-            activeBalance += cocEarned;
-          }
-        } else {
-          // Uncertified
-          uncertifiedBalance += cocEarned;
-        }
 
-        transactions.push({
-          month: row[monthIndex],
-          year: row[yearIndex],
-          dateWorked: formatDate(new Date(row[dateWorkedIndex])),
-          dayType: row[dayTypeIndex],
-          cocEarned: cocEarned,
-          validUntil: validUntil,
-          status: status
-        });
+            // Determine current status and add to active balance
+            let currentStatus = batchStatus;
+            if (batchStatus === 'Active') {
+              // Check if expired
+              if (validUntil && validUntil < now) {
+                currentStatus = 'Expired';
+              } else {
+                activeBalance += remainingHours;
+              }
+            }
+
+            // Add to transactions (show as batch entry)
+            transactions.push({
+              month: row[batchMonthIndex],
+              year: row[batchYearIndex],
+              dateWorked: dateOfIssuance ? formatDate(dateOfIssuance) : 'Historical',
+              dayType: 'Historical Batch',
+              cocEarned: originalHours,
+              validUntil: validUntil,
+              status: currentStatus,
+              isHistorical: true
+            });
+          }
+        }
+      }
+    }
+
+    // ========================================
+    // PART 2: Get Current Overtime Data from OvertimeLogs
+    // ========================================
+    const overtimeSheet = getDbSheet('OvertimeLogs');
+    if (overtimeSheet) {
+      const overtimeData = overtimeSheet.getDataRange().getValues();
+      if (overtimeData.length > 1) {
+        const overtimeHeaders = overtimeData[0];
+        const employeeIdIndex = overtimeHeaders.indexOf('EmployeeID');
+        const monthIndex = overtimeHeaders.indexOf('Month');
+        const yearIndex = overtimeHeaders.indexOf('Year');
+        const dateWorkedIndex = overtimeHeaders.indexOf('DateWorked');
+        const dayTypeIndex = overtimeHeaders.indexOf('DayType');
+        const cocEarnedIndex = overtimeHeaders.indexOf('COCEarned');
+        const certifiedIndex = overtimeHeaders.indexOf('Certified');
+        const validUntilIndex = overtimeHeaders.indexOf('ValidUntil');
+
+        for (let i = 1; i < overtimeData.length; i++) {
+          const row = overtimeData[i];
+
+          if (row[employeeIdIndex] === employeeId) {
+            const certified = row[certifiedIndex] === 'Yes';
+            const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
+            const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+
+            // Add to total earned (all-time total)
+            totalEarned += cocEarned;
+
+            let status = 'Uncertified';
+
+            if (certified) {
+              if (validUntil) {
+                // Check if expired
+                if (validUntil < now) {
+                  status = 'Expired';
+                } else {
+                  status = 'Active';
+                  activeBalance += cocEarned;
+                }
+              } else {
+                // Certified but no valid until date (shouldn't happen, but handle gracefully)
+                status = 'Active';
+                activeBalance += cocEarned;
+              }
+            } else {
+              // Uncertified
+              uncertifiedBalance += cocEarned;
+            }
+
+            transactions.push({
+              month: row[monthIndex],
+              year: row[yearIndex],
+              dateWorked: formatDate(new Date(row[dateWorkedIndex])),
+              dayType: row[dayTypeIndex],
+              cocEarned: cocEarned,
+              validUntil: validUntil,
+              status: status,
+              isHistorical: false
+            });
+          }
+        }
       }
     }
 
@@ -1064,10 +1119,6 @@ function getEmployeeLedgerDetailed(employeeId) {
       const dateB = new Date(b.dateWorked);
       return dateB - dateA;
     });
-
-    // TODO: usedCOCs will be calculated from CTOLogs sheet when Log CTO feature is implemented
-    // For now, it's set to 0 as a placeholder
-    const usedCOCs = 0;
 
     return {
       activeBalance: activeBalance,
