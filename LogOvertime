@@ -46,12 +46,20 @@
       </div>
 
       <!-- Entry Grid -->
-      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+      <div id="overtimeEntriesSection" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; position: relative;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">Overtime Entries</h3>
           <button type="button" id="addDayBtn" class="btn btn-secondary" onclick="addOvertimeRow()" disabled>
             <i class="fas fa-plus"></i> Add Day
           </button>
+        </div>
+
+        <!-- Disabled overlay message -->
+        <div id="entriesDisabledOverlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.9); display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 10;">
+          <div style="text-align: center; color: #697386;">
+            <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 0.5rem; color: #4f46e5;"></i>
+            <p style="font-size: 1rem; font-weight: 600; margin: 0;">Please select Employee, Month, and Year first</p>
+          </div>
         </div>
 
         <div style="overflow-x: auto;">
@@ -90,7 +98,7 @@
       <!-- Action Buttons -->
       <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
         <button type="button" onclick="resetOvertimeForm()" class="btn btn-secondary">Reset Form</button>
-        <button type="submit" id="saveBtn" class="btn btn-primary">Save Overtime Batch</button>
+        <button type="submit" id="saveBtn" class="btn btn-primary" disabled>Save Overtime Batch</button>
       </div>
     </form>
   </div>
