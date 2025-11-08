@@ -1171,6 +1171,9 @@ function getEmployeeLedgerDetailed(employeeId) {
         dateWorked: tx.dateWorked,
         dayType: tx.dayType,
         cocEarned: tx.cocEarned,
+        cocUsed: tx.cocUsed || 0,
+        cocRemaining: tx.cocRemaining || 0,
+        dateOfIssuance: tx.dateOfIssuance,
         validUntil: tx.validUntil ? formatDate(tx.validUntil) : null,
         status: tx.status,
         isHistorical: tx.isHistorical
