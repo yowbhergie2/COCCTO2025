@@ -29,20 +29,32 @@ function getEmployeeHistoricalBalances(employeeId) {
     const statusIndex = headers.indexOf('Status');
     const notesIndex = headers.indexOf('Notes');
     
+    // Get current date for status calculation
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
     // Process each row
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      
+
       // Check if this is a historical balance entry for this employee
-      if (row[employeeIdIndex] == employeeId && 
-          row[notesIndex] && 
+      if (row[employeeIdIndex] == employeeId &&
+          row[notesIndex] &&
           row[notesIndex].toString().includes('Historical data migration')) {
-        
+
         // Calculate COC Used based on Original - Remaining
         const cocEarned = parseFloat(row[originalHoursIndex]) || 0;
         const remaining = parseFloat(row[remainingHoursIndex]) || 0;
         const cocUsed = cocEarned - remaining;
-        
+
+        // Calculate current status (check if expired)
+        let currentStatus = row[statusIndex];
+        const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+
+        if (currentStatus === 'Active' && validUntil && validUntil < now) {
+          currentStatus = 'Expired';
+        }
+
         records.push({
           batchId: row[batchIdIndex],
           month: row[monthIndex],
@@ -52,7 +64,7 @@ function getEmployeeHistoricalBalances(employeeId) {
           remaining: remaining.toFixed(1),
           dateOfIssuance: formatDate(row[dateOfIssuanceIndex]),
           validUntil: formatDate(row[validUntilIndex]),
-          status: row[statusIndex]
+          status: currentStatus
         });
       }
     }
