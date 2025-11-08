@@ -516,46 +516,6 @@ function formatDateForInput(date) {
 }
 
 /**
- * Validate monthly accrual cap (40 hours)
- * @param {number} employeeId - Employee ID
- * @param {string} month - Month name
- * @param {number} year - Year
- * @param {number} newCOC - New COC hours to be added
- * @returns {Object} Validation result with valid flag and message
- */
-function validateMonthlyAccrualCap(employeeId, month, year, newCOC) {
-  try {
-    // This function is correctly defined in AccrualRulesEngine.gs
-    // and correctly sums all COCEarned for the month.
-    // We just call it.
-    return AccrualRulesEngine.validateMonthlyAccrualCap(employeeId, month, year, newCOC);
-
-  } catch (error) {
-    Logger.log('Error in validateMonthlyAccrualCap (OvertimeLoggingService): ' + error.toString());
-    return { valid: false, message: 'Error validating monthly cap: ' + error.message };
-  }
-}
-
-/**
- * Validate total balance cap (120 hours)
- * @param {number} employeeId - Employee ID
- * @param {number} newCOC - New COC hours to be added
- * @returns {Object} Validation result with valid flag and message
- */
-function validateTotalBalanceCap(employeeId, newCOC) {
-  try {
-    // This function is correctly defined in AccrualRulesEngine.gs
-    // and correctly sums all balances.
-    // We just call it.
-    return AccrualRulesEngine.validateTotalBalanceCap(employeeId, newCOC);
-
-  } catch (error) {
-    Logger.log('Error in validateTotalBalanceCap (OvertimeLoggingService): ' + error.toString());
-    return { valid: false, message: 'Error validating total cap: ' + error.message };
-  }
-}
-
-/**
  * Get total uncertified COC hours for an employee/month/year
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
