@@ -235,3 +235,59 @@ function deletePosition(positionName) {
     };
   }
 }
+
+/**
+ * Get signatory configuration from Libraries sheet
+ * Signatory info is stored in columns D (Name) and E (Position)
+ */
+function getSignatoryConfig() {
+  try {
+    const sheet = getDbSheet('Libraries');
+
+    // Get signatory from row 2, columns D and E
+    const name = sheet.getRange(2, 4).getValue() || '';
+    const position = sheet.getRange(2, 5).getValue() || '';
+
+    return {
+      name: name,
+      position: position
+    };
+  } catch (error) {
+    Logger.log('Error getting signatory config: ' + error.message);
+    return {
+      name: '',
+      position: ''
+    };
+  }
+}
+
+/**
+ * Set signatory configuration in Libraries sheet
+ * @param {Object} signatory - Object with name and position properties
+ */
+function setSignatoryConfig(signatory) {
+  try {
+    if (!signatory || !signatory.name || !signatory.position) {
+      return {
+        success: false,
+        message: 'Both name and position are required'
+      };
+    }
+
+    const sheet = getDbSheet('Libraries');
+
+    // Set signatory in row 2, columns D and E
+    sheet.getRange(2, 4).setValue(signatory.name);
+    sheet.getRange(2, 5).setValue(signatory.position);
+
+    return {
+      success: true,
+      message: 'Signatory configuration saved successfully'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Error saving signatory config: ' + error.message
+    };
+  }
+}

@@ -16,6 +16,8 @@
       refreshHolidays();
     } else if (tabName === 'weekend') {
       refreshWeekendConfig();
+    } else if (tabName === 'signatory') {
+      refreshSignatoryConfig();
     }
   }
 
@@ -299,6 +301,80 @@
         showAlert('Error: ' + err.message, 'error');
       })
       .setWeekendDays(selectedDays);
+  }
+
+  // ========== SIGNATORY CONFIGURATION ==========
+
+  /**
+   * Refresh signatory configuration
+   */
+  function refreshSignatoryConfig() {
+    google.script.run
+      .withSuccessHandler(signatory => {
+        // Update form fields
+        const nameInput = document.getElementById('signatoryName');
+        const positionInput = document.getElementById('signatoryPosition');
+
+        if (nameInput) {
+          nameInput.value = signatory.name || '';
+        }
+        if (positionInput) {
+          positionInput.value = signatory.position || '';
+        }
+
+        // Update current display
+        const currentName = document.getElementById('currentSignatoryName');
+        const currentPosition = document.getElementById('currentSignatoryPosition');
+
+        if (currentName) {
+          currentName.textContent = signatory.name || 'Not set';
+        }
+        if (currentPosition) {
+          currentPosition.textContent = signatory.position || 'Not set';
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error loading signatory config: ' + err.message, 'error');
+      })
+      .getSignatoryConfig();
+  }
+
+  /**
+   * Save signatory configuration
+   */
+  function saveSignatoryConfig(event) {
+    if (event) event.preventDefault();
+
+    const name = document.getElementById('signatoryName')?.value;
+    const position = document.getElementById('signatoryPosition')?.value;
+
+    if (!name || !position) {
+      showAlert('Please fill in both name and position', 'error');
+      return false;
+    }
+
+    // Validate position doesn't exceed 4 lines
+    const lines = position.split('\n').length;
+    if (lines > 4) {
+      showAlert('Position cannot exceed 4 lines', 'error');
+      return false;
+    }
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.success) {
+          showAlert(result.message, 'success');
+          refreshSignatoryConfig();
+        } else {
+          showAlert(result.message, 'error');
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error: ' + err.message, 'error');
+      })
+      .setSignatoryConfig({ name: name.trim(), position: position.trim() });
+
+    return false;
   }
 
 </script>

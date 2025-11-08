@@ -15,6 +15,9 @@
     <button onclick="showConfigTab('weekend')" id="tab-weekend" class="config-tab">
       <i class="fas fa-calendar-week"></i> Weekend Config
     </button>
+    <button onclick="showConfigTab('signatory')" id="tab-signatory" class="config-tab">
+      <i class="fas fa-user-tie"></i> Signatory
+    </button>
   </div>
 </div>
 
@@ -149,6 +152,60 @@
         <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
           <i class="fas fa-info-circle"></i> <strong>Current Weekend Days:</strong> <span id="currentWeekendDays">Loading...</span>
         </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 4: Signatory Configuration -->
+<div id="section-signatory" class="config-section">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Certificate Signatory Configuration</div>
+    </div>
+    <div class="card-body">
+      <p style="color: #697386; margin-bottom: 1.5rem;">
+        Configure the signatory information that will appear on COC certificates.
+      </p>
+
+      <form id="signatoryForm" onsubmit="return saveSignatoryConfig(event)">
+        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+          <div style="margin-bottom: 1.5rem;">
+            <label class="form-label">Signatory Name <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="signatoryName" name="signatoryName" required class="form-input"
+                   placeholder="Enter full name of signatory" style="max-width: 500px;">
+            <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
+              <i class="fas fa-info-circle"></i> Full name as it should appear on the certificate
+            </p>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <label class="form-label">Position/Title <span style="color: #ef4444;">*</span></label>
+            <textarea id="signatoryPosition" name="signatoryPosition" required class="form-input"
+                      rows="4" placeholder="Enter position/title (up to 4 lines)"
+                      style="max-width: 500px; resize: vertical; font-family: inherit;"></textarea>
+            <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
+              <i class="fas fa-info-circle"></i> Position can span up to 4 lines for long titles
+            </p>
+          </div>
+        </div>
+
+        <div style="text-align: right;">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Signatory Configuration
+          </button>
+        </div>
+      </form>
+
+      <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin-top: 1.5rem;">
+        <p style="font-size: 0.875rem; color: #1e40af; margin: 0 0 0.5rem 0;">
+          <i class="fas fa-info-circle"></i> <strong>Current Signatory:</strong>
+        </p>
+        <div id="currentSignatory" style="font-size: 0.875rem; color: #1e40af; margin-left: 1.5rem;">
+          <div><strong>Name:</strong> <span id="currentSignatoryName">Not set</span></div>
+          <div style="margin-top: 0.5rem;"><strong>Position:</strong></div>
+          <div id="currentSignatoryPosition" style="white-space: pre-line; margin-left: 1rem;">Not set</div>
+        </div>
       </div>
     </div>
   </div>

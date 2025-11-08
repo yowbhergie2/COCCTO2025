@@ -169,3 +169,46 @@ function getAllUncertifiedLogs() {
     return [];
   }
 }
+
+/**
+ * Get certified months for a specific employee and year
+ * @param {number} employeeId - Employee ID
+ * @param {number} year - Year to check
+ * @returns {Array} Array of month names that are already certified
+ */
+function getCertifiedMonths(employeeId, year) {
+  try {
+    const sheet = getDbSheet('Certificates');
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return [];
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+
+    const certifiedMonths = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[employeeIdIndex] === employeeId && row[yearIndex] === year) {
+        const month = row[monthIndex];
+        if (month && !certifiedMonths.includes(month)) {
+          certifiedMonths.push(month);
+        }
+      }
+    }
+
+    return certifiedMonths;
+
+  } catch (error) {
+    Logger.log('Error in getCertifiedMonths: ' + error.toString());
+    return [];
+  }
+}
