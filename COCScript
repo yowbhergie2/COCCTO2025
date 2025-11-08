@@ -4,6 +4,7 @@
   let rowCounter = 0;
   let existingDatabaseDates = [];
   let duplicateContext = null;
+  let pendingDuplicateAction = null;
 
   /**
    * Initialize Log Overtime form when page loads
@@ -276,13 +277,8 @@
       const dateObj = new Date(dateValue);
       const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-      if (confirm(`You already have an entry for ${formattedDate} in this form. Do you want to replace the existing entry?`)) {
-        deleteOvertimeRow(duplicateRowId);
-        dateInput.classList.remove('error');
-        updateOvertimeRow(rowId);
-      } else {
-        dateInput.value = '';
-      }
+      // Show modal instead of confirm dialog
+      showDuplicateModal(formattedDate, duplicateRowId, rowId, dateInput);
       return;
     }
 
@@ -308,6 +304,52 @@
       }
     }
     return null;
+  }
+
+  /**
+   * Show duplicate entry modal
+   */
+  function showDuplicateModal(formattedDate, duplicateRowId, currentRowId, dateInput) {
+    const modal = document.getElementById('duplicateModal');
+    const message = document.getElementById('duplicateModalMessage');
+
+    if (modal && message) {
+      message.textContent = `You already have an entry for ${formattedDate} in this form. Do you want to replace the existing entry?`;
+
+      // Store context for modal actions
+      pendingDuplicateAction = {
+        duplicateRowId: duplicateRowId,
+        currentRowId: currentRowId,
+        dateInput: dateInput
+      };
+
+      modal.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Close duplicate entry modal
+   */
+  function closeDuplicateModal(shouldReplace) {
+    const modal = document.getElementById('duplicateModal');
+
+    if (modal) {
+      modal.style.display = 'none';
+    }
+
+    if (pendingDuplicateAction) {
+      if (shouldReplace) {
+        // Replace the existing entry
+        deleteOvertimeRow(pendingDuplicateAction.duplicateRowId);
+        pendingDuplicateAction.dateInput.classList.remove('error');
+        updateOvertimeRow(pendingDuplicateAction.currentRowId);
+      } else {
+        // Cancel - clear the date input
+        pendingDuplicateAction.dateInput.value = '';
+      }
+
+      pendingDuplicateAction = null;
+    }
   }
 
   /**
