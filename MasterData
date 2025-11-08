@@ -173,7 +173,8 @@
           <div style="margin-bottom: 1.5rem;">
             <label class="form-label">Signatory Name <span style="color: #ef4444;">*</span></label>
             <input type="text" id="signatoryName" name="signatoryName" required class="form-input"
-                   placeholder="Enter full name of signatory" style="max-width: 500px;">
+                   placeholder="Enter full name of signatory" style="max-width: 500px; text-transform: uppercase;"
+                   oninput="this.value = this.value.toUpperCase()">
             <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
               <i class="fas fa-info-circle"></i> Full name as it should appear on the certificate
             </p>

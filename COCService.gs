@@ -254,10 +254,10 @@ function getUncertifiedLogsByEmployee(employeeId) {
           year: row[yearIndex],
           dateWorked: formatDate(row[dateWorkedIndex]),
           dayType: row[dayTypeIndex],
-          amIn: row[amInIndex],
-          amOut: row[amOutIndex],
-          pmIn: row[pmInIndex],
-          pmOut: row[pmOutIndex],
+          amIn: formatTime(row[amInIndex]),
+          amOut: formatTime(row[amOutIndex]),
+          pmIn: formatTime(row[pmInIndex]),
+          pmOut: formatTime(row[pmOutIndex]),
           cocEarned: parseFloat(row[cocEarnedIndex]) || 0
         });
       }

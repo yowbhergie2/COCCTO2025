@@ -61,16 +61,40 @@ function getCurrentTimestamp() {
  */
 function formatDate(date, format = 'MM/dd/yyyy') {
   if (!date) return ''; // Return empty if no date provided
-  
+
   const dateObj = date instanceof Date ? date : new Date(date);
-  
+
   // Check for 'Invalid Date'
   // isNaN(dateObj.getTime()) is the standard way to check this
   if (isNaN(dateObj.getTime())) {
     return ''; // Return empty string if date is invalid (e.g., from "N/A" or "pending")
   }
-  
+
   return Utilities.formatDate(dateObj, 'Asia/Manila', format);
+}
+
+/**
+ * Format time value to HH:MM AM/PM format
+ * Handles time values stored in Google Sheets (which come as Date objects)
+ */
+function formatTime(timeValue) {
+  if (!timeValue || timeValue === '') return '';
+
+  // If it's already a string in the correct format, return it
+  if (typeof timeValue === 'string' && timeValue.includes(':')) {
+    return timeValue;
+  }
+
+  // If it's a Date object (how Google Sheets stores time values)
+  const dateObj = timeValue instanceof Date ? timeValue : new Date(timeValue);
+
+  // Check for 'Invalid Date'
+  if (isNaN(dateObj.getTime())) {
+    return '';
+  }
+
+  // Format as HH:MM AM/PM
+  return Utilities.formatDate(dateObj, 'Asia/Manila', 'hh:mm a');
 }
 
 /**

@@ -1460,10 +1460,18 @@
       .withSuccessHandler(result => {
         if (result.success) {
           showAlert(result.message, 'success');
+
+          // If PDF was generated, open it in a new tab
+          if (result.pdfUrl) {
+            setTimeout(() => {
+              window.open(result.pdfUrl, '_blank');
+            }, 500);
+          }
+
           // Reload uncertified logs for this employee
           setTimeout(() => {
             selectCertEmployee(selectedCertEmployee, document.querySelector('#certEmployeeListContainer .employee-list-item.active'));
-          }, 1500);
+          }, 2000);
         } else {
           showAlert(result.message, 'error');
         }
