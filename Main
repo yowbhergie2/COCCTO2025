@@ -40,11 +40,11 @@
                   <i class="fas fa-clock"></i>
                   <span>Log Overtime</span>
                 </div>
-                <div class="nav-dropdown-item disabled" data-view="generatecertificate">
+                <div class="nav-dropdown-item" data-page="generatecertificate" data-view="generatecertificate">
                   <i class="fas fa-certificate"></i>
                   <span>Generate Certificate</span>
                 </div>
-                <div class="nav-dropdown-item disabled" data-view="logcto">
+                <div class="nav-dropdown-item" data-page="logcto" data-view="logcto">
                   <i class="fas fa-calendar-check"></i>
                   <span>Log CTO</span>
                 </div>
