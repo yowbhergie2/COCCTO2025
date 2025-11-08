@@ -51,6 +51,16 @@
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
 
+    .entry-grid input.error {
+      border-color: #ef4444;
+      background-color: #fee;
+    }
+
+    .entry-grid input.error:focus {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
     .delete-row-btn {
       background: #ef4444;
       color: white;
@@ -249,10 +259,78 @@
         </button>
       </div>
     </div>
+
+    <!-- Duplicate Day Modal (Client-Side) -->
+    <div id="duplicateDayModal" style="
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    ">
+      <div style="
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+      ">
+        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Duplicate Date Detected</h3>
+        <p id="duplicateDayMessage" style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;"></p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+          <button type="button" onclick="cancelDuplicateDay()" class="btn btn-secondary">
+            No, Cancel
+          </button>
+          <button type="button" onclick="confirmReplaceDuplicateDay()" class="btn btn-primary" style="background: #f59e0b;">
+            Yes, Replace
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation Error Modal (Server-Side - Hard Stop) -->
+    <div id="validationErrorModal" style="
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    ">
+      <div style="
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+      ">
+        <i class="fas fa-ban" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Validation Error</h3>
+        <p id="validationErrorMessage" style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;"></p>
+        <p style="color: #697386; font-size: 0.875rem; margin-bottom: 1.5rem; font-style: italic;">
+          To modify this date, please use the Edit or Delete buttons on the existing record.
+        </p>
+        <button type="button" onclick="hideValidationErrorModal()" class="btn btn-primary" style="background: #ef4444; width: 100%; justify-content: center;">
+          Okay
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
     let rowCounter = 0;
+    let existingDatabaseDates = []; // Dates that already exist in database
+    let duplicateContext = null; // Context for handling duplicate
 
     // Initialize form
     function initForm() {
@@ -284,8 +362,350 @@
         })
         .getEmployeesForDropdown();
 
+      // Add event listeners to reload existing dates when selection changes
+      document.getElementById('employeeId').addEventListener('change', loadExistingDates);
+      document.getElementById('month').addEventListener('change', loadExistingDates);
+      document.getElementById('year').addEventListener('change', loadExistingDates);
+
       // Add first row
       addRow();
+    }
+
+    // Time validation helper functions
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function validateTimeInput(input, minTime, maxTime, fieldName) {
+      if (!input.value) {
+        input.classList.remove('error');
+        return true;
+      }
+
+      const minutes = timeToMinutes(input.value);
+      const min = timeToMinutes(minTime);
+      const max = timeToMinutes(maxTime);
+
+      if (minutes < min || minutes > max) {
+        input.classList.add('error');
+        input.title = `${fieldName} must be between ${minTime} and ${maxTime}`;
+        return false;
+      }
+
+      input.classList.remove('error');
+      input.title = '';
+      return true;
+    }
+
+    function validateRow(rowId) {
+      const row = document.getElementById('row-' + rowId);
+      if (!row) return true;
+
+      const amInInput = row.querySelector('.am-in');
+      const amOutInput = row.querySelector('.am-out');
+      const pmInInput = row.querySelector('.pm-in');
+      const pmOutInput = row.querySelector('.pm-out');
+
+      let isValid = true;
+
+      // AM In validation: 05:00 - 12:59
+      if (amInInput.value) {
+        if (!validateTimeInput(amInInput, '05:00', '12:59', 'AM In')) {
+          isValid = false;
+        }
+      }
+
+      // AM Out validation: 08:00 - 12:59
+      if (amOutInput.value) {
+        if (!validateTimeInput(amOutInput, '08:00', '12:59', 'AM Out')) {
+          isValid = false;
+        }
+      }
+
+      // PM In validation: 12:00 - 23:59
+      if (pmInInput.value) {
+        if (!validateTimeInput(pmInInput, '12:00', '23:59', 'PM In')) {
+          isValid = false;
+        }
+      }
+
+      // PM Out validation: 12:00 - 23:59
+      if (pmOutInput.value) {
+        if (!validateTimeInput(pmOutInput, '12:00', '23:59', 'PM Out')) {
+          isValid = false;
+        }
+      }
+
+      // Check pairs: AM In/Out must be complete
+      if (amInInput.value && !amOutInput.value) {
+        amOutInput.classList.add('error');
+        amOutInput.title = 'AM Out is required when AM In is provided';
+        isValid = false;
+      } else if (!amInInput.value && amOutInput.value) {
+        amInInput.classList.add('error');
+        amInInput.title = 'AM In is required when AM Out is provided';
+        isValid = false;
+      } else if (amInInput.value && amOutInput.value) {
+        // Both have values, clear pair errors (but keep time range/comparison errors)
+        // Don't clear here - let comparison validation handle it
+      } else {
+        // Both are empty, clear any pair-related errors
+        if (amInInput.title.includes('required')) {
+          amInInput.classList.remove('error');
+          amInInput.title = '';
+        }
+        if (amOutInput.title.includes('required')) {
+          amOutInput.classList.remove('error');
+          amOutInput.title = '';
+        }
+      }
+
+      // Check pairs: PM In/Out must be complete
+      if (pmInInput.value && !pmOutInput.value) {
+        pmOutInput.classList.add('error');
+        pmOutInput.title = 'PM Out is required when PM In is provided';
+        isValid = false;
+      } else if (!pmInInput.value && pmOutInput.value) {
+        pmInInput.classList.add('error');
+        pmInInput.title = 'PM In is required when PM Out is provided';
+        isValid = false;
+      } else if (pmInInput.value && pmOutInput.value) {
+        // Both have values, clear pair errors
+        // Don't clear here - let comparison validation handle it
+      } else {
+        // Both are empty, clear any pair-related errors
+        if (pmInInput.title.includes('required')) {
+          pmInInput.classList.remove('error');
+          pmInInput.title = '';
+        }
+        if (pmOutInput.title.includes('required')) {
+          pmOutInput.classList.remove('error');
+          pmOutInput.title = '';
+        }
+      }
+
+      // AM Out must be later than AM In
+      if (amInInput.value && amOutInput.value) {
+        const amInMinutes = timeToMinutes(amInInput.value);
+        const amOutMinutes = timeToMinutes(amOutInput.value);
+        if (amOutMinutes <= amInMinutes) {
+          amOutInput.classList.add('error');
+          amOutInput.title = 'AM Out must be later than AM In';
+          isValid = false;
+        } else {
+          // Clear comparison error if it was set
+          if (amOutInput.title.includes('later than AM In')) {
+            amOutInput.classList.remove('error');
+            amOutInput.title = '';
+          }
+        }
+      }
+
+      // PM Out must be later than PM In
+      if (pmInInput.value && pmOutInput.value) {
+        const pmInMinutes = timeToMinutes(pmInInput.value);
+        const pmOutMinutes = timeToMinutes(pmOutInput.value);
+        if (pmOutMinutes <= pmInMinutes) {
+          pmOutInput.classList.add('error');
+          pmOutInput.title = 'PM Out must be later than PM In';
+          isValid = false;
+        } else {
+          // Clear comparison error if it was set
+          if (pmOutInput.title.includes('later than PM In')) {
+            pmOutInput.classList.remove('error');
+            pmOutInput.title = '';
+          }
+        }
+      }
+
+      // PM In must be later than AM Out (noon break)
+      if (amOutInput.value && pmInInput.value) {
+        const amOutMinutes = timeToMinutes(amOutInput.value);
+        const pmInMinutes = timeToMinutes(pmInInput.value);
+        if (pmInMinutes <= amOutMinutes) {
+          pmInInput.classList.add('error');
+          pmInInput.title = 'PM In must be later than AM Out (noon break required)';
+          isValid = false;
+        } else {
+          // Clear noon break error if it was set
+          if (pmInInput.title.includes('noon break')) {
+            pmInInput.classList.remove('error');
+            pmInInput.title = '';
+          }
+        }
+      } else {
+        // Clear noon break error if one of the inputs is empty
+        if (pmInInput.title.includes('noon break')) {
+          pmInInput.classList.remove('error');
+          pmInInput.title = '';
+        }
+      }
+
+      return isValid;
+    }
+
+    // Check for duplicate dates in current form (client-side)
+    function checkClientSideDuplicate(dateValue, currentRowId) {
+      if (!dateValue) return null;
+
+      const rows = document.querySelectorAll('#entryTableBody tr');
+      for (const row of rows) {
+        const rowIdMatch = row.id.match(/row-(\d+)/);
+        if (rowIdMatch) {
+          const rowId = parseInt(rowIdMatch[1]);
+          if (rowId !== currentRowId) {
+            const dateInput = row.querySelector('.date-input');
+            if (dateInput && dateInput.value === dateValue) {
+              return rowId; // Found duplicate
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    // Check for duplicate date in database (server-side)
+    function checkServerSideDuplicate(dateValue) {
+      if (!dateValue || existingDatabaseDates.length === 0) return false;
+      return existingDatabaseDates.includes(dateValue);
+    }
+
+    // Handle date input change with duplicate detection
+    function handleDateChange(rowId) {
+      const row = document.getElementById('row-' + rowId);
+      if (!row) return;
+
+      const dateInput = row.querySelector('.date-input');
+      const dateValue = dateInput.value;
+
+      if (!dateValue) {
+        dateInput.classList.remove('error');
+        updateRow(rowId);
+        return;
+      }
+
+      // First check server-side duplicate (hard stop)
+      if (checkServerSideDuplicate(dateValue)) {
+        const month = document.getElementById('month').value;
+        const year = document.getElementById('year').value;
+        const dateObj = new Date(dateValue);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        showValidationErrorModal(
+          `${formattedDate} already has a COC record in the database. ` +
+          `This date cannot be added again.`
+        );
+
+        // Clear the invalid date
+        dateInput.value = '';
+        dateInput.classList.add('error');
+        return;
+      }
+
+      // Then check client-side duplicate (soft warning)
+      const duplicateRowId = checkClientSideDuplicate(dateValue, rowId);
+      if (duplicateRowId !== null) {
+        const dateObj = new Date(dateValue);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        duplicateContext = {
+          currentRowId: rowId,
+          duplicateRowId: duplicateRowId,
+          dateValue: dateValue
+        };
+
+        showDuplicateDayModal(
+          `You already have an entry for ${formattedDate} in this form. ` +
+          `Do you want to replace the existing entry?`
+        );
+        return;
+      }
+
+      // No duplicates, proceed normally
+      dateInput.classList.remove('error');
+      updateRow(rowId);
+    }
+
+    // Show duplicate day modal (client-side)
+    function showDuplicateDayModal(message) {
+      const modal = document.getElementById('duplicateDayModal');
+      const messageEl = document.getElementById('duplicateDayMessage');
+      if (modal && messageEl) {
+        messageEl.textContent = message;
+        modal.style.display = 'flex';
+      }
+    }
+
+    // Cancel duplicate day replacement
+    function cancelDuplicateDay() {
+      if (duplicateContext) {
+        const row = document.getElementById('row-' + duplicateContext.currentRowId);
+        if (row) {
+          const dateInput = row.querySelector('.date-input');
+          if (dateInput) {
+            dateInput.value = ''; // Clear the date
+          }
+        }
+      }
+      duplicateContext = null;
+      document.getElementById('duplicateDayModal').style.display = 'none';
+    }
+
+    // Confirm replace duplicate day
+    function confirmReplaceDuplicateDay() {
+      if (duplicateContext) {
+        // Delete the old row
+        deleteRow(duplicateContext.duplicateRowId);
+
+        // Keep the current row with the date
+        const currentRow = document.getElementById('row-' + duplicateContext.currentRowId);
+        if (currentRow) {
+          updateRow(duplicateContext.currentRowId);
+        }
+      }
+      duplicateContext = null;
+      document.getElementById('duplicateDayModal').style.display = 'none';
+    }
+
+    // Show validation error modal (server-side - hard stop)
+    function showValidationErrorModal(message) {
+      const modal = document.getElementById('validationErrorModal');
+      const messageEl = document.getElementById('validationErrorMessage');
+      if (modal && messageEl) {
+        messageEl.textContent = message;
+        modal.style.display = 'flex';
+      }
+    }
+
+    // Hide validation error modal
+    function hideValidationErrorModal() {
+      document.getElementById('validationErrorModal').style.display = 'none';
+    }
+
+    // Load existing dates from database
+    function loadExistingDates() {
+      const employeeId = document.getElementById('employeeId').value;
+      const month = document.getElementById('month').value;
+      const year = document.getElementById('year').value;
+
+      if (!employeeId || !month || !year) {
+        existingDatabaseDates = [];
+        return;
+      }
+
+      // Call server to get existing dates for this employee/month/year
+      google.script.run
+        .withSuccessHandler(dates => {
+          existingDatabaseDates = dates || [];
+          console.log('Loaded existing dates:', existingDatabaseDates);
+        })
+        .withFailureHandler(err => {
+          console.error('Error loading existing dates:', err);
+          existingDatabaseDates = [];
+        })
+        .getExistingOvertimeDates(parseInt(employeeId), month, parseInt(year));
     }
 
     // Add a new entry row
@@ -297,22 +717,22 @@
 
       row.innerHTML = `
         <td>
-          <input type="date" class="date-input" onchange="updateRow(${rowCounter})" required>
+          <input type="date" class="date-input" onchange="handleDateChange(${rowCounter})" required>
         </td>
         <td>
           <div class="day-type-badge day-type-weekday" id="dayType-${rowCounter}">Weekday</div>
         </td>
         <td>
-          <input type="time" class="am-in" oninput="updateRow(${rowCounter})">
+          <input type="time" class="am-in" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="am-out" oninput="updateRow(${rowCounter})">
+          <input type="time" class="am-out" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="pm-in" oninput="updateRow(${rowCounter})">
+          <input type="time" class="pm-in" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="pm-out" oninput="updateRow(${rowCounter})">
+          <input type="time" class="pm-out" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td class="coc-earned-cell" id="cocEarned-${rowCounter}">0.0</td>
         <td>
@@ -323,6 +743,12 @@
       `;
 
       tbody.appendChild(row);
+    }
+
+    // Validate and update row (called on time input changes)
+    function validateAndUpdateRow(rowId) {
+      validateRow(rowId);
+      updateRow(rowId);
     }
 
     // Update row calculations
@@ -418,9 +844,29 @@
         return false;
       }
 
+      // Validate all rows first
+      const rows = document.querySelectorAll('#entryTableBody tr');
+      let allRowsValid = true;
+      const rowIds = [];
+
+      rows.forEach(row => {
+        const rowIdMatch = row.id.match(/row-(\d+)/);
+        if (rowIdMatch) {
+          const rowId = parseInt(rowIdMatch[1]);
+          rowIds.push(rowId);
+          if (!validateRow(rowId)) {
+            allRowsValid = false;
+          }
+        }
+      });
+
+      if (!allRowsValid) {
+        showErrorModal('Please fix the validation errors (red boxes) before submitting');
+        return false;
+      }
+
       // Collect entries
       const entries = [];
-      const rows = document.querySelectorAll('#entryTableBody tr');
 
       rows.forEach(row => {
         const dateInput = row.querySelector('.date-input');
