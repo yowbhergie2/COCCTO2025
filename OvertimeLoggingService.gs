@@ -776,10 +776,34 @@ function generateCOCCertificate(certificateData) {
     // Log certificate issuance
     logCertificateIssuance(certificateData.employeeId, certificateData.month, certificateData.year, certificateData.dateOfIssuance);
 
-    return {
-      success: true,
-      message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}.`
-    };
+    // Calculate total hours for certificate
+    let totalHours = 0;
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[employeeIdIndex] === certificateData.employeeId &&
+          row[monthIndex] === certificateData.month &&
+          row[yearIndex] === certificateData.year &&
+          row[certifiedIndex] === 'Yes') {
+        const cocEarnedIndex = headers.indexOf('COCEarned');
+        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
+      }
+    }
+
+    // Generate PDF certificate
+    try {
+      const pdfUrl = generateCertificatePDF(certificateData, employee, validUntilDate, totalHours);
+      return {
+        success: true,
+        message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}.`,
+        pdfUrl: pdfUrl
+      };
+    } catch (pdfError) {
+      Logger.log('Error generating PDF: ' + pdfError.toString());
+      return {
+        success: true,
+        message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}. (PDF generation failed: ${pdfError.message})`
+      };
+    }
 
   } catch (error) {
     Logger.log('Error in generateCOCCertificate: ' + error.toString());
@@ -788,6 +812,122 @@ function generateCOCCertificate(certificateData) {
       message: 'Error generating certificate: ' + error.message
     };
   }
+}
+
+/**
+ * Generate PDF certificate from template
+ * @param {Object} certificateData - Certificate data (employeeId, month, year, dateOfIssuance)
+ * @param {Object} employee - Employee object
+ * @param {Date} validUntilDate - Valid until date
+ * @param {number} totalHours - Total hours certified
+ * @returns {string} PDF file URL
+ */
+function generateCertificatePDF(certificateData, employee, validUntilDate, totalHours) {
+  try {
+    // Get the database spreadsheet
+    const dbSpreadsheet = getDbSpreadsheet();
+
+    // Get the CERTIFICATE template sheet
+    const templateSheet = dbSpreadsheet.getSheetByName('CERTIFICATE');
+    if (!templateSheet) {
+      throw new Error('CERTIFICATE template sheet not found in database');
+    }
+
+    // Get signatory configuration
+    const signatory = getSignatoryConfig();
+
+    // Create a temporary copy of the template
+    const tempSheet = templateSheet.copyTo(dbSpreadsheet);
+    const tempSheetName = `TEMP_CERT_${certificateData.employeeId}_${Date.now()}`;
+    tempSheet.setName(tempSheetName);
+
+    // Prepare employee full name
+    const employeeName = [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
+      .filter(x => x).join(' ').toUpperCase();
+
+    // Prepare position and office
+    const position = (employee.position || '').toUpperCase();
+    const office = (employee.office || '').toUpperCase();
+
+    // Format dates
+    const dateIssued = formatDate(new Date(certificateData.dateOfIssuance));
+    const validUntil = formatDate(validUntilDate);
+
+    // Fill in the certificate data (both copies - rows 4-20 and 28-44)
+    // First certificate (top)
+    tempSheet.getRange('E4').setValue(employeeName);  // NAME
+    tempSheet.getRange('B6').setValue(position);  // POSITION
+    tempSheet.getRange('F6').setValue(office);  // OFFICE/DIVISION
+    tempSheet.getRange('B9').setValue(totalHours.toFixed(1));  // Number of Hours
+    tempSheet.getRange('F15').setValue(signatory.name || '');  // NAME OF SIGNATORY
+    tempSheet.getRange('F16').setValue(signatory.position || '');  // Position of Signatory
+    tempSheet.getRange('D19').setValue(dateIssued);  // DATE ISSUED
+    tempSheet.getRange('D20').setValue(validUntil);  // VALID UNTIL
+
+    // Second certificate (bottom)
+    tempSheet.getRange('E28').setValue(employeeName);  // NAME
+    tempSheet.getRange('B30').setValue(position);  // POSITION
+    tempSheet.getRange('F30').setValue(office);  // OFFICE/DIVISION
+    tempSheet.getRange('B33').setValue(totalHours.toFixed(1));  // Number of Hours
+    tempSheet.getRange('F39').setValue(signatory.name || '');  // NAME OF SIGNATORY
+    tempSheet.getRange('F40').setValue(signatory.position || '');  // Position of Signatory
+    tempSheet.getRange('D43').setValue(dateIssued);  // DATE ISSUED
+    tempSheet.getRange('D44').setValue(validUntil);  // VALID UNTIL
+
+    // Convert sheet to PDF
+    const pdfBlob = convertSheetToPDF(dbSpreadsheet, tempSheet);
+
+    // Save PDF to Drive
+    const pdfFileName = `COC_Certificate_${employeeName}_${certificateData.month}_${certificateData.year}.pdf`;
+    const pdfFile = DriveApp.createFile(pdfBlob).setName(pdfFileName);
+
+    // Delete the temporary sheet
+    dbSpreadsheet.deleteSheet(tempSheet);
+
+    // Return the PDF URL
+    return pdfFile.getUrl();
+
+  } catch (error) {
+    Logger.log('Error in generateCertificatePDF: ' + error.toString());
+    throw error;
+  }
+}
+
+/**
+ * Convert a specific sheet to PDF
+ * @param {Spreadsheet} spreadsheet - The spreadsheet object
+ * @param {Sheet} sheet - The sheet to convert
+ * @returns {Blob} PDF blob
+ */
+function convertSheetToPDF(spreadsheet, sheet) {
+  const sheetId = sheet.getSheetId();
+  const spreadsheetId = spreadsheet.getId();
+
+  // Build export URL
+  const url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export' +
+    '?format=pdf' +
+    '&gid=' + sheetId +
+    '&size=A4' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&top_margin=0.5' +
+    '&bottom_margin=0.5' +
+    '&left_margin=0.5' +
+    '&right_margin=0.5' +
+    '&gridlines=false' +
+    '&printtitle=false' +
+    '&sheetnames=false' +
+    '&pagenum=false';
+
+  // Fetch PDF
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  });
+
+  return response.getBlob();
 }
 
 /**
