@@ -624,7 +624,7 @@
     });
 
     if (!allRowsValid) {
-      showAlert('Please fix the validation errors (red boxes) before submitting', 'error');
+      showAlert('Please correct all validation errors before submitting. Check for red-highlighted fields and ensure all entries have valid times.', 'error');
       return false;
     }
 
