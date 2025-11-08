@@ -761,26 +761,26 @@ function generateCertificatePDF(certificateData, employee, validUntilDate, total
     }
 
     // Fill in the certificate data using row/column indices
-    // (FIXED based on visual template)
+    // CORRECTED based on actual template layout
     // First certificate (top)
-    tempSheet.getRange(4, 3).setValue(employeeName);  // C4 - NAME
+    tempSheet.getRange(4, 5).setValue(employeeName);  // E4 - NAME
     tempSheet.getRange(6, 2).setValue(position);  // B6 - POSITION
-    tempSheet.getRange(6, 5).setValue(office);  // E6 - OFFICE/DIVISION
+    tempSheet.getRange(6, 6).setValue(office);  // F6 - OFFICE/DIVISION
     tempSheet.getRange(9, 2).setValue(totalHours.toFixed(1));  // B9 - Number of Hours
-    tempSheet.getRange(15, 6).setValue(signatory.name || '');  // F15 - NAME OF SIGNATORY (Assuming this is correct)
-    tempSheet.getRange(16, 6).setValue(signatory.position || '');  // F16 - Position of Signatory (Assuming this is correct)
-    tempSheet.getRange(19, 3).setValue(dateIssued);  // C19 - DATE ISSUED
-    tempSheet.getRange(20, 3).setValue(validUntil);  // C20 - VALID UNTIL
+    tempSheet.getRange(15, 6).setValue(signatory.name || '');  // F15 - NAME OF SIGNATORY
+    tempSheet.getRange(16, 6).setValue(signatory.position || '');  // F16 - Position of Signatory
+    tempSheet.getRange(19, 4).setValue(dateIssued);  // D19 - DATE ISSUED
+    tempSheet.getRange(20, 4).setValue(validUntil);  // D20 - VALID UNTIL
 
-    // Second certificate (bottom)
-    tempSheet.getRange(28, 3).setValue(employeeName);  // C28 - NAME
+    // Second certificate (bottom) - offset by 24 rows
+    tempSheet.getRange(28, 5).setValue(employeeName);  // E28 - NAME
     tempSheet.getRange(30, 2).setValue(position);  // B30 - POSITION
-    tempSheet.getRange(30, 5).setValue(office);  // E30 - OFFICE/DIVISION
+    tempSheet.getRange(30, 6).setValue(office);  // F30 - OFFICE/DIVISION
     tempSheet.getRange(33, 2).setValue(totalHours.toFixed(1));  // B33 - Number of Hours
-    tempSheet.getRange(39, 6).setValue(signatory.name || '');  // F39 - NAME OF SIGNATORY (Assuming this is correct)
-    tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory (Assuming this is correct)
-    tempSheet.getRange(43, 3).setValue(dateIssued);  // C43 - DATE ISSUED
-    tempSheet.getRange(44, 3).setValue(validUntil);  // C44 - VALID UNTIL
+    tempSheet.getRange(39, 6).setValue(signatory.name || '');  // F39 - NAME OF SIGNATORY
+    tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory
+    tempSheet.getRange(43, 4).setValue(dateIssued);  // D43 - DATE ISSUED
+    tempSheet.getRange(44, 4).setValue(validUntil);  // D44 - VALID UNTIL
 
     // CRITICAL: Flush all pending changes to the spreadsheet before converting to PDF
     // Without this, the setValue() calls above may not be written yet
