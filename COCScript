@@ -597,6 +597,36 @@
     // Check if date is filled but ALL time inputs are empty
     const dateInput = row.querySelector('.date-input');
     if (dateInput && dateInput.value) {
+      // Validate that date is not in the future
+      const selectedDate = new Date(dateInput.value);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // Set to end of today for comparison
+
+      if (selectedDate > today) {
+        dateInput.classList.add('error');
+        isValid = false;
+      } else {
+        dateInput.classList.remove('error');
+      }
+
+      // Validate that date matches selected month and year
+      const monthSelect = document.getElementById('month');
+      const yearSelect = document.getElementById('year');
+      if (monthSelect && yearSelect && monthSelect.value && yearSelect.value) {
+        const selectedMonth = selectedDate.getMonth(); // 0-11
+        const selectedYear = selectedDate.getFullYear();
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        const formMonth = monthNames.indexOf(monthSelect.value);
+        const formYear = parseInt(yearSelect.value);
+
+        if (selectedMonth !== formMonth || selectedYear !== formYear) {
+          dateInput.classList.add('error');
+          isValid = false;
+        }
+      }
+
       const hasAnyTime = (amInInput && amInInput.value) ||
                          (amOutInput && amOutInput.value) ||
                          (pmInInput && pmInInput.value) ||
