@@ -42,6 +42,15 @@ function saveOvertimeBatch(batchData) {
       };
     }
 
+    // Check if certificate already exists for this employee/month/year
+    const hasCertificate = checkExistingCertificate(batchData.employeeId, batchData.month, batchData.year);
+    if (hasCertificate) {
+      return {
+        success: false,
+        message: `Cannot log overtime for ${batchData.month} ${batchData.year}. A certificate has already been issued for this period. No additional overtime entries can be added.`
+      };
+    }
+
     // Process each entry and calculate COC
     const processedEntries = [];
     let totalCOC = 0;
@@ -821,15 +830,17 @@ function convertSheetToPDF(spreadsheet, sheet) {
     '&gid=' + sheetId +
     '&size=A4' +
     '&portrait=true' +
-    '&fitw=true' +
-    '&top_margin=0.5' +
-    '&bottom_margin=0.5' +
-    '&left_margin=0.5' +
-    '&right_margin=0.5' +
+    '&scale=4' +  // Scale to fit (1=normal, 2=fit to width, 3=fit to height, 4=fit to page)
+    '&top_margin=0.3' +
+    '&bottom_margin=0.3' +
+    '&left_margin=0.3' +
+    '&right_margin=0.3' +
     '&gridlines=false' +
     '&printtitle=false' +
     '&sheetnames=false' +
-    '&pagenum=false';
+    '&pagenum=false' +
+    '&horizontal_alignment=CENTER' +
+    '&vertical_alignment=TOP';
 
   // Fetch PDF
   const token = ScriptApp.getOAuthToken();
@@ -1297,6 +1308,48 @@ function getEmployeeLedgerDetailed(employeeId) {
       totalEarned: 0,
       usedCOCs: 0,
       transactions: []
+    };
+  }
+}
+
+/**
+ * Get COC progress for employee (monthly and total balance)
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {Object} Progress data with monthTotal, monthCap, totalBalance, totalCap
+ */
+function getEmployeeCOCProgress(employeeId, month, year) {
+  try {
+    // Get current month's total from OvertimeLogs (all entries, not just uncertified)
+    const monthTotal = getEmployeeMonthTotal(employeeId, month, year);
+
+    // Get current active balance from CreditBatches
+    const activeBalance = getEmployeeCurrentBalance(employeeId);
+
+    // Get uncertified balance from OvertimeLogs
+    const uncertifiedBalance = getEmployeeUncertifiedBalance(employeeId);
+
+    const totalBalance = activeBalance + uncertifiedBalance;
+
+    return {
+      monthTotal: monthTotal,
+      monthCap: 40,
+      totalBalance: totalBalance,
+      totalCap: 120,
+      monthRemaining: Math.max(0, 40 - monthTotal),
+      totalRemaining: Math.max(0, 120 - totalBalance)
+    };
+
+  } catch (error) {
+    Logger.log('Error in getEmployeeCOCProgress: ' + error.toString());
+    return {
+      monthTotal: 0,
+      monthCap: 40,
+      totalBalance: 0,
+      totalCap: 120,
+      monthRemaining: 40,
+      totalRemaining: 120
     };
   }
 }

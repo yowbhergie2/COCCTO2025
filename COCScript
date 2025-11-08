@@ -1311,6 +1311,9 @@
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                         'July', 'August', 'September', 'October', 'November', 'December'];
 
+    // Determine if cards should be collapsible (more than 1 month)
+    const isCollapsible = monthGroups.length > 1;
+
     // Render each month group
     monthGroups.forEach((group, index) => {
       const card = document.createElement('div');
@@ -1318,6 +1321,7 @@
       card.id = `cert-month-${index}`;
 
       const detailsId = `cert-details-${index}`;
+      const cardBodyId = `cert-card-body-${index}`;
 
       // --- NEW: Calculate min/max issuance dates ---
       const monthIndex = monthNames.indexOf(group.month);
@@ -1337,9 +1341,12 @@
       const maxDateStr = effectiveMaxDate.toISOString().split('T')[0];
 
       card.innerHTML = `
-        <div class="month-header">
+        <div class="month-header" ${isCollapsible ? `style="cursor: pointer;" onclick="toggleCardBody('${cardBodyId}')"` : ''}>
           <div>
-            <div class="month-title">${group.month} ${group.year}</div>
+            <div class="month-title">
+              ${isCollapsible ? `<i class="fas fa-chevron-down" id="${cardBodyId}-icon" style="margin-right: 0.5rem; transition: transform 0.3s;"></i>` : ''}
+              ${group.month} ${group.year}
+            </div>
             <div style="font-size: 0.875rem; color: #697386; margin-top: 0.25rem;">
               ${group.logs.length} overtime ${group.logs.length === 1 ? 'entry' : 'entries'}
             </div>
@@ -1350,6 +1357,7 @@
           </div>
         </div>
 
+        <div id="${cardBodyId}" ${isCollapsible && index > 0 ? 'style="display: none;"' : ''}>
         <!-- Overtime Logs Summary -->
         <div style="margin-bottom: 1.5rem;">
           <button onclick="toggleCertDetails('${detailsId}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
@@ -1408,10 +1416,29 @@
             </button>
           </div>
         </form>
+        </div>
       `;
 
       container.appendChild(card);
     });
+  }
+
+  /**
+   * Toggle card body visibility (for collapsible cards)
+   */
+  function toggleCardBody(cardBodyId) {
+    const cardBody = document.getElementById(cardBodyId);
+    const icon = document.getElementById(cardBodyId + '-icon');
+
+    if (cardBody && icon) {
+      if (cardBody.style.display === 'none') {
+        cardBody.style.display = 'block';
+        icon.style.transform = 'rotate(0deg)';
+      } else {
+        cardBody.style.display = 'none';
+        icon.style.transform = 'rotate(-90deg)';
+      }
+    }
   }
 
   /**
