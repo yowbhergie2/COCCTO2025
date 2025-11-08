@@ -707,6 +707,18 @@ function generateCOCCertificate(certificateData) {
       };
     }
 
+    // Validate date of issuance is not in the future
+    const issuanceDate = new Date(certificateData.dateOfIssuance);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Set to end of day for comparison
+
+    if (issuanceDate > today) {
+      return {
+        success: false,
+        message: 'Date of Issuance cannot be in the future'
+      };
+    }
+
     // Check if employee exists
     const employee = getEmployeeById(certificateData.employeeId);
     if (!employee) {
@@ -853,26 +865,38 @@ function generateCertificatePDF(certificateData, employee, validUntilDate, total
     const dateIssued = formatDate(new Date(certificateData.dateOfIssuance));
     const validUntil = formatDate(validUntilDate);
 
-    // Fill in the certificate data (both copies - rows 4-20 and 28-44)
+    // Ensure the sheet has enough columns (at least 6 columns = F)
+    const maxColumns = tempSheet.getMaxColumns();
+    if (maxColumns < 6) {
+      tempSheet.insertColumnsAfter(maxColumns, 6 - maxColumns);
+    }
+
+    // Ensure the sheet has enough rows (at least 44 rows)
+    const maxRows = tempSheet.getMaxRows();
+    if (maxRows < 44) {
+      tempSheet.insertRowsAfter(maxRows, 44 - maxRows);
+    }
+
+    // Fill in the certificate data using row/column indices
     // First certificate (top)
-    tempSheet.getRange('E4').setValue(employeeName);  // NAME
-    tempSheet.getRange('B6').setValue(position);  // POSITION
-    tempSheet.getRange('F6').setValue(office);  // OFFICE/DIVISION
-    tempSheet.getRange('B9').setValue(totalHours.toFixed(1));  // Number of Hours
-    tempSheet.getRange('F15').setValue(signatory.name || '');  // NAME OF SIGNATORY
-    tempSheet.getRange('F16').setValue(signatory.position || '');  // Position of Signatory
-    tempSheet.getRange('D19').setValue(dateIssued);  // DATE ISSUED
-    tempSheet.getRange('D20').setValue(validUntil);  // VALID UNTIL
+    tempSheet.getRange(4, 5).setValue(employeeName);  // E4 - NAME
+    tempSheet.getRange(6, 2).setValue(position);  // B6 - POSITION
+    tempSheet.getRange(6, 6).setValue(office);  // F6 - OFFICE/DIVISION
+    tempSheet.getRange(9, 2).setValue(totalHours.toFixed(1));  // B9 - Number of Hours
+    tempSheet.getRange(15, 6).setValue(signatory.name || '');  // F15 - NAME OF SIGNATORY
+    tempSheet.getRange(16, 6).setValue(signatory.position || '');  // F16 - Position of Signatory
+    tempSheet.getRange(19, 4).setValue(dateIssued);  // D19 - DATE ISSUED
+    tempSheet.getRange(20, 4).setValue(validUntil);  // D20 - VALID UNTIL
 
     // Second certificate (bottom)
-    tempSheet.getRange('E28').setValue(employeeName);  // NAME
-    tempSheet.getRange('B30').setValue(position);  // POSITION
-    tempSheet.getRange('F30').setValue(office);  // OFFICE/DIVISION
-    tempSheet.getRange('B33').setValue(totalHours.toFixed(1));  // Number of Hours
-    tempSheet.getRange('F39').setValue(signatory.name || '');  // NAME OF SIGNATORY
-    tempSheet.getRange('F40').setValue(signatory.position || '');  // Position of Signatory
-    tempSheet.getRange('D43').setValue(dateIssued);  // DATE ISSUED
-    tempSheet.getRange('D44').setValue(validUntil);  // VALID UNTIL
+    tempSheet.getRange(28, 5).setValue(employeeName);  // E28 - NAME
+    tempSheet.getRange(30, 2).setValue(position);  // B30 - POSITION
+    tempSheet.getRange(30, 6).setValue(office);  // F30 - OFFICE/DIVISION
+    tempSheet.getRange(33, 2).setValue(totalHours.toFixed(1));  // B33 - Number of Hours
+    tempSheet.getRange(39, 6).setValue(signatory.name || '');  // F39 - NAME OF SIGNATORY
+    tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory
+    tempSheet.getRange(43, 4).setValue(dateIssued);  // D43 - DATE ISSUED
+    tempSheet.getRange(44, 4).setValue(validUntil);  // D44 - VALID UNTIL
 
     // Convert sheet to PDF
     const pdfBlob = convertSheetToPDF(dbSpreadsheet, tempSheet);
