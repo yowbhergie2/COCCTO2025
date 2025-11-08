@@ -622,6 +622,30 @@
       return existingDatabaseDates.includes(dateValue);
     }
 
+    // Validate if a date actually exists in the calendar
+    function isValidDate(dateString) {
+      if (!dateString) return false;
+
+      const date = new Date(dateString);
+
+      // Check if the date is valid (not NaN) and the string matches the parsed date
+      if (isNaN(date.getTime())) {
+        return false;
+      }
+
+      // Extract year, month, day from the input string (YYYY-MM-DD format)
+      const [year, month, day] = dateString.split('-').map(Number);
+
+      // Verify the parsed date matches the input (catches invalid dates like Feb 31)
+      if (date.getFullYear() !== year ||
+          date.getMonth() + 1 !== month ||
+          date.getDate() !== day) {
+        return false;
+      }
+
+      return true;
+    }
+
     // Handle date input change with duplicate detection
     function handleDateChange(rowId) {
       const row = document.getElementById('row-' + rowId);
@@ -632,7 +656,18 @@
 
       if (!dateValue) {
         dateInput.classList.remove('error');
+        dateInput.title = '';
         updateRow(rowId);
+        return;
+      }
+
+      // First, validate if the date actually exists in the calendar
+      if (!isValidDate(dateValue)) {
+        dateInput.classList.add('error');
+        dateInput.title = 'Invalid date. Please check the month and day.';
+        showErrorModal('Invalid date entered. Please check that the date exists in the calendar (e.g., February only has 28/29 days).');
+        // Clear the invalid date
+        dateInput.value = '';
         return;
       }
 
@@ -675,6 +710,7 @@
 
       // No duplicates, proceed normally
       dateInput.classList.remove('error');
+      dateInput.title = '';
       updateRow(rowId);
     }
 
