@@ -1483,16 +1483,17 @@
             status: tx.status
           });
 
+          // Note: Removed inline styles, will be controlled by <style> tag in EmployeeLedger
           historicalRows += `
-            <tr style="border-bottom: 1px solid #e1e4e8;">
+            <tr>
               <td>${tx.month} ${tx.year}</td>
-              <td style="text-align: center; font-weight: 600; color: #10b981;">${earned.toFixed(1)}</td>
-              <td style="text-align: center; font-weight: 600; color: #ef4444;">${used.toFixed(1)}</td>
-              <td style="text-align: center; font-weight: 600; color: #4f46e5;">${remaining.toFixed(1)}</td>
-              <td style="text-align: center;">${dateOfIssuanceDisplay}</td>
-              <td style="text-align: center;">${validUntilDisplay}</td>
-              <td style="text-align: center;">
-                <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+              <td class="text-center font-semibold" style="color: #10b981;">${earned.toFixed(1)}</td>
+              <td class="text-center font-semibold" style="color: #ef4444;">${used.toFixed(1)}</td>
+              <td class="text-center font-semibold" style="color: #4f46e5;">${remaining.toFixed(1)}</td>
+              <td class="text-center">${dateOfIssuanceDisplay}</td>
+              <td class="text-center">${validUntilDisplay}</td>
+              <td class="text-center">
+                <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; background: ${statusColor}15; color: ${statusColor}; font-size: 0.8125rem;">
                   ${tx.status}
                 </span>
               </td>
@@ -1503,15 +1504,15 @@
         beginningBalanceContainer.innerHTML = `
           <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse;">
-              <thead style="background: #f6f8fa;">
+              <thead>
                 <tr>
-                  <th style="text-align: left; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Earned</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Used</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Date of Issuance</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
-                  <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
+                  <th>Month/Year</th>
+                  <th class="text-center">Earned</th>
+                  <th class="text-center">Used</th>
+                  <th class="text-center">Remaining</th>
+                  <th class="text-center">Date of Issuance</th>
+                  <th class="text-center">Valid Until</th>
+                  <th class="text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -1519,20 +1520,18 @@
               </tbody>
             </table>
           </div>
-          <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 4px; border: 1px solid #e1e4e8;">
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-              <div style="text-align: center;">
-                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Earned</div>
-                <div style="font-size: 1rem; font-weight: 700; color: #10b981;">${totalHistoricalEarned.toFixed(1)}</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Used</div>
-                <div style="font-size: 1rem; font-weight: 700; color: #ef4444;">${totalHistoricalUsed.toFixed(1)}</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Remaining</div>
-                <div style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalRemaining.toFixed(1)}</div>
-              </div>
+          <div style="margin-top: 0.75rem; padding: 1rem; background: white; border-radius: 6px; border: 1px solid #e1e4e8; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Earned</span>
+              <span style="font-weight: 700; color: #10b981; font-size: 1.25rem;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+            </div>
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Used</span>
+              <span style="font-weight: 700; color: #ef4444; font-size: 1.25rem;">${totalHistoricalUsed.toFixed(1)} hrs</span>
+            </div>
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Remaining</span>
+              <span style="font-weight: 700; color: #4f46e5; font-size: 1.25rem;">${totalHistoricalRemaining.toFixed(1)} hrs</span>
             </div>
           </div>
         `;
@@ -1580,7 +1579,7 @@
       ledgerTableContainer.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-info-circle"></i>
-          <p>No certificates or CTO usage found</p>
+          <p>No new transactions found</p>
         </div>`;
       return;
     }
@@ -1605,76 +1604,28 @@
 
       const detailsId = `cert-details-${index}`;
 
+      // Note: Removed inline styles, will be controlled by <style> tag in EmployeeLedger
       ledgerRows += `
-        <tr style="border-bottom: 1px solid #e1e4e8;">
+        <tr>
           <td>
-            <div style="font-weight: 600; color: #1a1f36;">Certificate - ${cert.month} ${cert.year}</div>
-            <button onclick="toggleDetails('${detailsId}')" style="margin-top: 0.25rem; padding: 0.125rem 0.5rem; font-size: 0.65rem; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 4px; cursor: pointer;">
-              <i class="fas fa-eye"></i> View Details
-            </button>
+            <div style="font-weight: 500; color: #1a1f36; font-size: 0.9375rem;">${particular}</div>
+            <div style="color: #697386; margin-top: 0.25rem; font-size: 0.8125rem;">${tx.dateWorked}</div>
           </td>
-          <td style="text-align: center; font-weight: 600; color: #10b981;">${cert.cocEarned.toFixed(1)}</td>
-          <td style="text-align: center; font-weight: 600; color: #ef4444;">${cert.cocUsed.toFixed(1)}</td>
-          <td style="text-align: center; font-weight: 600; color: #4f46e5;">${cert.cocRemaining.toFixed(1)}</td>
-          <td style="text-align: center; font-size: 0.7rem;">${dateOfIssuanceDisplay}</td>
-          <td style="text-align: center; font-size: 0.7rem;">${validUntilDisplay}</td>
-          <td style="text-align: center;">
-            <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
-              ${cert.status}
-            </span>
+          <td class="text-center font-semibold" style="color: #10b981;">
+            ${cocEarned > 0 ? '+' + cocEarned.toFixed(1) : '--'}
           </td>
-        </tr>
-        <tr id="${detailsId}" style="display: none; background: #f9fafb;">
-          <td colspan="7" style="padding: 0.75rem;">
-            <div style="font-size: 0.7rem; font-weight: 600; color: #697386; margin-bottom: 0.5rem;">OVERTIME ENTRIES:</div>
-            <table style="width: 100%; font-size: 0.65rem;">
-              <thead>
-                <tr style="background: #f0f2f5;">
-                  <th style="padding: 0.25rem; text-align: left;">Date</th>
-                  <th style="padding: 0.25rem; text-align: left;">Day Type</th>
-                  <th style="padding: 0.25rem; text-align: center;">AM In</th>
-                  <th style="padding: 0.25rem; text-align: center;">AM Out</th>
-                  <th style="padding: 0.25rem; text-align: center;">PM In</th>
-                  <th style="padding: 0.25rem; text-align: center;">PM Out</th>
-                  <th style="padding: 0.25rem; text-align: center;">COC Earned</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${cert.entries.map(entry => `
-                  <tr style="border-bottom: 1px solid #e1e4e8;">
-                    <td style="padding: 0.25rem;">${entry.dateWorked}</td>
-                    <td style="padding: 0.25rem;">${entry.dayType}</td>
-                    <td style="padding: 0.25rem; text-align: center;">${entry.amIn || '--'}</td>
-                    <td style="padding: 0.25rem; text-align: center;">${entry.amOut || '--'}</td>
-                    <td style="padding: 0.25rem; text-align: center;">${entry.pmIn || '--'}</td>
-                    <td style="padding: 0.25rem; text-align: center;">${entry.pmOut || '--'}</td>
-                    <td style="padding: 0.25rem; text-align: center; font-weight: 600; color: #10b981;">${entry.cocEarned.toFixed(1)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+          <td class="text-center font-semibold" style="color: #ef4444;">
+            ${cocUsed > 0 ? '-' + cocUsed.toFixed(1) : '--'}
           </td>
-        </tr>
-      `;
-    });
-
-    // Render CTO usage
-    ctoUsage.forEach(cto => {
-      const statusColor = statusColors['Used'];
-      ledgerRows += `
-        <tr style="border-bottom: 1px solid #e1e4e8;">
-          <td>
-            <div style="font-weight: 600; color: #1a1f36;">CTO Used</div>
-            <div style="font-size: 0.65rem; color: #697386; margin-top: 0.125rem;">${cto.dateWorked}</div>
+          <td class="text-center font-semibold" style="color: #4f46e5;">
+            ${runningBalance.toFixed(1)}
           </td>
-          <td style="text-align: center;">--</td>
-          <td style="text-align: center; font-weight: 600; color: #ef4444;">${cto.cocEarned.toFixed(1)}</td>
-          <td style="text-align: center;">--</td>
-          <td style="text-align: center;">--</td>
-          <td style="text-align: center;">--</td>
-          <td style="text-align: center;">
-            <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
-              Used
+          <td class="text-center">
+            ${dateOfCTO}
+          </td>
+          <td class="text-center">
+            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; background: ${statusColor}15; color: ${statusColor}; font-size: 0.8125rem;">
+              ${tx.status}
             </span>
           </td>
         </tr>
@@ -1683,16 +1634,15 @@
 
     const ledgerTable = `
       <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead style="background: #f6f8fa;">
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; border-radius: 8px;">
+          <thead>
             <tr>
-              <th style="text-align: left; font-weight: 600; color: #697386; text-transform: uppercase;">Type / Period</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Earned</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Used</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Date of Issuance</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
-              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
+              <th>Particular</th>
+              <th class="text-center">COC Earned</th>
+              <th class="text-center">Used COCs</th>
+              <th class="text-center">Remaining COCs</th>
+              <th class="text-center">Date of CTO</th>
+              <th class="text-center">Status</th>
             </tr>
           </thead>
           <tbody>
