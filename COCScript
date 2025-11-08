@@ -10,7 +10,7 @@
    * Initialize Log Overtime form when page loads
    */
   function initLogOvertimeForm() {
-    // Populate years
+    // Populate years (only current year and past years)
     const yearSelect = document.getElementById('year');
     if (yearSelect) {
       const currentYear = new Date().getFullYear();
@@ -63,16 +63,66 @@
     }
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
+        updateMonthOptionsForYear();
         loadExistingDates();
         updateDateInputConstraints();
         checkAddDayButtonState();
       });
     }
 
+    // Initial setup: disable future months for current year
+    updateMonthOptionsForYear();
+
     // Initial button and entries state check
     checkAddDayButtonState();
 
     // Don't add first row yet - wait for dropdowns to be selected
+  }
+
+  /**
+   * Update month dropdown options based on selected year
+   * Disable future months for current year
+   */
+  function updateMonthOptionsForYear() {
+    const yearSelect = document.getElementById('year');
+    const monthSelect = document.getElementById('month');
+
+    if (!yearSelect || !monthSelect) return;
+
+    const selectedYear = parseInt(yearSelect.value);
+    if (!selectedYear) return;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-11
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const selectedMonth = monthSelect.value;
+
+    // Enable/disable months based on whether it's the current year
+    const options = monthSelect.querySelectorAll('option');
+    options.forEach(option => {
+      if (option.value === '') return; // Skip the placeholder option
+
+      const monthIndex = monthNames.indexOf(option.value);
+      if (monthIndex === -1) return;
+
+      // If current year, disable future months
+      if (selectedYear === currentYear && monthIndex > currentMonth) {
+        option.disabled = true;
+        option.textContent = option.value + ' (Future)';
+
+        // If currently selected month is now disabled, clear selection
+        if (option.value === selectedMonth) {
+          monthSelect.value = '';
+        }
+      } else {
+        option.disabled = false;
+        option.textContent = option.value;
+      }
+    });
   }
 
   /**
@@ -504,9 +554,16 @@
   /**
    * Validate overtime row
    */
+  /**
+   * Validate overtime row and collect error messages
+   * @param {number} rowId - The row ID to validate
+   * @returns {Object} { isValid: boolean, errors: string[] }
+   */
   function validateOvertimeRow(rowId) {
     const row = document.getElementById('row-' + rowId);
-    if (!row) return true;
+    if (!row) return { isValid: true, errors: [] };
+
+    const errors = [];
 
     const timeToMinutes = (timeStr) => {
       if (!timeStr) return null;
@@ -538,30 +595,45 @@
     let isValid = true;
 
     if (amInInput && amInInput.value) {
-      if (!validateTimeInput(amInInput, '05:00', '12:59')) isValid = false;
+      if (!validateTimeInput(amInInput, '05:00', '12:59')) {
+        errors.push('AM In must be between 5:00 AM and 12:59 PM');
+        isValid = false;
+      }
     }
     if (amOutInput && amOutInput.value) {
-      if (!validateTimeInput(amOutInput, '08:00', '12:59')) isValid = false;
+      if (!validateTimeInput(amOutInput, '08:00', '12:59')) {
+        errors.push('AM Out must be between 8:00 AM and 12:59 PM');
+        isValid = false;
+      }
     }
     if (pmInInput && pmInInput.value) {
-      if (!validateTimeInput(pmInInput, '12:00', '23:59')) isValid = false;
+      if (!validateTimeInput(pmInInput, '12:00', '23:59')) {
+        errors.push('PM In must be between 12:00 PM and 11:59 PM');
+        isValid = false;
+      }
     }
     if (pmOutInput && pmOutInput.value) {
-      if (!validateTimeInput(pmOutInput, '12:00', '23:59')) isValid = false;
+      if (!validateTimeInput(pmOutInput, '12:00', '23:59')) {
+        errors.push('PM Out must be between 12:00 PM and 11:59 PM');
+        isValid = false;
+      }
     }
 
     if (amInInput && amOutInput) {
       if (amInInput.value && !amOutInput.value) {
         amOutInput.classList.add('error');
+        errors.push('AM Out is required when AM In is entered');
         isValid = false;
       } else if (!amInInput.value && amOutInput.value) {
         amInInput.classList.add('error');
+        errors.push('AM In is required when AM Out is entered');
         isValid = false;
       } else if (amInInput.value && amOutInput.value) {
         const amInMinutes = timeToMinutes(amInInput.value);
         const amOutMinutes = timeToMinutes(amOutInput.value);
         if (amOutMinutes <= amInMinutes) {
           amOutInput.classList.add('error');
+          errors.push('AM Out must be after AM In');
           isValid = false;
         }
       }
@@ -570,15 +642,18 @@
     if (pmInInput && pmOutInput) {
       if (pmInInput.value && !pmOutInput.value) {
         pmOutInput.classList.add('error');
+        errors.push('PM Out is required when PM In is entered');
         isValid = false;
       } else if (!pmInInput.value && pmOutInput.value) {
         pmInInput.classList.add('error');
+        errors.push('PM In is required when PM Out is entered');
         isValid = false;
       } else if (pmInInput.value && pmOutInput.value) {
         const pmInMinutes = timeToMinutes(pmInInput.value);
         const pmOutMinutes = timeToMinutes(pmOutInput.value);
         if (pmOutMinutes <= pmInMinutes) {
           pmOutInput.classList.add('error');
+          errors.push('PM Out must be after PM In');
           isValid = false;
         }
       }
@@ -590,6 +665,7 @@
       const pmInMinutes = timeToMinutes(pmInInput.value);
       if (pmInMinutes < amOutMinutes) {
         pmInInput.classList.add('error');
+        errors.push('PM In cannot be earlier than AM Out');
         isValid = false;
       }
     }
@@ -597,13 +673,16 @@
     // Check if date is filled but ALL time inputs are empty
     const dateInput = row.querySelector('.date-input');
     if (dateInput && dateInput.value) {
-      // Validate that date is not in the future
       const selectedDate = new Date(dateInput.value);
+      const dateStr = selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      // Validate that date is not in the future
       const today = new Date();
       today.setHours(23, 59, 59, 999); // Set to end of today for comparison
 
       if (selectedDate > today) {
         dateInput.classList.add('error');
+        errors.push(`Date ${dateStr} is in the future. Cannot log overtime for future dates.`);
         isValid = false;
       } else {
         dateInput.classList.remove('error');
@@ -623,6 +702,7 @@
 
         if (selectedMonth !== formMonth || selectedYear !== formYear) {
           dateInput.classList.add('error');
+          errors.push(`Date ${dateStr} does not match selected month/year (${monthSelect.value} ${yearSelect.value})`);
           isValid = false;
         }
       }
@@ -638,6 +718,7 @@
         if (amOutInput) amOutInput.classList.add('error');
         if (pmInInput) pmInInput.classList.add('error');
         if (pmOutInput) pmOutInput.classList.add('error');
+        errors.push(`Row with date ${dateStr}: At least one time entry (AM or PM) is required`);
         isValid = false;
       } else {
         // If at least one time is entered, remove the "required" error from empty fields
@@ -646,7 +727,7 @@
       }
     }
 
-    return isValid;
+    return { isValid, errors };
   }
 
   /**
@@ -691,19 +772,23 @@
 
     const rows = document.querySelectorAll('#entryTableBody tr');
     let allRowsValid = true;
+    const allErrors = [];
 
     rows.forEach(row => {
       const rowIdMatch = row.id.match(/row-(\d+)/);
       if (rowIdMatch) {
         const rowId = parseInt(rowIdMatch[1]);
-        if (!validateOvertimeRow(rowId)) {
+        const validation = validateOvertimeRow(rowId);
+        if (!validation.isValid) {
           allRowsValid = false;
+          allErrors.push(...validation.errors);
         }
       }
     });
 
     if (!allRowsValid) {
-      showAlert('Please correct all validation errors before submitting. Check for red-highlighted fields and ensure all entries have valid times.', 'error');
+      const errorMessage = 'Please correct the following errors:\n\n' + allErrors.map((err, i) => `${i + 1}. ${err}`).join('\n');
+      showAlert(errorMessage, 'error');
       return false;
     }
 
