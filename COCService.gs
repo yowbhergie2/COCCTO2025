@@ -212,3 +212,88 @@ function getCertifiedMonths(employeeId, year) {
     return [];
   }
 }
+
+/**
+ * Get uncertified logs for a specific employee, grouped by month/year
+ * @param {number} employeeId - Employee ID
+ * @returns {Array} Array of month groups with logs
+ */
+function getUncertifiedLogsByEmployee(employeeId) {
+  try {
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return [];
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const dateWorkedIndex = headers.indexOf('DateWorked');
+    const dayTypeIndex = headers.indexOf('DayType');
+    const amInIndex = headers.indexOf('AMIn');
+    const amOutIndex = headers.indexOf('AMOut');
+    const pmInIndex = headers.indexOf('PMIn');
+    const pmOutIndex = headers.indexOf('PMOut');
+    const cocEarnedIndex = headers.indexOf('COCEarned');
+    const statusIndex = headers.indexOf('Status');
+
+    // Collect all uncertified logs for this employee
+    const logs = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[employeeIdIndex] === employeeId && row[statusIndex] === 'Uncertified') {
+        logs.push({
+          month: row[monthIndex],
+          year: row[yearIndex],
+          dateWorked: formatDate(row[dateWorkedIndex]),
+          dayType: row[dayTypeIndex],
+          amIn: row[amInIndex],
+          amOut: row[amOutIndex],
+          pmIn: row[pmInIndex],
+          pmOut: row[pmOutIndex],
+          cocEarned: parseFloat(row[cocEarnedIndex]) || 0
+        });
+      }
+    }
+
+    // Group by month/year
+    const monthGroups = {};
+    logs.forEach(log => {
+      const key = `${log.month}-${log.year}`;
+      if (!monthGroups[key]) {
+        monthGroups[key] = {
+          month: log.month,
+          year: log.year,
+          totalHours: 0,
+          logs: []
+        };
+      }
+      monthGroups[key].totalHours += log.cocEarned;
+      monthGroups[key].logs.push(log);
+    });
+
+    // Convert to array and sort by year/month (most recent first)
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const result = Object.values(monthGroups).sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year; // Most recent year first
+      }
+      return monthNames.indexOf(b.month) - monthNames.indexOf(a.month); // Most recent month first
+    });
+
+    return serializeDates(result);
+
+  } catch (error) {
+    Logger.log('Error in getUncertifiedLogsByEmployee: ' + error.toString());
+    return [];
+  }
+}

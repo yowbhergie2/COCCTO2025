@@ -360,6 +360,14 @@
       return false;
     }
 
+    // Get submit button and show loading state
+    const submitBtn = document.querySelector('#signatoryForm button[type="submit"]');
+    const originalBtnContent = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
+
     google.script.run
       .withSuccessHandler(result => {
         if (result.success) {
@@ -368,9 +376,19 @@
         } else {
           showAlert(result.message, 'error');
         }
+        // Restore button
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnContent;
+        }
       })
       .withFailureHandler(err => {
         showAlert('Error: ' + err.message, 'error');
+        // Restore button
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnContent;
+        }
       })
       .setSignatoryConfig({ name: name.trim(), position: position.trim() });
 

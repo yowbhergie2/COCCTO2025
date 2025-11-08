@@ -1,78 +1,123 @@
+<style>
+  /* Custom layout for Generate Certificate */
+  #certEmployeeListPanel {
+    width: 320px;
+    flex-shrink: 0;
+  }
+
+  #certDetailsPanel {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  /* Override split-view for this page */
+  .split-view {
+    display: flex !important;
+    gap: 1.5rem;
+  }
+
+  /* Month group card styling */
+  .month-certificate-card {
+    background: white;
+    border: 1px solid #e8ebed;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .month-certificate-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e8ebed;
+  }
+
+  .month-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a1f36;
+  }
+
+  .month-hours {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #4f46e5;
+  }
+
+  .cert-form-group {
+    margin-bottom: 1rem;
+  }
+
+  .cert-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #697386;
+    margin-bottom: 0.5rem;
+  }
+</style>
+
 <div class="page-header">
   <h1 class="page-title">Generate COC Certificate</h1>
-  <p class="page-subtitle">Activate uncertified overtime credits by issuing certificates</p>
+  <p class="page-subtitle">Select employee and generate certificates for uncertified overtime</p>
 </div>
 
-<div class="card" style="max-width: 900px; margin: 0 auto;">
-  <div class="card-body" style="padding: 2rem;">
-    <form id="certificateForm" onsubmit="return handleCertificateFormSubmit(event)">
-      <!-- Employee, Month, Year Selection -->
-      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-        <div>
-          <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
-          <select name="employeeId" id="certEmployeeId" required class="form-input">
-            <option value="">-- Select Employee --</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Month <span style="color: #ef4444;">*</span></label>
-          <select name="month" id="certMonth" required class="form-input">
-            <option value="">-- Select --</option>
-            <option value="January">January</option>
-            <option value="February">February</option>
-            <option value="March">March</option>
-            <option value="April">April</option>
-            <option value="May">May</option>
-            <option value="June">June</option>
-            <option value="July">July</option>
-            <option value="August">August</option>
-            <option value="September">September</option>
-            <option value="October">October</option>
-            <option value="November">November</option>
-            <option value="December">December</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Year <span style="color: #ef4444;">*</span></label>
-          <select name="year" id="certYear" required class="form-input">
-            <option value="">-- Select --</option>
-          </select>
-        </div>
+<div class="split-view">
+  <!-- Left Panel: Employee List -->
+  <div class="split-panel" id="certEmployeeListPanel">
+    <div class="panel-header">
+      <div class="panel-title">Select Employee</div>
+    </div>
+    <div class="search-container">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="certEmployeeSearch" placeholder="Search employees..."
+             class="search-input" oninput="filterCertEmployees()">
+    </div>
+    <div class="panel-body" id="certEmployeeListContainer">
+      <div class="empty-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading employees...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Certificate Generation -->
+  <div class="split-panel" id="certDetailsPanel">
+    <div class="panel-body">
+      <!-- Empty State (shown when no employee selected) -->
+      <div id="certEmptyState" style="padding: 4rem 2rem; text-align: center;">
+        <i class="fas fa-certificate" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+        <p style="color: #697386;">Select an employee to view uncertified overtime and generate certificates</p>
       </div>
 
-      <!-- Date of Issuance -->
-      <div style="margin-bottom: 1.5rem;">
-        <label class="form-label">Date of Issuance <span style="color: #ef4444;">*</span></label>
-        <input type="date" id="dateOfIssuance" name="dateOfIssuance" required class="form-input" style="max-width: 300px;">
-        <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
-          <i class="fas fa-info-circle"></i> This date determines the expiration date (Valid Until = Date of Issuance + 1 Year - 1 Day)
-        </p>
-      </div>
-
-      <!-- Uncertified Hours Summary -->
-      <div id="uncertifiedSummary" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <div>
-            <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.25rem;">Total Uncertified Hours</div>
-            <div id="uncertifiedHours" style="font-size: 2rem; font-weight: 700; color: #4f46e5;">0.0 hrs</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.25rem;">Will be Valid Until</div>
-            <div id="validUntilDate" style="font-size: 1.25rem; font-weight: 600; color: #1a1f36;">--</div>
+      <!-- Certificate Content (hidden by default) -->
+      <div id="certContent" style="display: none; padding: 1.5rem;">
+        <!-- Employee Info -->
+        <div id="certEmployeeInfoSection" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem; background: #f9fafb; border: 1px solid #e1e4e8; border-radius: 8px;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fas fa-user-circle" style="font-size: 1.5rem; color: #4f46e5;"></i>
+            <div>
+              <div id="certEmployeeNameDisplay" style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">--</div>
+              <div id="certEmployeeIdDisplay" style="font-size: 0.875rem; color: #697386;">Employee ID: --</div>
+            </div>
           </div>
         </div>
-        <div id="noUncertifiedMessage" style="display: none; color: #dc2626; font-size: 0.9375rem;">
-          <i class="fas fa-exclamation-circle"></i> No uncertified hours found for this employee/month/year.
+
+        <!-- Uncertified Months Container -->
+        <div id="uncertifiedMonthsContainer">
+          <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading uncertified overtime...</p>
+          </div>
         </div>
       </div>
-
-      <!-- Action Buttons -->
-      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
-        <button type="button" onclick="resetCertificateForm()" class="btn btn-secondary">Reset Form</button>
-        <button type="submit" id="generateCertBtn" class="btn btn-primary" disabled>
-          <i class="fas fa-certificate"></i> Generate Certificate
-        </button>
-      </div>
-    </form>
+    </div>
   </div>
 </div>

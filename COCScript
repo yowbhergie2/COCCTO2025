@@ -1137,195 +1137,280 @@
 
   // ========== GENERATE CERTIFICATE PAGE ==========
 
+  let allCertEmployees = [];
+  let selectedCertEmployee = null;
+
   /**
-   * Initialize Generate Certificate form when page loads
+   * Initialize Generate Certificate page when loaded
    */
   function initGenerateCertificateForm() {
-    // Populate years
-    const yearSelect = document.getElementById('certYear');
-    if (yearSelect) {
-      const currentYear = new Date().getFullYear();
-      for (let i = 0; i <= 2; i++) {
-        const year = currentYear - i;
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        if (i === 0) option.selected = true;
-        yearSelect.appendChild(option);
-      }
+    console.log('initGenerateCertificateForm called');
+
+    const container = document.getElementById('certEmployeeListContainer');
+    if (container) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading employees...</p>
+        </div>`;
     }
 
-    // Load employees
+    // Load employees into list
     google.script.run
       .withSuccessHandler(employees => {
-        const empSelect = document.getElementById('certEmployeeId');
-        if (empSelect) {
-          employees.forEach(emp => {
-            const option = document.createElement('option');
-            option.value = emp.id;
-            option.textContent = emp.name;
-            empSelect.appendChild(option);
-          });
-        }
+        console.log('Employees loaded:', employees.length);
+        allCertEmployees = employees;
+        renderCertEmployeeList(employees);
       })
       .withFailureHandler(err => {
         console.error('Error loading employees:', err);
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading employees</p></div>';
+        }
         showAlert('Error loading employees: ' + err.message, 'error');
       })
       .getEmployeesForDropdown();
-
-    // Add event listeners
-    const empSelect = document.getElementById('certEmployeeId');
-    const monthSelect = document.getElementById('certMonth');
-    const yearSelectElem = document.getElementById('certYear');
-    const dateOfIssuance = document.getElementById('dateOfIssuance');
-
-    if (empSelect) {
-      empSelect.addEventListener('change', function() {
-        loadUncertifiedMonthsFilter();
-        loadUncertifiedHours();
-      });
-    }
-    if (monthSelect) {
-      monthSelect.addEventListener('change', loadUncertifiedHours);
-    }
-    if (yearSelectElem) {
-      yearSelectElem.addEventListener('change', function() {
-        loadUncertifiedMonthsFilter();
-        loadUncertifiedHours();
-      });
-    }
-    if (dateOfIssuance) {
-      dateOfIssuance.addEventListener('change', updateValidUntilDisplay);
-    }
   }
 
   /**
-   * Load and filter months to show only uncertified months
+   * Render employee list for certificate generation
    */
-  function loadUncertifiedMonthsFilter() {
-    const employeeId = document.getElementById('certEmployeeId')?.value;
-    const year = document.getElementById('certYear')?.value;
-    const monthSelect = document.getElementById('certMonth');
+  function renderCertEmployeeList(employees) {
+    const container = document.getElementById('certEmployeeListContainer');
+    if (!container) {
+      console.error('renderCertEmployeeList: Container not found');
+      return;
+    }
 
-    if (!employeeId || !year || !monthSelect) {
-      // Reset all months to enabled if no employee or year selected
-      if (monthSelect) {
-        const options = monthSelect.querySelectorAll('option');
-        options.forEach(option => {
-          if (option.value !== '') {
-            option.disabled = false;
-            option.textContent = option.value;
-          }
-        });
+    container.innerHTML = '';
+
+    if (employees.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No employees found</p></div>';
+      return;
+    }
+
+    // Create employee cards
+    employees.forEach(emp => {
+      const div = document.createElement('div');
+      div.className = 'employee-list-item';
+
+      // Check if this employee is the currently selected one
+      if (selectedCertEmployee && emp.id === selectedCertEmployee.id) {
+        div.classList.add('active');
       }
-      return;
-    }
 
-    // Fetch certified months from server
-    google.script.run
-      .withSuccessHandler(certifiedMonths => {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                            'July', 'August', 'September', 'October', 'November', 'December'];
+      div.onclick = (event) => selectCertEmployee(emp, event.currentTarget);
 
-        // Reset month select
-        const selectedMonth = monthSelect.value;
-        const options = monthSelect.querySelectorAll('option');
+      div.innerHTML = `
+        <div class="employee-name">${emp.name}</div>
+        <div class="employee-meta">Employee ID: ${emp.id}</div>
+      `;
 
-        options.forEach(option => {
-          if (option.value === '') return; // Skip placeholder
-
-          const monthValue = option.value;
-
-          // Check if this month is already certified
-          if (certifiedMonths.includes(monthValue)) {
-            option.disabled = true;
-            option.textContent = monthValue + ' (Already Certified)';
-
-            // If currently selected month is now disabled, clear selection
-            if (monthValue === selectedMonth) {
-              monthSelect.value = '';
-            }
-          } else {
-            option.disabled = false;
-            option.textContent = monthValue;
-          }
-        });
-      })
-      .withFailureHandler(err => {
-        console.error('Error loading certified months:', err);
-        // On error, don't filter - show all months
-      })
-      .getCertifiedMonths(parseInt(employeeId), parseInt(year));
+      container.appendChild(div);
+    });
   }
 
   /**
-   * Load uncertified hours for selected employee/month/year
+   * Filter certificate employee list based on search input
    */
-  function loadUncertifiedHours() {
-    const employeeId = document.getElementById('certEmployeeId')?.value;
-    const month = document.getElementById('certMonth')?.value;
-    const year = document.getElementById('certYear')?.value;
+  function filterCertEmployees() {
+    const searchInput = document.getElementById('certEmployeeSearch');
+    if (!searchInput) return;
 
-    const summary = document.getElementById('uncertifiedSummary');
-    const hoursDisplay = document.getElementById('uncertifiedHours');
-    const noDataMessage = document.getElementById('noUncertifiedMessage');
-    const generateBtn = document.getElementById('generateCertBtn');
+    const searchTerm = searchInput.value.toLowerCase();
+    const filtered = allCertEmployees.filter(emp => {
+      const searchString = `${emp.name} ${emp.id}`.toLowerCase();
+      return searchString.includes(searchTerm);
+    });
 
-    if (!employeeId || !month || !year) {
-      if (summary) summary.style.display = 'none';
-      if (generateBtn) generateBtn.disabled = true;
-      return;
+    renderCertEmployeeList(filtered);
+  }
+
+  /**
+   * Select an employee and load their uncertified logs grouped by month
+   */
+  function selectCertEmployee(employee, clickedElement) {
+    console.log('Selecting employee:', employee);
+
+    selectedCertEmployee = employee;
+
+    // Highlight active employee in list
+    document.querySelectorAll('#certEmployeeListContainer .employee-list-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    if (clickedElement) {
+      clickedElement.classList.add('active');
     }
+
+    const certContent = document.getElementById('certContent');
+    const certEmptyState = document.getElementById('certEmptyState');
+    const uncertifiedMonthsContainer = document.getElementById('uncertifiedMonthsContainer');
 
     // Show loading state
-    if (summary) summary.style.display = 'block';
-    if (hoursDisplay) hoursDisplay.textContent = 'Loading...';
-    if (noDataMessage) noDataMessage.style.display = 'none';
-    if (generateBtn) generateBtn.disabled = true;
+    if (certContent) certContent.style.display = 'block';
+    if (certEmptyState) certEmptyState.style.display = 'none';
+    if (uncertifiedMonthsContainer) {
+      uncertifiedMonthsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading uncertified overtime...</p></div>';
+    }
 
-    // Fetch uncertified hours from server
+    // Update employee info
+    const employeeNameDisplay = document.getElementById('certEmployeeNameDisplay');
+    const employeeIdDisplay = document.getElementById('certEmployeeIdDisplay');
+
+    if (employeeNameDisplay) {
+      employeeNameDisplay.textContent = employee.name;
+    }
+    if (employeeIdDisplay) {
+      employeeIdDisplay.textContent = `Employee ID: ${employee.id}`;
+    }
+
+    // Fetch uncertified logs grouped by month
     google.script.run
-      .withSuccessHandler(result => {
-        if (result.hours > 0) {
-          if (hoursDisplay) hoursDisplay.textContent = result.hours.toFixed(1) + ' hrs';
-          if (noDataMessage) noDataMessage.style.display = 'none';
-
-          // Update Valid Until display
-          updateValidUntilDisplay();
-
-          // Enable button if date of issuance is set
-          const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
-          if (generateBtn && dateOfIssuance) {
-            generateBtn.disabled = false;
-          }
-        } else {
-          if (hoursDisplay) hoursDisplay.textContent = '0.0 hrs';
-          if (noDataMessage) noDataMessage.style.display = 'block';
-          if (generateBtn) generateBtn.disabled = true;
-        }
+      .withSuccessHandler(monthGroups => {
+        console.log('Uncertified month groups received:', monthGroups);
+        renderUncertifiedMonths(monthGroups);
       })
       .withFailureHandler(err => {
-        console.error('Error loading uncertified hours:', err);
-        if (hoursDisplay) hoursDisplay.textContent = 'Error';
-        showAlert('Error loading uncertified hours: ' + err.message, 'error');
+        console.error('Error loading uncertified logs:', err);
+        showAlert('Error loading uncertified logs: ' + err.message, 'error');
+        if (uncertifiedMonthsContainer) {
+          uncertifiedMonthsContainer.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Error loading uncertified overtime</p>
+            </div>`;
+        }
       })
-      .getUncertifiedHours(parseInt(employeeId), month, parseInt(year));
+      .getUncertifiedLogsByEmployee(parseInt(employee.id));
   }
 
   /**
-   * Update Valid Until date display based on Date of Issuance
+   * Render uncertified months with certificate generation forms
    */
-  function updateValidUntilDisplay() {
-    const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
-    const validUntilDisplay = document.getElementById('validUntilDate');
-    const generateBtn = document.getElementById('generateCertBtn');
-    const hoursDisplay = document.getElementById('uncertifiedHours');
+  function renderUncertifiedMonths(monthGroups) {
+    const container = document.getElementById('uncertifiedMonthsContainer');
+    if (!container) return;
 
-    if (!dateOfIssuance || !validUntilDisplay) return;
+    if (!monthGroups || monthGroups.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-check-circle" style="color: #10b981;"></i>
+          <p>No uncertified overtime found for this employee</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = '';
+
+    // Render each month group
+    monthGroups.forEach((group, index) => {
+      const card = document.createElement('div');
+      card.className = 'month-certificate-card';
+      card.id = `cert-month-${index}`;
+
+      const detailsId = `cert-details-${index}`;
+
+      card.innerHTML = `
+        <div class="month-header">
+          <div>
+            <div class="month-title">${group.month} ${group.year}</div>
+            <div style="font-size: 0.875rem; color: #697386; margin-top: 0.25rem;">
+              ${group.logs.length} overtime ${group.logs.length === 1 ? 'entry' : 'entries'}
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.25rem;">Total Hours</div>
+            <div class="month-hours">${group.totalHours.toFixed(1)} hrs</div>
+          </div>
+        </div>
+
+        <!-- Overtime Logs Summary -->
+        <div style="margin-bottom: 1.5rem;">
+          <button onclick="toggleCertDetails('${detailsId}')" style="padding: 0.5rem 1rem; font-size: 0.875rem; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
+            <i class="fas fa-eye"></i> View ${group.logs.length} Overtime ${group.logs.length === 1 ? 'Entry' : 'Entries'}
+          </button>
+
+          <div id="${detailsId}" style="display: none; margin-top: 1rem; background: #f9fafb; border: 1px solid #e8ebed; border-radius: 6px; padding: 1rem;">
+            <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f0f2f5;">
+                  <th style="padding: 0.5rem; text-align: left;">Date</th>
+                  <th style="padding: 0.5rem; text-align: left;">Day Type</th>
+                  <th style="padding: 0.5rem; text-align: center;">AM In</th>
+                  <th style="padding: 0.5rem; text-align: center;">AM Out</th>
+                  <th style="padding: 0.5rem; text-align: center;">PM In</th>
+                  <th style="padding: 0.5rem; text-align: center;">PM Out</th>
+                  <th style="padding: 0.5rem; text-align: center;">COC</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${group.logs.map(log => `
+                  <tr style="border-bottom: 1px solid #e8ebed;">
+                    <td style="padding: 0.5rem;">${log.dateWorked}</td>
+                    <td style="padding: 0.5rem;">${log.dayType}</td>
+                    <td style="padding: 0.5rem; text-align: center;">${log.amIn || '--'}</td>
+                    <td style="padding: 0.5rem; text-align: center;">${log.amOut || '--'}</td>
+                    <td style="padding: 0.5rem; text-align: center;">${log.pmIn || '--'}</td>
+                    <td style="padding: 0.5rem; text-align: center;">${log.pmOut || '--'}</td>
+                    <td style="padding: 0.5rem; text-align: center; font-weight: 600; color: #4f46e5;">${log.cocEarned.toFixed(1)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Certificate Generation Form -->
+        <form id="certForm-${index}" onsubmit="return handleMonthCertificateSubmit(event, ${index}, '${group.month}', ${group.year})">
+          <div class="cert-form-group">
+            <label class="cert-form-label">
+              Date of Issuance <span style="color: #ef4444;">*</span>
+            </label>
+            <input type="date" id="certDate-${index}" required class="form-input"
+                   style="max-width: 300px;"
+                   onchange="updateCertValidUntil(${index})">
+            <p style="color: #697386; font-size: 0.75rem; margin-top: 0.5rem;">
+              <i class="fas fa-info-circle"></i> Valid Until: <span id="certValidUntil-${index}">--</span>
+            </p>
+          </div>
+
+          <div style="text-align: right;">
+            <button type="submit" id="certBtn-${index}" class="btn btn-primary">
+              <i class="fas fa-certificate"></i> Generate Certificate for ${group.month} ${group.year}
+            </button>
+          </div>
+        </form>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  /**
+   * Toggle visibility of certificate details
+   */
+  function toggleCertDetails(detailsId) {
+    const details = document.getElementById(detailsId);
+    if (details) {
+      if (details.style.display === 'none') {
+        details.style.display = 'block';
+      } else {
+        details.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Update Valid Until date for a specific certificate form
+   */
+  function updateCertValidUntil(index) {
+    const dateInput = document.getElementById(`certDate-${index}`);
+    const validUntilSpan = document.getElementById(`certValidUntil-${index}`);
+
+    if (!dateInput || !dateInput.value || !validUntilSpan) return;
 
     // Calculate Valid Until: (Date of Issuance + 1 Year - 1 Day)
-    const issuanceDate = new Date(dateOfIssuance);
+    const issuanceDate = new Date(dateInput.value);
     const validUntil = new Date(issuanceDate);
     validUntil.setFullYear(validUntil.getFullYear() + 1);
     validUntil.setDate(validUntil.getDate() - 1);
@@ -1335,41 +1420,37 @@
                           validUntil.getDate().toString().padStart(2, '0') + '/' +
                           validUntil.getFullYear();
 
-    validUntilDisplay.textContent = formattedDate;
-
-    // Enable button if we have hours
-    const hasHours = hoursDisplay && hoursDisplay.textContent !== '0.0 hrs' &&
-                     hoursDisplay.textContent !== 'Loading...' &&
-                     hoursDisplay.textContent !== 'Error';
-    if (generateBtn && hasHours) {
-      generateBtn.disabled = false;
-    }
+    validUntilSpan.textContent = formattedDate;
   }
 
   /**
-   * Handle certificate form submission
+   * Handle certificate submission for a specific month
    */
-  function handleCertificateFormSubmit(e) {
-    e.preventDefault();
+  function handleMonthCertificateSubmit(event, index, month, year) {
+    event.preventDefault();
 
-    const employeeId = parseInt(document.getElementById('certEmployeeId')?.value);
-    const month = document.getElementById('certMonth')?.value;
-    const year = parseInt(document.getElementById('certYear')?.value);
-    const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
-
-    if (!employeeId || !month || !year || !dateOfIssuance) {
-      showAlert('Please fill in all required fields', 'error');
+    if (!selectedCertEmployee) {
+      showAlert('No employee selected', 'error');
       return false;
     }
 
-    const generateBtn = document.getElementById('generateCertBtn');
-    if (generateBtn) {
-      generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    const dateOfIssuance = document.getElementById(`certDate-${index}`)?.value;
+
+    if (!dateOfIssuance) {
+      showAlert('Please enter Date of Issuance', 'error');
+      return false;
+    }
+
+    const certBtn = document.getElementById(`certBtn-${index}`);
+    const originalBtnContent = certBtn ? certBtn.innerHTML : '';
+
+    if (certBtn) {
+      certBtn.disabled = true;
+      certBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
     }
 
     const certificateData = {
-      employeeId: employeeId,
+      employeeId: parseInt(selectedCertEmployee.id),
       month: month,
       year: year,
       dateOfIssuance: dateOfIssuance
@@ -1379,45 +1460,29 @@
       .withSuccessHandler(result => {
         if (result.success) {
           showAlert(result.message, 'success');
-          setTimeout(() => resetCertificateForm(), 2000);
+          // Reload uncertified logs for this employee
+          setTimeout(() => {
+            selectCertEmployee(selectedCertEmployee, document.querySelector('#certEmployeeListContainer .employee-list-item.active'));
+          }, 1500);
         } else {
           showAlert(result.message, 'error');
         }
-        if (generateBtn) {
-          generateBtn.disabled = false;
-          generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
+
+        if (certBtn) {
+          certBtn.disabled = false;
+          certBtn.innerHTML = originalBtnContent;
         }
       })
       .withFailureHandler(err => {
         showAlert('Error generating certificate: ' + err.message, 'error');
-        if (generateBtn) {
-          generateBtn.disabled = false;
-          generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
+        if (certBtn) {
+          certBtn.disabled = false;
+          certBtn.innerHTML = originalBtnContent;
         }
       })
       .generateCOCCertificate(certificateData);
 
     return false;
-  }
-
-  /**
-   * Reset certificate form
-   */
-  function resetCertificateForm() {
-    const form = document.getElementById('certificateForm');
-    if (form) form.reset();
-
-    const summary = document.getElementById('uncertifiedSummary');
-    if (summary) summary.style.display = 'none';
-
-    const generateBtn = document.getElementById('generateCertBtn');
-    if (generateBtn) {
-      generateBtn.disabled = true;
-      generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
-    }
-
-    const validUntilDisplay = document.getElementById('validUntilDate');
-    if (validUntilDisplay) validUntilDisplay.textContent = '--';
   }
 
   // ========== EMPLOYEE LEDGER PAGE ==========
