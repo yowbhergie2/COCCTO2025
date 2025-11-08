@@ -3,21 +3,36 @@
   <p class="page-subtitle">View employee COC balance and transaction history</p>
 </div>
 
-<div class="card" style="max-width: 1200px; margin: 0 auto;">
-  <div class="card-body" style="padding: 2rem;">
-    <!-- Employee Selection -->
-    <div style="margin-bottom: 2rem;">
-      <label class="form-label">Select Employee <span style="color: #ef4444;">*</span></label>
-      <select id="ledgerEmployeeDropdown" class="form-input" style="max-width: 600px;">
-        <option value="">-- Select Employee --</option>
-      </select>
-      <p style="font-size: 0.875rem; color: #697386; margin-top: 0.5rem;">
-        <i class="fas fa-info-circle"></i> Use the dropdown to search and select an employee
-      </p>
+<div class="split-view">
+  <!-- Left Panel: Employee List -->
+  <div class="split-panel" id="employeeListPanel">
+    <div class="panel-header">
+      <div class="panel-title">Select Employee</div>
     </div>
+    <div class="search-container">
+      <i class="fas fa-search search-icon"></i>
+      <input type="text" id="ledgerEmployeeSearch" placeholder="Search employees..."
+             class="search-input" oninput="filterLedgerEmployees()">
+    </div>
+    <div class="panel-body" id="ledgerEmployeeListContainer">
+      <div class="empty-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading employees...</p>
+      </div>
+    </div>
+  </div>
 
-    <!-- Ledger Content -->
-    <div id="ledgerContent" style="display: none;">
+  <!-- Right Panel: Employee Ledger -->
+  <div class="split-panel" id="employeeLedgerPanel">
+    <div class="panel-body">
+      <!-- Empty State (shown when no employee selected) -->
+      <div id="ledgerEmptyState" style="padding: 4rem 2rem; text-align: center;">
+        <i class="fas fa-user-circle" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+        <p style="color: #697386;">Select an employee to view their COC ledger</p>
+      </div>
+
+      <!-- Ledger Content (hidden by default) -->
+      <div id="ledgerContent" style="display: none;">
       <!-- Employee Info -->
       <div id="employeeInfoSection" style="margin-bottom: 2rem; padding: 1rem; background: #f9fafb; border: 1px solid #e1e4e8; border-radius: 8px;">
         <div style="display: flex; align-items: center; gap: 1rem;">
@@ -79,12 +94,7 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Empty State -->
-    <div id="ledgerEmptyState" style="text-align: center; padding: 3rem;">
-      <i class="fas fa-user-circle" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
-      <p style="color: #697386;">Select an employee to view their COC ledger</p>
+      </div>
     </div>
   </div>
 </div>

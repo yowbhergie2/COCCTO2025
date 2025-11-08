@@ -1232,70 +1232,110 @@
 
   // ========== EMPLOYEE LEDGER PAGE ==========
 
+  let allLedgerEmployees = [];
+  let selectedLedgerEmployee = null;
+
   /**
    * Initialize Employee Ledger form when page loads
    */
   function initEmployeeLedgerForm() {
     console.log('initEmployeeLedgerForm called');
 
-    // Load employees into dropdown
+    const container = document.getElementById('ledgerEmployeeListContainer');
+    if (container) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading employees...</p>
+        </div>`;
+    }
+
+    // Load employees into list
     google.script.run
       .withSuccessHandler(employees => {
         console.log('Employees loaded:', employees.length);
-        const dropdown = document.getElementById('ledgerEmployeeDropdown');
-        if (dropdown) {
-          // Clear existing options except first
-          dropdown.innerHTML = '<option value="">-- Select Employee --</option>';
-
-          // Add employee options
-          employees.forEach(emp => {
-            const option = document.createElement('option');
-            option.value = emp.id;
-            option.textContent = `${emp.name} (ID: ${emp.id})`;
-            option.dataset.employeeData = JSON.stringify({
-              employeeId: emp.id,
-              firstName: emp.firstName,
-              middleInitial: emp.middleInitial,
-              lastName: emp.lastName
-            });
-            dropdown.appendChild(option);
-          });
-        }
+        allLedgerEmployees = employees;
+        renderLedgerEmployeeList(employees);
       })
       .withFailureHandler(err => {
         console.error('Error loading employees:', err);
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading employees</p></div>';
+        }
         showAlert('Error loading employees: ' + err.message, 'error');
       })
       .getEmployeesForDropdown();
-
-    // Add change listener to dropdown
-    const dropdown = document.getElementById('ledgerEmployeeDropdown');
-    if (dropdown) {
-      dropdown.addEventListener('change', loadSelectedEmployeeLedger);
-    }
   }
 
   /**
-   * Load ledger for selected employee from dropdown
+   * Render employee list for ledger
    */
-  function loadSelectedEmployeeLedger() {
-    const dropdown = document.getElementById('ledgerEmployeeDropdown');
-    const employeeId = dropdown?.value;
-
-    if (!employeeId) {
-      // No employee selected - show empty state
-      const ledgerContent = document.getElementById('ledgerContent');
-      const ledgerEmptyState = document.getElementById('ledgerEmptyState');
-      if (ledgerContent) ledgerContent.style.display = 'none';
-      if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
+  function renderLedgerEmployeeList(employees) {
+    const container = document.getElementById('ledgerEmployeeListContainer');
+    if (!container) {
+      console.error('renderLedgerEmployeeList: Container not found');
       return;
     }
 
-    // Get employee data from selected option
-    const selectedOption = dropdown.options[dropdown.selectedIndex];
-    const employeeData = selectedOption.dataset.employeeData ? JSON.parse(selectedOption.dataset.employeeData) : null;
+    container.innerHTML = '';
 
-    console.log('Loading ledger for employee:', employeeId, employeeData);
+    if (employees.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No employees found</p></div>';
+      return;
+    }
+
+    // Create employee cards
+    employees.forEach(emp => {
+      const div = document.createElement('div');
+      div.className = 'employee-list-item';
+
+      // Check if this employee is the currently selected one
+      if (selectedLedgerEmployee && emp.id === selectedLedgerEmployee.id) {
+        div.classList.add('active');
+      }
+
+      div.onclick = (event) => selectLedgerEmployee(emp, event.currentTarget);
+
+      div.innerHTML = `
+        <div class="employee-name">${emp.name}</div>
+        <div class="employee-meta">Employee ID: ${emp.id}</div>
+      `;
+
+      container.appendChild(div);
+    });
+  }
+
+  /**
+   * Filter ledger employee list based on search input
+   */
+  function filterLedgerEmployees() {
+    const searchInput = document.getElementById('ledgerEmployeeSearch');
+    if (!searchInput) return;
+
+    const searchTerm = searchInput.value.toLowerCase();
+    const filtered = allLedgerEmployees.filter(emp => {
+      const searchString = `${emp.name} ${emp.id}`.toLowerCase();
+      return searchString.includes(searchTerm);
+    });
+
+    renderLedgerEmployeeList(filtered);
+  }
+
+  /**
+   * Select an employee and load their ledger
+   */
+  function selectLedgerEmployee(employee, clickedElement) {
+    console.log('Selecting employee:', employee);
+
+    selectedLedgerEmployee = employee;
+
+    // Highlight active employee in list
+    document.querySelectorAll('#ledgerEmployeeListContainer .employee-list-item').forEach(item => {
+      item.classList.remove('active');
+    });
+    if (clickedElement) {
+      clickedElement.classList.add('active');
+    }
 
     const ledgerContent = document.getElementById('ledgerContent');
     const ledgerEmptyState = document.getElementById('ledgerEmptyState');
@@ -1315,7 +1355,7 @@
         if (!ledgerData) {
           console.error('ledgerData is null or undefined');
         }
-        renderEmployeeLedgerData(ledgerData, employeeData);
+        renderEmployeeLedgerData(ledgerData, employee);
       })
       .withFailureHandler(err => {
         console.error('Error loading ledger:', err);
@@ -1328,7 +1368,7 @@
             </div>`;
         }
       })
-      .getEmployeeLedgerDetailed(parseInt(employeeId));
+      .getEmployeeLedgerDetailed(parseInt(employee.id));
   }
 
   /**
@@ -1362,9 +1402,12 @@
     const employeeIdDisplay = document.getElementById('employeeIdDisplay');
 
     if (employee && employeeNameDisplay && employeeIdDisplay) {
-      const fullName = `${employee.firstName || ''} ${employee.middleInitial ? employee.middleInitial + '.' : ''} ${employee.lastName || ''}`.trim();
+      // Use employee.name if available, otherwise construct from parts
+      const fullName = employee.name || `${employee.firstName || ''} ${employee.middleInitial ? employee.middleInitial + '.' : ''} ${employee.lastName || ''}`.trim();
       employeeNameDisplay.textContent = fullName;
-      employeeIdDisplay.textContent = `Employee ID: ${employee.employeeId}`;
+      // Use employee.id (from getEmployeesForDropdown) or employeeId (if available)
+      const empId = employee.id || employee.employeeId;
+      employeeIdDisplay.textContent = `Employee ID: ${empId}`;
     }
 
     // Update balance displays
