@@ -504,3 +504,133 @@ function formatDateForInput(date) {
     return '';
   }
 }
+
+/**
+ * Validate monthly accrual cap (40 hours)
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @param {number} newCOC - New COC hours to be added
+ * @returns {Object} Validation result with valid flag and message
+ */
+function validateMonthlyAccrualCap(employeeId, month, year, newCOC) {
+  try {
+    const MONTHLY_CAP = 40;
+
+    // Get existing COC for this month
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return { valid: false, message: 'Database error: OvertimeLogs sheet not found' };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      // No existing data, just check if new COC exceeds cap
+      if (newCOC > MONTHLY_CAP) {
+        return {
+          valid: false,
+          message: `Cannot add ${newCOC.toFixed(1)} hours. This exceeds the monthly cap of ${MONTHLY_CAP} hours.`
+        };
+      }
+      return { valid: true };
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const cocEarnedIndex = headers.indexOf('COCEarned');
+    const certifiedIndex = headers.indexOf('Certified');
+
+    let existingCOC = 0;
+
+    // Sum up existing COC for this employee, month, and year (excluding certified entries)
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId &&
+          row[monthIndex] === month &&
+          row[yearIndex] === year &&
+          row[certifiedIndex] !== 'Yes') {
+        existingCOC += parseFloat(row[cocEarnedIndex]) || 0;
+      }
+    }
+
+    const totalCOC = existingCOC + newCOC;
+
+    if (totalCOC > MONTHLY_CAP) {
+      return {
+        valid: false,
+        message: `Cannot add ${newCOC.toFixed(1)} hours. Employee already has ${existingCOC.toFixed(1)} hours for ${month} ${year}. Total would be ${totalCOC.toFixed(1)} hours, exceeding the ${MONTHLY_CAP}-hour monthly cap.`
+      };
+    }
+
+    return { valid: true };
+
+  } catch (error) {
+    Logger.log('Error in validateMonthlyAccrualCap: ' + error.toString());
+    return { valid: false, message: 'Error validating monthly cap: ' + error.message };
+  }
+}
+
+/**
+ * Validate total balance cap (120 hours)
+ * @param {number} employeeId - Employee ID
+ * @param {number} newCOC - New COC hours to be added
+ * @returns {Object} Validation result with valid flag and message
+ */
+function validateTotalBalanceCap(employeeId, newCOC) {
+  try {
+    const TOTAL_CAP = 120;
+
+    // Get the employee's current uncertified balance
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return { valid: false, message: 'Database error: OvertimeLogs sheet not found' };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      // No existing data, just check if new COC exceeds cap
+      if (newCOC > TOTAL_CAP) {
+        return {
+          valid: false,
+          message: `Cannot add ${newCOC.toFixed(1)} hours. This exceeds the total cap of ${TOTAL_CAP} hours.`
+        };
+      }
+      return { valid: true };
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const cocEarnedIndex = headers.indexOf('COCEarned');
+    const certifiedIndex = headers.indexOf('Certified');
+
+    let existingBalance = 0;
+
+    // Sum up all uncertified COC for this employee across all months
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId &&
+          row[certifiedIndex] !== 'Yes') {
+        existingBalance += parseFloat(row[cocEarnedIndex]) || 0;
+      }
+    }
+
+    const totalBalance = existingBalance + newCOC;
+
+    if (totalBalance > TOTAL_CAP) {
+      return {
+        valid: false,
+        message: `Cannot add ${newCOC.toFixed(1)} hours. Employee's current uncertified balance is ${existingBalance.toFixed(1)} hours. Total would be ${totalBalance.toFixed(1)} hours, exceeding the ${TOTAL_CAP}-hour total cap.`
+      };
+    }
+
+    return { valid: true };
+
+  } catch (error) {
+    Logger.log('Error in validateTotalBalanceCap: ' + error.toString());
+    return { valid: false, message: 'Error validating total cap: ' + error.message };
+  }
+}

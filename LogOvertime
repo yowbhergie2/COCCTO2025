@@ -82,11 +82,6 @@
             </tbody>
           </table>
         </div>
-
-        <p style="color: #697386; font-size: 0.875rem; margin-top: 1rem;">
-          <i class="fas fa-info-circle"></i> <strong>Note:</strong> Hours Worked and COC Earned are auto-calculated based on policy rules.
-          Weekdays: 5PM-7PM window (max 2 hrs × 1.0x). Weekends/Holidays: 8AM-12PM & 1PM-5PM windows × 1.5x rate.
-        </p>
       </div>
 
       <!-- Grand Total -->
@@ -101,6 +96,25 @@
         <button type="submit" id="saveBtn" class="btn btn-primary" disabled>Save Overtime Batch</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Duplicate Entry Modal -->
+<div id="duplicateModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: white; border-radius: 12px; max-width: 500px; width: 90%; padding: 2rem; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+      <div style="flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.5rem;"></i>
+      </div>
+      <div>
+        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: #1a1f36;">Duplicate Entry Detected</h3>
+      </div>
+    </div>
+    <p id="duplicateModalMessage" style="color: #697386; margin-bottom: 2rem; line-height: 1.6;"></p>
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+      <button type="button" onclick="closeDuplicateModal(false)" class="btn btn-secondary">Cancel</button>
+      <button type="button" onclick="closeDuplicateModal(true)" class="btn btn-primary">Replace Existing</button>
+    </div>
   </div>
 </div>
 
