@@ -47,22 +47,54 @@
     const monthSelect = document.getElementById('month');
     const yearSelectElem = document.getElementById('year');
 
-    if (empSelect) empSelect.addEventListener('change', loadExistingDates);
+    if (empSelect) {
+      empSelect.addEventListener('change', () => {
+        loadExistingDates();
+        checkAddDayButtonState();
+      });
+    }
     if (monthSelect) {
       monthSelect.addEventListener('change', () => {
         loadExistingDates();
         updateDateInputConstraints();
+        checkAddDayButtonState();
       });
     }
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
         loadExistingDates();
         updateDateInputConstraints();
+        checkAddDayButtonState();
       });
     }
 
-    // Add first row
+    // Add first row (initially disabled button will prevent adding more)
     addOvertimeRow();
+
+    // Initial button state check
+    checkAddDayButtonState();
+  }
+
+  /**
+   * Check if Add Day button should be enabled
+   */
+  function checkAddDayButtonState() {
+    const empSelect = document.getElementById('employeeId');
+    const monthSelect = document.getElementById('month');
+    const yearSelect = document.getElementById('year');
+    const addDayBtn = document.getElementById('addDayBtn');
+
+    if (!addDayBtn) return;
+
+    const hasEmployee = empSelect && empSelect.value !== '';
+    const hasMonth = monthSelect && monthSelect.value !== '';
+    const hasYear = yearSelect && yearSelect.value !== '';
+
+    if (hasEmployee && hasMonth && hasYear) {
+      addDayBtn.disabled = false;
+    } else {
+      addDayBtn.disabled = true;
+    }
   }
 
   /**
@@ -854,12 +886,6 @@
 
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
 
-  // Detect current page and auto-load content
-  setTimeout(() => {
-    if (currentView === 'logovertime') {
-      initLogOvertimeForm();
-    } else if (currentView === 'uncertifiedreport') {
-      loadUncertifiedReport();
-    }
-  }, 100);
+  // Note: Both initLogOvertimeForm() and loadUncertifiedReport() are now called
+  // from their respective view loaders in Main after HTML is fully loaded
 </script>
