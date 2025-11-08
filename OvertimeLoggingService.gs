@@ -1067,6 +1067,9 @@ function getEmployeeLedgerDetailed(employeeId) {
               dateWorked: dateOfIssuance ? formatDate(dateOfIssuance) : 'Historical',
               dayType: 'Historical Batch',
               cocEarned: originalHours,
+              cocUsed: batchUsed,
+              cocRemaining: remainingHours,
+              dateOfIssuance: dateOfIssuance ? formatDate(dateOfIssuance) : '--',
               validUntil: validUntil,
               status: currentStatus,
               isHistorical: true
