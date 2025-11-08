@@ -1028,6 +1028,9 @@ function getEmployeeLedgerDetailed(employeeId) {
         const batchValidUntilIndex = batchHeaders.indexOf('ValidUntil');
         const batchDateOfIssuanceIndex = batchHeaders.indexOf('DateOfIssuance');
 
+        Logger.log('CreditBatches Headers: ' + JSON.stringify(batchHeaders));
+        Logger.log('DateOfIssuance column index: ' + batchDateOfIssuanceIndex);
+
         for (let i = 1; i < batchData.length; i++) {
           const row = batchData[i];
 
@@ -1037,6 +1040,9 @@ function getEmployeeLedgerDetailed(employeeId) {
             const batchStatus = row[batchStatusIndex];
             const validUntil = row[batchValidUntilIndex] ? new Date(row[batchValidUntilIndex]) : null;
             const dateOfIssuance = row[batchDateOfIssuanceIndex] ? new Date(row[batchDateOfIssuanceIndex]) : null;
+
+            Logger.log('Row ' + i + ' - Raw DateOfIssuance value: ' + row[batchDateOfIssuanceIndex]);
+            Logger.log('Row ' + i + ' - Parsed dateOfIssuance: ' + dateOfIssuance);
 
             // Calculate used hours for this batch
             const batchUsed = originalHours - remainingHours;

@@ -1458,6 +1458,18 @@
           const remaining = tx.cocRemaining || 0;
 
           totalHistoricalEarned += earned;
+          totalHistoricalRemaining += remaining;
+
+          console.log('Historical transaction:', {
+            month: tx.month,
+            year: tx.year,
+            earned: earned,
+            used: used,
+            remaining: remaining,
+            dateOfIssuance: dateOfIssuanceDisplay,
+            validUntil: validUntilDisplay,
+            status: tx.status
+          });
 
           // Note: Removed inline styles, will be controlled by <style> tag in EmployeeLedger
           historicalRows += `
