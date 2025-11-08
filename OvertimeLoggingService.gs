@@ -755,7 +755,6 @@ function generateCOCCertificate(certificateData) {
     const validUntilIndex = headers.indexOf('ValidUntil');
 
     // Calculate Valid Until date: (Date of Issuance + 1 Year - 1 Day)
-    const issuanceDate = new Date(certificateData.dateOfIssuance);
     const validUntilDate = new Date(issuanceDate);
     validUntilDate.setFullYear(validUntilDate.getFullYear() + 1);
     validUntilDate.setDate(validUntilDate.getDate() - 1);
