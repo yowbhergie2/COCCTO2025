@@ -1191,6 +1191,161 @@
     if (validUntilDisplay) validUntilDisplay.textContent = '--';
   }
 
+  // ========== EMPLOYEE LEDGER PAGE ==========
+
+  /**
+   * Initialize Employee Ledger form when page loads
+   */
+  function initEmployeeLedgerForm() {
+    // Load employees
+    google.script.run
+      .withSuccessHandler(employees => {
+        const empSelect = document.getElementById('ledgerEmployeeId');
+        if (empSelect) {
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            empSelect.appendChild(option);
+          });
+        }
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading employees:', err);
+        showAlert('Error loading employees: ' + err.message, 'error');
+      })
+      .getEmployeesForDropdown();
+
+    // Add event listener for employee selection
+    const empSelect = document.getElementById('ledgerEmployeeId');
+    if (empSelect) {
+      empSelect.addEventListener('change', loadEmployeeLedgerData);
+    }
+  }
+
+  /**
+   * Load ledger data for selected employee
+   */
+  function loadEmployeeLedgerData() {
+    const employeeId = document.getElementById('ledgerEmployeeId')?.value;
+    const ledgerContent = document.getElementById('ledgerContent');
+    const ledgerEmptyState = document.getElementById('ledgerEmptyState');
+    const transactionContainer = document.getElementById('transactionHistoryContainer');
+
+    if (!employeeId) {
+      if (ledgerContent) ledgerContent.style.display = 'none';
+      if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
+      return;
+    }
+
+    // Show loading state
+    if (ledgerContent) ledgerContent.style.display = 'block';
+    if (ledgerEmptyState) ledgerEmptyState.style.display = 'none';
+    if (transactionContainer) {
+      transactionContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading transactions...</p></div>';
+    }
+
+    // Fetch ledger data from server
+    google.script.run
+      .withSuccessHandler(ledgerData => {
+        renderEmployeeLedgerData(ledgerData);
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading ledger:', err);
+        showAlert('Error loading ledger: ' + err.message, 'error');
+        if (transactionContainer) {
+          transactionContainer.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Error loading transactions</p>
+            </div>`;
+        }
+      })
+      .getEmployeeLedgerDetailed(parseInt(employeeId));
+  }
+
+  /**
+   * Render ledger data to the page
+   */
+  function renderEmployeeLedgerData(ledgerData) {
+    // Update balance displays
+    const activeBalanceDisplay = document.getElementById('activeBalanceDisplay');
+    const uncertifiedBalanceDisplay = document.getElementById('uncertifiedBalanceDisplay');
+    const totalEarnedDisplay = document.getElementById('totalEarnedDisplay');
+    const usedCOCsDisplay = document.getElementById('usedCOCsDisplay');
+
+    if (activeBalanceDisplay) activeBalanceDisplay.textContent = ledgerData.activeBalance.toFixed(1) + ' hrs';
+    if (uncertifiedBalanceDisplay) uncertifiedBalanceDisplay.textContent = ledgerData.uncertifiedBalance.toFixed(1) + ' hrs';
+    if (totalEarnedDisplay) totalEarnedDisplay.textContent = ledgerData.totalEarned.toFixed(1) + ' hrs';
+    if (usedCOCsDisplay) usedCOCsDisplay.textContent = ledgerData.usedCOCs.toFixed(1) + ' hrs';
+
+    // Render transaction history
+    const transactionContainer = document.getElementById('transactionHistoryContainer');
+    if (!transactionContainer) return;
+
+    if (!ledgerData.transactions || ledgerData.transactions.length === 0) {
+      transactionContainer.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-info-circle"></i>
+          <p>No transactions found for this employee</p>
+        </div>`;
+      return;
+    }
+
+    // Build transaction table
+    let transactionRows = '';
+    ledgerData.transactions.forEach(tx => {
+      const statusColors = {
+        'Active': '#10b981',
+        'Uncertified': '#f59e0b',
+        'Used': '#6b7280',
+        'Expired': '#ef4444'
+      };
+      const statusColor = statusColors[tx.status] || '#6b7280';
+
+      const validUntilDisplay = tx.validUntil
+        ? new Date(tx.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '--';
+
+      transactionRows += `
+        <tr style="border-bottom: 1px solid #f0f2f5;">
+          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.month} ${tx.year}</td>
+          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dateWorked}</td>
+          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dayType}</td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">${tx.cocEarned.toFixed(1)}</td>
+          <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${validUntilDisplay}</td>
+          <td style="padding: 0.75rem; text-align: center;">
+            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+              ${tx.status}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+
+    const transactionTable = `
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead style="background: #fafbfc;">
+            <tr>
+              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
+              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date Worked</th>
+              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Day Type</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${transactionRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    transactionContainer.innerHTML = transactionTable;
+  }
+
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
 
   // Note: Both initLogOvertimeForm() and loadUncertifiedReport() are now called

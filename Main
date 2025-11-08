@@ -44,6 +44,10 @@
                   <i class="fas fa-certificate"></i>
                   <span>Generate Certificate</span>
                 </div>
+                <div class="nav-dropdown-item" data-page="employeeledger" data-view="employeeledger">
+                  <i class="fas fa-wallet"></i>
+                  <span>View Employee Ledger</span>
+                </div>
                 <div class="nav-dropdown-item" data-page="logcto" data-view="logcto">
                   <i class="fas fa-calendar-check"></i>
                   <span>Log CTO</span>
@@ -185,6 +189,7 @@
         switch(page) {
           case 'logovertime': loadLogOvertimeView(); break;
           case 'generatecertificate': loadGenerateCertificateView(); break;
+          case 'employeeledger': loadEmployeeLedgerView(); break;
           case 'logcto': loadLogCTOView(); break;
           case 'uncertifiedreport': loadUncertifiedReportView(); break;
         }
@@ -278,6 +283,21 @@
           document.getElementById('mainContent').innerHTML = `<p>Error loading Generate Certificate: ${err.message}</p>`;
         })
         .include('GenerateCertificate');
+    }
+
+    function loadEmployeeLedgerView() {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+          // Initialize form after HTML is loaded
+          if (typeof initEmployeeLedgerForm === 'function') {
+            initEmployeeLedgerForm();
+          }
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading Employee Ledger: ${err.message}</p>`;
+        })
+        .include('EmployeeLedger');
     }
 
     function loadLogCTOView() {
