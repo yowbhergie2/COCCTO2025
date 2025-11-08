@@ -1,27 +1,619 @@
 <script>
   // ========== LOG OVERTIME PAGE ==========
 
+  let rowCounter = 0;
+  let existingDatabaseDates = [];
+  let duplicateContext = null;
+
   /**
-   * Show overtime form overlay
+   * Initialize Log Overtime form when page loads
    */
-  function showOvertimeForm() {
-    showOverlay('OvertimeForm', {});
+  function initLogOvertimeForm() {
+    // Populate years
+    const yearSelect = document.getElementById('year');
+    if (yearSelect) {
+      const currentYear = new Date().getFullYear();
+      for (let i = 0; i <= 2; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (i === 0) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    }
+
+    // Load employees
+    google.script.run
+      .withSuccessHandler(employees => {
+        const empSelect = document.getElementById('employeeId');
+        if (empSelect) {
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            empSelect.appendChild(option);
+          });
+        }
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading employees:', err);
+        showAlert('Error loading employees: ' + err.message, 'error');
+      })
+      .getEmployeesForDropdown();
+
+    // Add event listeners
+    const empSelect = document.getElementById('employeeId');
+    const monthSelect = document.getElementById('month');
+    const yearSelectElem = document.getElementById('year');
+
+    if (empSelect) empSelect.addEventListener('change', loadExistingDates);
+    if (monthSelect) {
+      monthSelect.addEventListener('change', () => {
+        loadExistingDates();
+        updateDateInputConstraints();
+      });
+    }
+    if (yearSelectElem) {
+      yearSelectElem.addEventListener('change', () => {
+        loadExistingDates();
+        updateDateInputConstraints();
+      });
+    }
+
+    // Add first row
+    addOvertimeRow();
   }
 
   /**
-   * Load stats for Log Overtime page
+   * Load existing dates from database
    */
-  function loadLogOvertimeStats() {
+  function loadExistingDates() {
+    const employeeId = document.getElementById('employeeId')?.value;
+    const month = document.getElementById('month')?.value;
+    const year = document.getElementById('year')?.value;
+
+    if (!employeeId || !month || !year) {
+      existingDatabaseDates = [];
+      return;
+    }
+
     google.script.run
-      .withSuccessHandler(stats => {
-        document.getElementById('totalUncertifiedHours').textContent = stats.totalHours.toFixed(1);
-        document.getElementById('totalUncertifiedEntries').textContent = stats.totalEntries;
-        document.getElementById('employeesWithUncertified').textContent = stats.employeeCount;
+      .withSuccessHandler(dates => {
+        existingDatabaseDates = dates || [];
+        console.log('Loaded existing dates:', existingDatabaseDates);
       })
       .withFailureHandler(err => {
-        console.error('Error loading stats:', err);
+        console.error('Error loading existing dates:', err);
+        existingDatabaseDates = [];
       })
-      .getUncertifiedStats();
+      .getExistingOvertimeDates(parseInt(employeeId), month, parseInt(year));
+  }
+
+  /**
+   * Update date input constraints
+   */
+  function updateDateInputConstraints() {
+    const month = document.getElementById('month')?.value;
+    const year = document.getElementById('year')?.value;
+
+    if (!month || !year) {
+      document.querySelectorAll('.date-input').forEach(input => {
+        input.removeAttribute('min');
+        input.removeAttribute('max');
+      });
+      return;
+    }
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthIndex = monthNames.indexOf(month);
+
+    if (monthIndex === -1) return;
+
+    const firstDay = new Date(parseInt(year), monthIndex, 1);
+    const lastDay = new Date(parseInt(year), monthIndex + 1, 0);
+
+    const minDate = formatDateForInput(firstDay);
+    const maxDate = formatDateForInput(lastDay);
+
+    document.querySelectorAll('.date-input').forEach(input => {
+      input.setAttribute('min', minDate);
+      input.setAttribute('max', maxDate);
+    });
+  }
+
+  /**
+   * Format date as YYYY-MM-DD
+   */
+  function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Add a new overtime row
+   */
+  function addOvertimeRow() {
+    rowCounter++;
+    const tbody = document.getElementById('entryTableBody');
+    if (!tbody) return;
+
+    const row = document.createElement('tr');
+    row.id = 'row-' + rowCounter;
+
+    row.innerHTML = `
+      <td>
+        <input type="date" class="date-input" onchange="handleDateChange(${rowCounter})" required>
+      </td>
+      <td>
+        <div class="day-type-badge day-type-weekday" id="dayType-${rowCounter}">Weekday</div>
+      </td>
+      <td>
+        <input type="time" class="am-in" oninput="validateAndUpdateRow(${rowCounter})">
+      </td>
+      <td>
+        <input type="time" class="am-out" oninput="validateAndUpdateRow(${rowCounter})">
+      </td>
+      <td>
+        <input type="time" class="pm-in" oninput="validateAndUpdateRow(${rowCounter})">
+      </td>
+      <td>
+        <input type="time" class="pm-out" oninput="validateAndUpdateRow(${rowCounter})">
+      </td>
+      <td class="coc-earned-cell" id="hoursWorked-${rowCounter}">0.0</td>
+      <td class="coc-earned-cell" id="cocEarned-${rowCounter}">0.0</td>
+      <td>
+        <button type="button" class="delete-row-btn" onclick="deleteOvertimeRow(${rowCounter})">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+    updateDateInputConstraints();
+  }
+
+  /**
+   * Delete overtime row
+   */
+  function deleteOvertimeRow(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    if (row) {
+      row.remove();
+      updateGrandTotal();
+    }
+
+    const tbody = document.getElementById('entryTableBody');
+    if (tbody && tbody.children.length === 0) {
+      addOvertimeRow();
+    }
+  }
+
+  /**
+   * Handle date change with validation
+   */
+  function handleDateChange(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    if (!row) return;
+
+    const dateInput = row.querySelector('.date-input');
+    const dateValue = dateInput.value;
+
+    if (!dateValue) {
+      dateInput.classList.remove('error');
+      updateOvertimeRow(rowId);
+      return;
+    }
+
+    // Check server-side duplicate
+    if (existingDatabaseDates.includes(dateValue)) {
+      const dateObj = new Date(dateValue);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      showAlert(
+        `${formattedDate} already has a COC record in the database. This date cannot be added again.`,
+        'error'
+      );
+
+      dateInput.value = '';
+      dateInput.classList.add('error');
+      return;
+    }
+
+    // Check client-side duplicate
+    const duplicateRowId = checkClientSideDuplicate(dateValue, rowId);
+    if (duplicateRowId !== null) {
+      const dateObj = new Date(dateValue);
+      const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      if (confirm(`You already have an entry for ${formattedDate} in this form. Do you want to replace the existing entry?`)) {
+        deleteOvertimeRow(duplicateRowId);
+        dateInput.classList.remove('error');
+        updateOvertimeRow(rowId);
+      } else {
+        dateInput.value = '';
+      }
+      return;
+    }
+
+    dateInput.classList.remove('error');
+    updateOvertimeRow(rowId);
+  }
+
+  /**
+   * Check for client-side duplicate
+   */
+  function checkClientSideDuplicate(dateValue, currentRowId) {
+    const rows = document.querySelectorAll('#entryTableBody tr');
+    for (const row of rows) {
+      const rowIdMatch = row.id.match(/row-(\d+)/);
+      if (rowIdMatch) {
+        const rowId = parseInt(rowIdMatch[1]);
+        if (rowId !== currentRowId) {
+          const dateInput = row.querySelector('.date-input');
+          if (dateInput && dateInput.value === dateValue) {
+            return rowId;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Validate and update row
+   */
+  function validateAndUpdateRow(rowId) {
+    validateOvertimeRow(rowId);
+    updateOvertimeRow(rowId);
+  }
+
+  /**
+   * Update overtime row calculations
+   */
+  function updateOvertimeRow(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    if (!row) return;
+
+    const dateInput = row.querySelector('.date-input');
+    const dayTypeDiv = document.getElementById('dayType-' + rowId);
+    const hoursWorkedDiv = document.getElementById('hoursWorked-' + rowId);
+    const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
+
+    let dayType = 'Weekday';
+    if (dateInput && dateInput.value) {
+      const date = new Date(dateInput.value);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        dayType = 'Weekend';
+      }
+      if (dayTypeDiv) {
+        dayTypeDiv.textContent = dayType;
+        dayTypeDiv.className = 'day-type-badge day-type-' + dayType.toLowerCase();
+      }
+    }
+
+    const amIn = row.querySelector('.am-in')?.value;
+    const amOut = row.querySelector('.am-out')?.value;
+    const pmIn = row.querySelector('.pm-in')?.value;
+    const pmOut = row.querySelector('.pm-out')?.value;
+
+    let hoursWorked = 0;
+    let cocEarned = 0;
+    if (dateInput && dateInput.value && (amIn || amOut || pmIn || pmOut)) {
+      const result = calculateCOC(dayType, amIn, amOut, pmIn, pmOut);
+      hoursWorked = result.hoursWorked;
+      cocEarned = result.cocEarned;
+    }
+
+    if (hoursWorkedDiv) hoursWorkedDiv.textContent = hoursWorked.toFixed(1);
+    if (cocEarnedDiv) cocEarnedDiv.textContent = cocEarned.toFixed(1);
+    updateGrandTotal();
+  }
+
+  /**
+   * Calculate COC
+   */
+  function calculateCOC(dayType, amIn, amOut, pmIn, pmOut) {
+    let totalHoursWorked = 0;
+    let totalCOC = 0;
+
+    const timeToMinutes = (timeStr) => {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    if (dayType === 'Weekday') {
+      if (pmIn && pmOut) {
+        const pmInMinutes = timeToMinutes(pmIn);
+        const pmOutMinutes = timeToMinutes(pmOut);
+        const windowStart = 17 * 60;
+        const windowEnd = 19 * 60;
+        const effectiveIn = Math.max(pmInMinutes, windowStart);
+        const effectiveOut = Math.min(pmOutMinutes, windowEnd);
+        if (effectiveOut > effectiveIn) {
+          const hoursWorked = (effectiveOut - effectiveIn) / 60;
+          totalHoursWorked = hoursWorked;
+          totalCOC = Math.min(hoursWorked, 2);
+        }
+      }
+    } else {
+      if (amIn && amOut) {
+        const amInMinutes = timeToMinutes(amIn);
+        const amOutMinutes = timeToMinutes(amOut);
+        const amWindowStart = 8 * 60;
+        const amWindowEnd = 12 * 60;
+        const effectiveAmIn = Math.max(amInMinutes, amWindowStart);
+        const effectiveAmOut = Math.min(amOutMinutes, amWindowEnd);
+        if (effectiveAmOut > effectiveAmIn) {
+          const amHoursWorked = (effectiveAmOut - effectiveAmIn) / 60;
+          totalHoursWorked += amHoursWorked;
+          totalCOC += amHoursWorked * 1.5;
+        }
+      }
+      if (pmIn && pmOut) {
+        const pmInMinutes = timeToMinutes(pmIn);
+        const pmOutMinutes = timeToMinutes(pmOut);
+        const pmWindowStart = 13 * 60;
+        const pmWindowEnd = 17 * 60;
+        const effectivePmIn = Math.max(pmInMinutes, pmWindowStart);
+        const effectivePmOut = Math.min(pmOutMinutes, pmWindowEnd);
+        if (effectivePmOut > effectivePmIn) {
+          const pmHoursWorked = (effectivePmOut - effectivePmIn) / 60;
+          totalHoursWorked += pmHoursWorked;
+          totalCOC += pmHoursWorked * 1.5;
+        }
+      }
+    }
+
+    return { hoursWorked: totalHoursWorked, cocEarned: totalCOC };
+  }
+
+  /**
+   * Validate overtime row
+   */
+  function validateOvertimeRow(rowId) {
+    const row = document.getElementById('row-' + rowId);
+    if (!row) return true;
+
+    const timeToMinutes = (timeStr) => {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const validateTimeInput = (input, minTime, maxTime) => {
+      if (!input || !input.value) {
+        if (input) input.classList.remove('error');
+        return true;
+      }
+      const minutes = timeToMinutes(input.value);
+      const min = timeToMinutes(minTime);
+      const max = timeToMinutes(maxTime);
+      if (minutes < min || minutes > max) {
+        input.classList.add('error');
+        return false;
+      }
+      input.classList.remove('error');
+      return true;
+    };
+
+    const amInInput = row.querySelector('.am-in');
+    const amOutInput = row.querySelector('.am-out');
+    const pmInInput = row.querySelector('.pm-in');
+    const pmOutInput = row.querySelector('.pm-out');
+
+    let isValid = true;
+
+    if (amInInput && amInInput.value) {
+      if (!validateTimeInput(amInInput, '05:00', '12:59')) isValid = false;
+    }
+    if (amOutInput && amOutInput.value) {
+      if (!validateTimeInput(amOutInput, '08:00', '12:59')) isValid = false;
+    }
+    if (pmInInput && pmInInput.value) {
+      if (!validateTimeInput(pmInInput, '12:00', '23:59')) isValid = false;
+    }
+    if (pmOutInput && pmOutInput.value) {
+      if (!validateTimeInput(pmOutInput, '12:00', '23:59')) isValid = false;
+    }
+
+    if (amInInput && amOutInput) {
+      if (amInInput.value && !amOutInput.value) {
+        amOutInput.classList.add('error');
+        isValid = false;
+      } else if (!amInInput.value && amOutInput.value) {
+        amInInput.classList.add('error');
+        isValid = false;
+      } else if (amInInput.value && amOutInput.value) {
+        const amInMinutes = timeToMinutes(amInInput.value);
+        const amOutMinutes = timeToMinutes(amOutInput.value);
+        if (amOutMinutes <= amInMinutes) {
+          amOutInput.classList.add('error');
+          isValid = false;
+        }
+      }
+    }
+
+    if (pmInInput && pmOutInput) {
+      if (pmInInput.value && !pmOutInput.value) {
+        pmOutInput.classList.add('error');
+        isValid = false;
+      } else if (!pmInInput.value && pmOutInput.value) {
+        pmInInput.classList.add('error');
+        isValid = false;
+      } else if (pmInInput.value && pmOutInput.value) {
+        const pmInMinutes = timeToMinutes(pmInInput.value);
+        const pmOutMinutes = timeToMinutes(pmOutInput.value);
+        if (pmOutMinutes <= pmInMinutes) {
+          pmOutInput.classList.add('error');
+          isValid = false;
+        }
+      }
+    }
+
+    return isValid;
+  }
+
+  /**
+   * Update grand total
+   */
+  function updateGrandTotal() {
+    const rows = document.querySelectorAll('#entryTableBody tr');
+    let grandTotal = 0;
+
+    rows.forEach(row => {
+      const rowIdMatch = row.id.match(/row-(\d+)/);
+      if (rowIdMatch) {
+        const rowId = parseInt(rowIdMatch[1]);
+        const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
+        if (cocEarnedDiv) {
+          const value = parseFloat(cocEarnedDiv.textContent) || 0;
+          grandTotal += value;
+        }
+      }
+    });
+
+    const grandTotalDiv = document.getElementById('grandTotal');
+    if (grandTotalDiv) {
+      grandTotalDiv.textContent = grandTotal.toFixed(1) + ' hours';
+    }
+  }
+
+  /**
+   * Handle overtime form submission
+   */
+  function handleOvertimeFormSubmit(e) {
+    e.preventDefault();
+
+    const employeeId = parseInt(document.getElementById('employeeId')?.value);
+    const month = document.getElementById('month')?.value;
+    const year = parseInt(document.getElementById('year')?.value);
+
+    if (!employeeId || !month || !year) {
+      showAlert('Please select Employee, Month, and Year', 'error');
+      return false;
+    }
+
+    const rows = document.querySelectorAll('#entryTableBody tr');
+    let allRowsValid = true;
+
+    rows.forEach(row => {
+      const rowIdMatch = row.id.match(/row-(\d+)/);
+      if (rowIdMatch) {
+        const rowId = parseInt(rowIdMatch[1]);
+        if (!validateOvertimeRow(rowId)) {
+          allRowsValid = false;
+        }
+      }
+    });
+
+    if (!allRowsValid) {
+      showAlert('Please fix the validation errors (red boxes) before submitting', 'error');
+      return false;
+    }
+
+    const entries = [];
+    rows.forEach(row => {
+      const dateInput = row.querySelector('.date-input');
+      const amIn = row.querySelector('.am-in')?.value;
+      const amOut = row.querySelector('.am-out')?.value;
+      const pmIn = row.querySelector('.pm-in')?.value;
+      const pmOut = row.querySelector('.pm-out')?.value;
+
+      if (dateInput && dateInput.value) {
+        entries.push({
+          dateWorked: dateInput.value,
+          amIn: formatTimeFor12Hour(amIn),
+          amOut: formatTimeFor12Hour(amOut),
+          pmIn: formatTimeFor12Hour(pmIn),
+          pmOut: formatTimeFor12Hour(pmOut)
+        });
+      }
+    });
+
+    if (entries.length === 0) {
+      showAlert('Please add at least one overtime entry with a date', 'error');
+      return false;
+    }
+
+    const batchData = { employeeId, month, year, entries };
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+    }
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.success) {
+          showAlert(result.message, 'success');
+          setTimeout(() => resetOvertimeForm(), 2000);
+        } else {
+          showAlert(result.message, 'error');
+        }
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Overtime Batch';
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error: ' + err.message, 'error');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Overtime Batch';
+        }
+      })
+      .saveOvertimeBatch(batchData);
+
+    return false;
+  }
+
+  /**
+   * Format time for 12-hour display
+   */
+  function formatTimeFor12Hour(time24) {
+    if (!time24 || time24.trim() === '') return '';
+    try {
+      const [hours, minutes] = time24.split(':');
+      let h = parseInt(hours, 10);
+      const m = minutes;
+      const period = h >= 12 ? 'PM' : 'AM';
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+      return `${h.toString().padStart(2, '0')}:${m} ${period}`;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  /**
+   * Reset overtime form
+   */
+  function resetOvertimeForm() {
+    const form = document.getElementById('overtimeForm');
+    if (form) form.reset();
+
+    const tbody = document.getElementById('entryTableBody');
+    if (tbody) tbody.innerHTML = '';
+
+    rowCounter = 0;
+    existingDatabaseDates = [];
+    duplicateContext = null;
+
+    addOvertimeRow();
+    updateGrandTotal();
+  }
+
+  /**
+   * Load stats for Log Overtime page (deprecated)
+   */
+  function loadLogOvertimeStats() {
+    // Deprecated - stats removed from embedded form
   }
 
   // ========== UNCERTIFIED REPORT PAGE ==========
@@ -265,7 +857,7 @@
   // Detect current page and auto-load content
   setTimeout(() => {
     if (currentView === 'logovertime') {
-      loadLogOvertimeStats();
+      initLogOvertimeForm();
     } else if (currentView === 'uncertifiedreport') {
       loadUncertifiedReport();
     }

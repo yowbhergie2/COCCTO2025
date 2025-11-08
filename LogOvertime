@@ -3,35 +3,171 @@
   <p class="page-subtitle">Record approved overtime work for employees</p>
 </div>
 
-<div class="card">
-  <div class="card-body">
-    <button class="btn btn-primary" onclick="showOvertimeForm()">
-      <i class="fas fa-plus"></i> Log New Overtime Entry
-    </button>
+<div class="card" style="max-width: 1400px; margin: 0 auto;">
+  <div class="card-body" style="padding: 2rem;">
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
+
+    <form id="overtimeForm" onsubmit="return handleOvertimeFormSubmit(event)">
+      <!-- Employee, Month, Year Selection -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
+          <select name="employeeId" id="employeeId" required class="form-input">
+            <option value="">-- Select Employee --</option>
+            <!-- Populated by server -->
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Month <span style="color: #ef4444;">*</span></label>
+          <select name="month" id="month" required class="form-input">
+            <option value="">-- Select --</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Year <span style="color: #ef4444;">*</span></label>
+          <select name="year" id="year" required class="form-input">
+            <option value="">-- Select --</option>
+            <!-- Years populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Entry Grid -->
+      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">Overtime Entries</h3>
+          <button type="button" class="btn btn-secondary" onclick="addOvertimeRow()">
+            <i class="fas fa-plus"></i> Add Day
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="entry-grid" id="entryTable" style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+            <thead>
+              <tr style="background: #f8f9fa;">
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 120px;">Date Worked</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">Day Type</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">AM In</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">AM Out</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">PM In</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">PM Out</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">Hours Worked</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 100px;">COC Earned</th>
+                <th style="padding: 0.75rem; text-align: left; font-size: 0.875rem; font-weight: 600; color: #1a1f36; border-bottom: 2px solid #e8ebed; width: 80px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="entryTableBody">
+              <!-- Rows added dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <p style="color: #697386; font-size: 0.875rem; margin-top: 1rem;">
+          <i class="fas fa-info-circle"></i> <strong>Note:</strong> Hours Worked and COC Earned are auto-calculated based on policy rules.
+          Weekdays: 5PM-7PM window (max 2 hrs × 1.0x). Weekends/Holidays: 8AM-12PM & 1PM-5PM windows × 1.5x rate.
+        </p>
+      </div>
+
+      <!-- Grand Total -->
+      <div style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0; text-align: center;">
+        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Grand Total COC Earned</div>
+        <div style="font-size: 2rem; font-weight: 700;" id="grandTotal">0.0 hours</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
+        <button type="button" onclick="resetOvertimeForm()" class="btn btn-secondary">Reset Form</button>
+        <button type="submit" id="saveBtn" class="btn btn-primary">Save Overtime Batch</button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Quick Stats -->
-<div class="stats-grid" style="margin-top: 2rem; grid-template-columns: repeat(3, 1fr);">
-  <div class="stat-card">
-    <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;">
-      <i class="fas fa-clock"></i>
-    </div>
-    <div class="stat-value" id="totalUncertifiedHours">0</div>
-    <div class="stat-label">Total Uncertified Hours</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background: #dbeafe; color: #3b82f6;">
-      <i class="fas fa-file-alt"></i>
-    </div>
-    <div class="stat-value" id="totalUncertifiedEntries">0</div>
-    <div class="stat-label">Uncertified Entries</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon" style="background: #fef3c7; color: #f59e0b;">
-      <i class="fas fa-users"></i>
-    </div>
-    <div class="stat-value" id="employeesWithUncertified">0</div>
-    <div class="stat-label">Employees with Uncertified</div>
-  </div>
-</div>
+<style>
+  .entry-grid input,
+  .entry-grid select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #e8ebed;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .entry-grid input:focus,
+  .entry-grid select:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  .entry-grid input.error {
+    border-color: #ef4444;
+    background-color: #fee;
+  }
+
+  .entry-grid input.error:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  }
+
+  .entry-grid td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #e8ebed;
+  }
+
+  .delete-row-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .delete-row-btn:hover {
+    background: #dc2626;
+  }
+
+  .coc-earned-cell {
+    font-weight: 600;
+    color: #4f46e5;
+    text-align: center;
+  }
+
+  .day-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .day-type-weekday {
+    background: #e0e7ff;
+    color: #4338ca;
+  }
+
+  .day-type-weekend {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .day-type-holiday {
+    background: #fce7f3;
+    color: #9f1239;
+  }
+</style>
