@@ -228,15 +228,6 @@
 
         <div class="details-section">
           <div class="section-header-cyan">
-            <i class="fas fa-wallet"></i> COC Ledger
-          </div>
-          <div id="cocLedgerContainer">
-            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading ledger...</p></div>
-          </div>
-        </div>
-
-        <div class="details-section">
-          <div class="section-header-cyan">
             <i class="fas fa-history"></i> Historical Balances
           </div>
           <div class="info-box">
@@ -254,8 +245,7 @@
       </div>
     `;
 
-    // After rendering, load the COC ledger and historical balances
-    displayCOCLedger(employee.employeeId);
+    // After rendering, load historical balances
     displayHistoricalBalances(employee.employeeId);
   }
 
@@ -542,120 +532,7 @@
       // After closing, refresh data if requested and on employees view
       if (shouldRefresh && currentView === 'employees' && selectedEmployee) {
         displayHistoricalBalances(selectedEmployee.employeeId);
-        displayCOCLedger(selectedEmployee.employeeId);
       }
     }
-  }
-
-  /**
-   * Display COC Ledger for an employee
-   */
-  function displayCOCLedger(employeeId) {
-    const container = document.getElementById('cocLedgerContainer');
-    if (!container) return;
-
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading ledger...</p></div>';
-
-    google.script.run
-      .withSuccessHandler(ledgerData => {
-        renderCOCLedger(ledgerData);
-      })
-      .withFailureHandler(err => {
-        container.innerHTML = `
-          <div class="empty-state">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>Error loading ledger: ${err.message}</p>
-          </div>`;
-      })
-      .getEmployeeLedger(employeeId);
-  }
-
-  /**
-   * Render COC Ledger HTML
-   */
-  function renderCOCLedger(ledgerData) {
-    const container = document.getElementById('cocLedgerContainer');
-    if (!container) return;
-
-    if (!ledgerData || !ledgerData.transactions || ledgerData.transactions.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-info-circle"></i>
-          <p>No COC transactions found for this employee</p>
-        </div>`;
-      return;
-    }
-
-    // Build active balance card
-    const balanceCard = `
-      <div style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Active COC Balance</div>
-            <div style="font-size: 2.5rem; font-weight: 700;">${ledgerData.activeBalance.toFixed(1)} hrs</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 0.875rem; opacity: 0.9;">Uncertified</div>
-            <div style="font-size: 1.5rem; font-weight: 600;">${ledgerData.uncertifiedBalance.toFixed(1)} hrs</div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Build transaction table
-    let transactionRows = '';
-    ledgerData.transactions.forEach(tx => {
-      const statusColors = {
-        'Active': '#10b981',
-        'Uncertified': '#f59e0b',
-        'Used': '#6b7280',
-        'Expired': '#ef4444'
-      };
-      const statusColor = statusColors[tx.status] || '#6b7280';
-
-      const validUntilDisplay = tx.validUntil
-        ? new Date(tx.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : '--';
-
-      transactionRows += `
-        <tr style="border-bottom: 1px solid #f0f2f5;">
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.month} ${tx.year}</td>
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dateWorked}</td>
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dayType}</td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">${tx.cocEarned.toFixed(1)}</td>
-          <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${validUntilDisplay}</td>
-          <td style="padding: 0.75rem; text-align: center;">
-            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
-              ${tx.status}
-            </span>
-          </td>
-        </tr>
-      `;
-    });
-
-    const transactionTable = `
-      <div style="margin-top: 1.5rem;">
-        <h4 style="font-size: 1rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">Transaction History</h4>
-        <div style="overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: #fafbfc;">
-              <tr>
-                <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
-                <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date Worked</th>
-                <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Day Type</th>
-                <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
-                <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
-                <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactionRows}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-
-    container.innerHTML = balanceCard + transactionTable;
   }
 </script>
