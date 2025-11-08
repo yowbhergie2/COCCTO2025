@@ -68,32 +68,47 @@
       });
     }
 
-    // Add first row (initially disabled button will prevent adding more)
-    addOvertimeRow();
-
-    // Initial button state check
+    // Initial button and entries state check
     checkAddDayButtonState();
+
+    // Don't add first row yet - wait for dropdowns to be selected
   }
 
   /**
-   * Check if Add Day button should be enabled
+   * Check if Add Day button and Entries section should be enabled
    */
   function checkAddDayButtonState() {
     const empSelect = document.getElementById('employeeId');
     const monthSelect = document.getElementById('month');
     const yearSelect = document.getElementById('year');
     const addDayBtn = document.getElementById('addDayBtn');
-
-    if (!addDayBtn) return;
+    const saveBtn = document.getElementById('saveBtn');
+    const overlay = document.getElementById('entriesDisabledOverlay');
+    const tbody = document.getElementById('entryTableBody');
 
     const hasEmployee = empSelect && empSelect.value !== '';
     const hasMonth = monthSelect && monthSelect.value !== '';
     const hasYear = yearSelect && yearSelect.value !== '';
 
     if (hasEmployee && hasMonth && hasYear) {
-      addDayBtn.disabled = false;
+      // Enable buttons
+      if (addDayBtn) addDayBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+
+      // Hide overlay
+      if (overlay) overlay.style.display = 'none';
+
+      // Add first row if table is empty
+      if (tbody && tbody.children.length === 0) {
+        addOvertimeRow();
+      }
     } else {
-      addDayBtn.disabled = true;
+      // Disable buttons
+      if (addDayBtn) addDayBtn.disabled = true;
+      if (saveBtn) saveBtn.disabled = true;
+
+      // Show overlay
+      if (overlay) overlay.style.display = 'flex';
     }
   }
 
@@ -637,7 +652,8 @@
     existingDatabaseDates = [];
     duplicateContext = null;
 
-    addOvertimeRow();
+    // Reset button and overlay state
+    checkAddDayButtonState();
     updateGrandTotal();
   }
 
