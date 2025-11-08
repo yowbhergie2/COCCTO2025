@@ -858,3 +858,110 @@ function logCertificateIssuance(employeeId, month, year, dateOfIssuance) {
     Logger.log('Error in logCertificateIssuance: ' + error.toString());
   }
 }
+
+/**
+ * Get employee COC ledger (balance and transaction history)
+ * @param {number} employeeId - Employee ID
+ * @returns {Object} Ledger data with activeBalance, uncertifiedBalance, and transactions array
+ */
+function getEmployeeLedger(employeeId) {
+  try {
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return {
+        activeBalance: 0,
+        uncertifiedBalance: 0,
+        transactions: []
+      };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return {
+        activeBalance: 0,
+        uncertifiedBalance: 0,
+        transactions: []
+      };
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const dateWorkedIndex = headers.indexOf('DateWorked');
+    const dayTypeIndex = headers.indexOf('DayType');
+    const cocEarnedIndex = headers.indexOf('COCEarned');
+    const certifiedIndex = headers.indexOf('Certified');
+    const validUntilIndex = headers.indexOf('ValidUntil');
+
+    let activeBalance = 0;
+    let uncertifiedBalance = 0;
+    const transactions = [];
+
+    // Get current date for expiration checks
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId) {
+        const certified = row[certifiedIndex] === 'Yes';
+        const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
+        const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+
+        let status = 'Uncertified';
+
+        if (certified) {
+          if (validUntil) {
+            // Check if expired
+            if (validUntil < now) {
+              status = 'Expired';
+            } else {
+              status = 'Active';
+              activeBalance += cocEarned;
+            }
+          } else {
+            // Certified but no valid until date (shouldn't happen, but handle gracefully)
+            status = 'Active';
+            activeBalance += cocEarned;
+          }
+        } else {
+          // Uncertified
+          uncertifiedBalance += cocEarned;
+        }
+
+        transactions.push({
+          month: row[monthIndex],
+          year: row[yearIndex],
+          dateWorked: formatDate(new Date(row[dateWorkedIndex])),
+          dayType: row[dayTypeIndex],
+          cocEarned: cocEarned,
+          validUntil: validUntil,
+          status: status
+        });
+      }
+    }
+
+    // Sort transactions by date (newest first)
+    transactions.sort((a, b) => {
+      const dateA = new Date(a.dateWorked);
+      const dateB = new Date(b.dateWorked);
+      return dateB - dateA;
+    });
+
+    return {
+      activeBalance: activeBalance,
+      uncertifiedBalance: uncertifiedBalance,
+      transactions: transactions
+    };
+
+  } catch (error) {
+    Logger.log('Error in getEmployeeLedger: ' + error.toString());
+    return {
+      activeBalance: 0,
+      uncertifiedBalance: 0,
+      transactions: []
+    };
+  }
+}
