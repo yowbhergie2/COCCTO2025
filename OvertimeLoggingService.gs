@@ -33,6 +33,15 @@ function saveOvertimeBatch(batchData) {
       };
     }
 
+    // Check if historical balance exists for this month/year
+    const hasHistoricalBalance = checkHistoricalBalanceExists(batchData.employeeId, batchData.month, batchData.year);
+    if (hasHistoricalBalance) {
+      return {
+        success: false,
+        message: `Cannot log overtime for ${batchData.month} ${batchData.year}. A historical balance already exists for this period. Historical balances represent the complete COC data for that month.`
+      };
+    }
+
     // Process each entry and calculate COC
     const processedEntries = [];
     let totalCOC = 0;
@@ -1137,5 +1146,51 @@ function getEmployeeLedgerDetailed(employeeId) {
       usedCOCs: 0,
       transactions: []
     };
+  }
+}
+
+/**
+ * Check if a historical balance exists for an employee's specific month/year
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {boolean} True if historical balance exists
+ */
+function checkHistoricalBalanceExists(employeeId, month, year) {
+  try {
+    const sheet = getDbSheet('CreditBatches');
+    if (!sheet) {
+      return false;
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return false;
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('EarnedMonth');
+    const yearIndex = headers.indexOf('EarnedYear');
+    const notesIndex = headers.indexOf('Notes');
+
+    // Check if historical balance exists for this employee/month/year
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId &&
+          row[monthIndex] === month &&
+          row[yearIndex] === year &&
+          row[notesIndex] &&
+          row[notesIndex].toString().includes('Historical data migration')) {
+        return true;
+      }
+    }
+
+    return false;
+
+  } catch (error) {
+    Logger.log('Error in checkHistoricalBalanceExists: ' + error.toString());
+    return false;
   }
 }
