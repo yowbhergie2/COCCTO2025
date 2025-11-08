@@ -1438,6 +1438,7 @@
       if (beginningBalanceContainer) {
         let historicalRows = '';
         let totalHistoricalEarned = 0;
+        let totalHistoricalUsed = 0;
         let totalHistoricalRemaining = 0;
 
         historicalData.forEach(tx => {
@@ -1458,6 +1459,7 @@
           const remaining = tx.cocRemaining || 0;
 
           totalHistoricalEarned += earned;
+          totalHistoricalUsed += used;
           totalHistoricalRemaining += remaining;
 
           console.log('Historical transaction:', {
@@ -1508,9 +1510,19 @@
             </table>
           </div>
           <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 4px; border: 1px solid #e1e4e8;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600; color: #1a1f36; font-size: 0.75rem;">Total Remaining:</span>
-              <span style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalRemaining.toFixed(1)} hrs</span>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+              <div style="text-align: center;">
+                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Earned</div>
+                <div style="font-size: 1rem; font-weight: 700; color: #10b981;">${totalHistoricalEarned.toFixed(1)}</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Used</div>
+                <div style="font-size: 1rem; font-weight: 700; color: #ef4444;">${totalHistoricalUsed.toFixed(1)}</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 0.65rem; color: #697386; margin-bottom: 0.25rem;">Total Remaining</div>
+                <div style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalRemaining.toFixed(1)}</div>
+              </div>
             </div>
           </div>
         `;
