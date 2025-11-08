@@ -1156,7 +1156,16 @@ function getEmployeeLedgerDetailed(employeeId) {
       uncertifiedBalance: uncertifiedBalance,
       totalEarned: totalEarned,
       usedCOCs: usedCOCs,
-      transactions: transactions
+      transactions: transactions.map(tx => ({
+        month: tx.month,
+        year: tx.year,
+        dateWorked: tx.dateWorked,
+        dayType: tx.dayType,
+        cocEarned: tx.cocEarned,
+        validUntil: tx.validUntil ? formatDate(tx.validUntil) : null,
+        status: tx.status,
+        isHistorical: tx.isHistorical
+      }))
     };
 
     Logger.log('Returning ledger data: ' + JSON.stringify({
