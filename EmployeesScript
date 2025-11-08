@@ -230,9 +230,6 @@
           <div class="section-header-cyan">
             <i class="fas fa-history"></i> Historical Balances
           </div>
-          <div class="info-box">
-            <p>This section shows historical balances migrated from the old system. This is based on <strong>F1: Initial Balance Migration</strong>.</p>
-          </div>
           <div style="text-align: right; margin-bottom: 1.5rem;">
             <button class="btn btn-secondary" onclick="addHistoricalBalance()">
               <i class="fas fa-plus"></i> Log Historical Balance
