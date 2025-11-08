@@ -21,6 +21,18 @@
 
     <!-- Ledger Content -->
     <div id="ledgerContent" style="display: none;">
+      <!-- Employee Info -->
+      <div id="employeeInfoSection" style="margin-bottom: 2rem; padding: 1rem; background: #f9fafb; border: 1px solid #e1e4e8; border-radius: 8px;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <i class="fas fa-user-circle" style="font-size: 2rem; color: #4f46e5;"></i>
+          <div>
+            <div style="font-size: 0.875rem; color: #697386;">Viewing ledger for:</div>
+            <div id="employeeNameDisplay" style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">--</div>
+            <div id="employeeIdDisplay" style="font-size: 0.875rem; color: #697386;">Employee ID: --</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Balance Summary Cards -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
         <!-- Active Balance -->

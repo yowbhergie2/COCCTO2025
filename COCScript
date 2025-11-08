@@ -92,24 +92,63 @@
     const hasYear = yearSelect && yearSelect.value !== '';
 
     if (hasEmployee && hasMonth && hasYear) {
-      // Enable buttons
-      if (addDayBtn) addDayBtn.disabled = false;
-      if (saveBtn) saveBtn.disabled = false;
+      // Check for historical balance before enabling
+      const employeeId = parseInt(empSelect.value);
+      const month = monthSelect.value;
+      const year = parseInt(yearSelect.value);
 
-      // Hide overlay
-      if (overlay) overlay.style.display = 'none';
+      google.script.run
+        .withSuccessHandler(function(exists) {
+          if (exists) {
+            // Historical balance exists - show error and keep disabled
+            if (addDayBtn) addDayBtn.disabled = true;
+            if (saveBtn) saveBtn.disabled = true;
+            if (overlay) {
+              overlay.style.display = 'flex';
+              overlay.innerHTML = `
+                <div style="text-align: center; color: #ef4444; max-width: 500px;">
+                  <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                  <p style="font-size: 1rem; font-weight: 600; margin: 0.5rem 0;">Cannot log overtime for this period</p>
+                  <p style="font-size: 0.875rem; margin: 0;">A historical balance already exists for ${month} ${year}. Historical balances represent the complete COC data for that month.</p>
+                </div>
+              `;
+            }
+          } else {
+            // No historical balance - enable everything
+            if (addDayBtn) addDayBtn.disabled = false;
+            if (saveBtn) saveBtn.disabled = false;
+            if (overlay) overlay.style.display = 'none';
 
-      // Add first row if table is empty
-      if (tbody && tbody.children.length === 0) {
-        addOvertimeRow();
-      }
+            // Add first row if table is empty
+            if (tbody && tbody.children.length === 0) {
+              addOvertimeRow();
+            }
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.error('Error checking historical balance:', err);
+          // On error, allow proceed (fail open)
+          if (addDayBtn) addDayBtn.disabled = false;
+          if (saveBtn) saveBtn.disabled = false;
+          if (overlay) overlay.style.display = 'none';
+          if (tbody && tbody.children.length === 0) {
+            addOvertimeRow();
+          }
+        })
+        .checkHistoricalBalanceExists(employeeId, month, year);
     } else {
-      // Disable buttons
+      // Disable buttons and show default overlay
       if (addDayBtn) addDayBtn.disabled = true;
       if (saveBtn) saveBtn.disabled = true;
-
-      // Show overlay
-      if (overlay) overlay.style.display = 'flex';
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+          <div style="text-align: center; color: #697386;">
+            <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 0.5rem; color: #4f46e5;"></i>
+            <p style="font-size: 1rem; font-weight: 600; margin: 0;">Please select Employee, Month, and Year first</p>
+          </div>
+        `;
+      }
     }
   }
 
@@ -1275,8 +1314,33 @@
     // Null check
     if (!ledgerData) {
       console.error('renderEmployeeLedgerData: ledgerData is null or undefined');
+      console.error('Employee object:', employee);
       showAlert('Error: Failed to load ledger data', 'error');
+
+      // Hide loading and show error
+      const ledgerContent = document.getElementById('ledgerContent');
+      const ledgerEmptyState = document.getElementById('ledgerEmptyState');
+      if (ledgerContent) ledgerContent.style.display = 'none';
+      if (ledgerEmptyState) {
+        ledgerEmptyState.style.display = 'block';
+        ledgerEmptyState.innerHTML = `
+          <div style="text-align: center; padding: 3rem;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+            <p style="color: #697386;">Failed to load ledger data. Please try again.</p>
+          </div>
+        `;
+      }
       return;
+    }
+
+    // Display employee info
+    const employeeNameDisplay = document.getElementById('employeeNameDisplay');
+    const employeeIdDisplay = document.getElementById('employeeIdDisplay');
+
+    if (employee && employeeNameDisplay && employeeIdDisplay) {
+      const fullName = `${employee.firstName || ''} ${employee.middleInitial ? employee.middleInitial + '.' : ''} ${employee.lastName || ''}`.trim();
+      employeeNameDisplay.textContent = fullName;
+      employeeIdDisplay.textContent = `Employee ID: ${employee.employeeId}`;
     }
 
     // Update balance displays
