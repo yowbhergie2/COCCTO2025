@@ -161,7 +161,8 @@ function saveOvertimeBatch(batchData) {
         entry.cocEarned,            // K: COCEarned
         'Uncertified',              // L: Status
         currentEmail,               // M: LoggedBy
-        currentDate                 // N: LoggedDate
+        currentDate,                // N: LoggedDate
+        ''                          // O: ValidUntil (NEW - added empty placeholder)
       ];
 
       appendToSheet('OvertimeLogs', rowData);
@@ -524,60 +525,13 @@ function formatDateForInput(date) {
  */
 function validateMonthlyAccrualCap(employeeId, month, year, newCOC) {
   try {
-    const MONTHLY_CAP = 40;
-
-    // Get existing COC for this month
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
-      return { valid: false, message: 'Database error: OvertimeLogs sheet not found' };
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      // No existing data, just check if new COC exceeds cap
-      if (newCOC > MONTHLY_CAP) {
-        return {
-          valid: false,
-          message: `Cannot add ${newCOC.toFixed(1)} hours. This exceeds the monthly cap of ${MONTHLY_CAP} hours.`
-        };
-      }
-      return { valid: true };
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const certifiedIndex = headers.indexOf('Certified');
-
-    let existingCOC = 0;
-
-    // Sum up existing COC for this employee, month, and year (excluding certified entries)
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year &&
-          row[certifiedIndex] !== 'Yes') {
-        existingCOC += parseFloat(row[cocEarnedIndex]) || 0;
-      }
-    }
-
-    const totalCOC = existingCOC + newCOC;
-
-    if (totalCOC > MONTHLY_CAP) {
-      return {
-        valid: false,
-        message: `Cannot add ${newCOC.toFixed(1)} hours. Employee already has ${existingCOC.toFixed(1)} hours for ${month} ${year}. Total would be ${totalCOC.toFixed(1)} hours, exceeding the ${MONTHLY_CAP}-hour monthly cap.`
-      };
-    }
-
-    return { valid: true };
+    // This function is correctly defined in AccrualRulesEngine.gs
+    // and correctly sums all COCEarned for the month.
+    // We just call it.
+    return AccrualRulesEngine.validateMonthlyAccrualCap(employeeId, month, year, newCOC);
 
   } catch (error) {
-    Logger.log('Error in validateMonthlyAccrualCap: ' + error.toString());
+    Logger.log('Error in validateMonthlyAccrualCap (OvertimeLoggingService): ' + error.toString());
     return { valid: false, message: 'Error validating monthly cap: ' + error.message };
   }
 }
@@ -590,56 +544,13 @@ function validateMonthlyAccrualCap(employeeId, month, year, newCOC) {
  */
 function validateTotalBalanceCap(employeeId, newCOC) {
   try {
-    const TOTAL_CAP = 120;
-
-    // Get the employee's current uncertified balance
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
-      return { valid: false, message: 'Database error: OvertimeLogs sheet not found' };
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      // No existing data, just check if new COC exceeds cap
-      if (newCOC > TOTAL_CAP) {
-        return {
-          valid: false,
-          message: `Cannot add ${newCOC.toFixed(1)} hours. This exceeds the total cap of ${TOTAL_CAP} hours.`
-        };
-      }
-      return { valid: true };
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const certifiedIndex = headers.indexOf('Certified');
-
-    let existingBalance = 0;
-
-    // Sum up all uncertified COC for this employee across all months
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[employeeIdIndex] === employeeId &&
-          row[certifiedIndex] !== 'Yes') {
-        existingBalance += parseFloat(row[cocEarnedIndex]) || 0;
-      }
-    }
-
-    const totalBalance = existingBalance + newCOC;
-
-    if (totalBalance > TOTAL_CAP) {
-      return {
-        valid: false,
-        message: `Cannot add ${newCOC.toFixed(1)} hours. Employee's current uncertified balance is ${existingBalance.toFixed(1)} hours. Total would be ${totalBalance.toFixed(1)} hours, exceeding the ${TOTAL_CAP}-hour total cap.`
-      };
-    }
-
-    return { valid: true };
+    // This function is correctly defined in AccrualRulesEngine.gs
+    // and correctly sums all balances.
+    // We just call it.
+    return AccrualRulesEngine.validateTotalBalanceCap(employeeId, newCOC);
 
   } catch (error) {
-    Logger.log('Error in validateTotalBalanceCap: ' + error.toString());
+    Logger.log('Error in validateTotalBalanceCap (OvertimeLoggingService): ' + error.toString());
     return { valid: false, message: 'Error validating total cap: ' + error.message };
   }
 }
@@ -668,7 +579,8 @@ function getUncertifiedHours(employeeId, month, year) {
     const monthIndex = headers.indexOf('Month');
     const yearIndex = headers.indexOf('Year');
     const cocEarnedIndex = headers.indexOf('COCEarned');
-    const certifiedIndex = headers.indexOf('Certified');
+    // *** FIX: Use 'Status' column ***
+    const statusIndex = headers.indexOf('Status');
 
     let totalHours = 0;
 
@@ -679,7 +591,8 @@ function getUncertifiedHours(employeeId, month, year) {
       if (row[employeeIdIndex] === employeeId &&
           row[monthIndex] === month &&
           row[yearIndex] === year &&
-          row[certifiedIndex] !== 'Yes') {
+          // *** FIX: Check for 'Uncertified' status ***
+          row[statusIndex] === 'Uncertified') {
         totalHours += parseFloat(row[cocEarnedIndex]) || 0;
       }
     }
@@ -751,8 +664,18 @@ function generateCOCCertificate(certificateData) {
     const employeeIdIndex = headers.indexOf('EmployeeID');
     const monthIndex = headers.indexOf('Month');
     const yearIndex = headers.indexOf('Year');
-    const certifiedIndex = headers.indexOf('Certified');
+    // *** FIX: Use 'Status' column ***
+    const statusIndex = headers.indexOf('Status');
+    // *** FIX: Use 'ValidUntil' column ***
     const validUntilIndex = headers.indexOf('ValidUntil');
+
+    // *** FIX: Add check for missing columns ***
+    if (statusIndex === -1) {
+      throw new Error("Missing 'Status' column in OvertimeLogs sheet.");
+    }
+    if (validUntilIndex === -1) {
+      throw new Error("Missing 'ValidUntil' column in OvertimeLogs sheet. Please add it (e.g., in column O).");
+    }
 
     // Calculate Valid Until date: (Date of Issuance + 1 Year - 1 Day)
     const validUntilDate = new Date(issuanceDate);
@@ -760,6 +683,8 @@ function generateCOCCertificate(certificateData) {
     validUntilDate.setDate(validUntilDate.getDate() - 1);
 
     let updatedCount = 0;
+    let totalHours = 0;
+    const cocEarnedIndex = headers.indexOf('COCEarned');
 
     // Update all matching uncertified entries
     for (let i = 1; i < data.length; i++) {
@@ -768,12 +693,15 @@ function generateCOCCertificate(certificateData) {
       if (row[employeeIdIndex] === certificateData.employeeId &&
           row[monthIndex] === certificateData.month &&
           row[yearIndex] === certificateData.year &&
-          row[certifiedIndex] !== 'Yes') {
+          // *** FIX: Check for 'Uncertified' status ***
+          row[statusIndex] === 'Uncertified') {
 
         // Update Certified and ValidUntil columns
-        sheet.getRange(i + 1, certifiedIndex + 1).setValue('Yes');
+        // *** FIX: Set status to 'Active' ***
+        sheet.getRange(i + 1, statusIndex + 1).setValue('Active');
         sheet.getRange(i + 1, validUntilIndex + 1).setValue(validUntilDate);
         updatedCount++;
+        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
       }
     }
 
@@ -786,19 +714,6 @@ function generateCOCCertificate(certificateData) {
 
     // Log certificate issuance
     logCertificateIssuance(certificateData.employeeId, certificateData.month, certificateData.year, certificateData.dateOfIssuance);
-
-    // Calculate total hours for certificate
-    let totalHours = 0;
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === certificateData.employeeId &&
-          row[monthIndex] === certificateData.month &&
-          row[yearIndex] === certificateData.year &&
-          row[certifiedIndex] === 'Yes') {
-        const cocEarnedIndex = headers.indexOf('COCEarned');
-        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
-      }
-    }
 
     // Generate PDF certificate
     try {
@@ -877,25 +792,26 @@ function generateCertificatePDF(certificateData, employee, validUntilDate, total
     }
 
     // Fill in the certificate data using row/column indices
+    // (FIXED based on visual template)
     // First certificate (top)
-    tempSheet.getRange(4, 5).setValue(employeeName);  // E4 - NAME
+    tempSheet.getRange(4, 3).setValue(employeeName);  // C4 - NAME
     tempSheet.getRange(6, 2).setValue(position);  // B6 - POSITION
-    tempSheet.getRange(6, 6).setValue(office);  // F6 - OFFICE/DIVISION
+    tempSheet.getRange(6, 5).setValue(office);  // E6 - OFFICE/DIVISION
     tempSheet.getRange(9, 2).setValue(totalHours.toFixed(1));  // B9 - Number of Hours
-    tempSheet.getRange(15, 6).setValue(signatory.name || '');  // F15 - NAME OF SIGNATORY
-    tempSheet.getRange(16, 6).setValue(signatory.position || '');  // F16 - Position of Signatory
-    tempSheet.getRange(19, 4).setValue(dateIssued);  // D19 - DATE ISSUED
-    tempSheet.getRange(20, 4).setValue(validUntil);  // D20 - VALID UNTIL
+    tempSheet.getRange(15, 6).setValue(signatory.name || '');  // F15 - NAME OF SIGNATORY (Assuming this is correct)
+    tempSheet.getRange(16, 6).setValue(signatory.position || '');  // F16 - Position of Signatory (Assuming this is correct)
+    tempSheet.getRange(19, 3).setValue(dateIssued);  // C19 - DATE ISSUED
+    tempSheet.getRange(20, 3).setValue(validUntil);  // C20 - VALID UNTIL
 
     // Second certificate (bottom)
-    tempSheet.getRange(28, 5).setValue(employeeName);  // E28 - NAME
+    tempSheet.getRange(28, 3).setValue(employeeName);  // C28 - NAME
     tempSheet.getRange(30, 2).setValue(position);  // B30 - POSITION
-    tempSheet.getRange(30, 6).setValue(office);  // F30 - OFFICE/DIVISION
+    tempSheet.getRange(30, 5).setValue(office);  // E30 - OFFICE/DIVISION
     tempSheet.getRange(33, 2).setValue(totalHours.toFixed(1));  // B33 - Number of Hours
-    tempSheet.getRange(39, 6).setValue(signatory.name || '');  // F39 - NAME OF SIGNATORY
-    tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory
-    tempSheet.getRange(43, 4).setValue(dateIssued);  // D43 - DATE ISSUED
-    tempSheet.getRange(44, 4).setValue(validUntil);  // D44 - VALID UNTIL
+    tempSheet.getRange(39, 6).setValue(signatory.name || '');  // F39 - NAME OF SIGNATORY (Assuming this is correct)
+    tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory (Assuming this is correct)
+    tempSheet.getRange(43, 3).setValue(dateIssued);  // C43 - DATE ISSUED
+    tempSheet.getRange(44, 3).setValue(validUntil);  // C44 - VALID UNTIL
 
     // Convert sheet to PDF
     const pdfBlob = convertSheetToPDF(dbSpreadsheet, tempSheet);
@@ -962,7 +878,8 @@ function convertSheetToPDF(spreadsheet, sheet) {
  */
 function checkExistingCertificate(employeeId, month, year) {
   try {
-    const sheet = getDbSheet('CertificateLog');
+    // *** FIX: Use 'Certificates' sheet name ***
+    const sheet = getDbSheet('Certificates');
     if (!sheet) {
       return false;
     }
@@ -1001,27 +918,31 @@ function checkExistingCertificate(employeeId, month, year) {
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
- * @param {string} dateOfIssuance - Date certificate was issued
+ *• * @param {string} dateOfIssuance - Date certificate was issued
  */
 function logCertificateIssuance(employeeId, month, year, dateOfIssuance) {
   try {
-    const sheet = getDbSheet('CertificateLog');
+    // *** FIX: Use 'Certificates' sheet name ***
+    const sheet = getDbSheet('Certificates');
     if (!sheet) {
       return;
     }
 
     const currentEmail = getCurrentUserEmail();
     const currentDate = new Date();
-    const certId = getNextId('CertificateLog', 'A');
+    // *** FIX: Use 'CertificateID' as header for getNextId ***
+    const certId = getNextId('Certificates', 'A');
 
     const rowData = [
-      certId,                         // A: CertID
+      certId,                         // A: CertificateID
       employeeId,                     // B: EmployeeID
       month,                          // C: Month
       year,                           // D: Year
       new Date(dateOfIssuance),       // E: DateOfIssuance
-      currentDate,                    // F: CreatedAt
-      currentEmail                    // G: CreatedBy
+      null,                           // F: TotalHoursCertified (This CSV seems to have changed, but PDF calculates it)
+      currentEmail,                   // G: IssuedBy
+      currentDate,                    // H: IssuedDate
+      currentDate                     // I: Timestamp (Using IssuedDate as Timestamp)
     ];
 
     sheet.appendRow(rowData);
@@ -1063,7 +984,8 @@ function getEmployeeLedger(employeeId) {
     const dateWorkedIndex = headers.indexOf('DateWorked');
     const dayTypeIndex = headers.indexOf('DayType');
     const cocEarnedIndex = headers.indexOf('COCEarned');
-    const certifiedIndex = headers.indexOf('Certified');
+    // *** FIX: Use 'Status' column ***
+    const statusIndex = headers.indexOf('Status');
     const validUntilIndex = headers.indexOf('ValidUntil');
 
     let activeBalance = 0;
@@ -1078,26 +1000,32 @@ function getEmployeeLedger(employeeId) {
       const row = data[i];
 
       if (row[employeeIdIndex] === employeeId) {
-        const certified = row[certifiedIndex] === 'Yes';
+        // *** FIX: Use 'Status' column to determine if certified ***
+        const statusValue = row[statusIndex] || 'Uncertified';
+        const certified = statusValue !== 'Uncertified';
+        
         const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
         const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
 
-        let status = 'Uncertified';
+        let status = statusValue;
 
         if (certified) {
-          if (validUntil) {
-            // Check if expired
-            if (validUntil < now) {
-              status = 'Expired';
+          if (status === 'Active') { // Only 'Active' logs contribute to balance
+            if (validUntil) {
+              // Check if expired
+              if (validUntil < now) {
+                status = 'Expired';
+              } else {
+                status = 'Active';
+                activeBalance += cocEarned;
+              }
             } else {
+              // Certified but no valid until date (shouldn't happen, but handle gracefully)
               status = 'Active';
               activeBalance += cocEarned;
             }
-          } else {
-            // Certified but no valid until date (shouldn't happen, but handle gracefully)
-            status = 'Active';
-            activeBalance += cocEarned;
           }
+          // 'Used' or 'Expired' logs are certified but don't add to active balance
         } else {
           // Uncertified
           uncertifiedBalance += cocEarned;
@@ -1296,40 +1224,33 @@ function getEmployeeLedgerDetailed(employeeId) {
         const pmInIndex = overtimeHeaders.indexOf('PMIn');
         const pmOutIndex = overtimeHeaders.indexOf('PMOut');
         const cocEarnedIndex = overtimeHeaders.indexOf('COCEarned');
-        const certifiedIndex = overtimeHeaders.indexOf('Certified');
+        // *** FIX: Use 'Status' column ***
+        const statusIndex = overtimeHeaders.indexOf('Status');
         const validUntilIndex = overtimeHeaders.indexOf('ValidUntil');
 
         for (let i = 1; i < overtimeData.length; i++) {
           const row = overtimeData[i];
 
           if (row[employeeIdIndex] === employeeId) {
-            const certified = row[certifiedIndex] === 'Yes';
+            // *** FIX: Correctly read status and balances ***
             const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
             const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+            const status = row[statusIndex] || 'Uncertified'; // Get status
 
-            // Add to total earned (all-time total)
             totalEarned += cocEarned;
 
-            let status = 'Uncertified';
+            let currentStatus = status;
 
-            if (certified) {
-              if (validUntil) {
-                // Check if expired
-                if (validUntil < now) {
-                  status = 'Expired';
-                } else {
-                  status = 'Active';
-                  activeBalance += cocEarned;
-                }
+            if (status === 'Active') {
+              if (validUntil && validUntil < now) {
+                currentStatus = 'Expired';
               } else {
-                // Certified but no valid until date (shouldn't happen, but handle gracefully)
-                status = 'Active';
                 activeBalance += cocEarned;
               }
-            } else {
-              // Uncertified
+            } else if (status === 'Uncertified') {
               uncertifiedBalance += cocEarned;
             }
+            // 'Used' or 'Expired' logs do not add to active or uncertified balance
 
             transactions.push({
               month: row[monthIndex],
@@ -1341,11 +1262,11 @@ function getEmployeeLedgerDetailed(employeeId) {
               pmIn: formatTime(row[pmInIndex]),
               pmOut: formatTime(row[pmOutIndex]),
               cocEarned: cocEarned,
-              cocUsed: 0,  // Current transactions haven't been used yet
-              cocRemaining: cocEarned,  // Remaining equals earned for current transactions
-              dateOfIssuance: certified ? formatDate(new Date()) : null,  // Use current date if certified
+              cocUsed: 0,  // OvertimeLogs are earn-only (for now)
+              cocRemaining: (currentStatus === 'Active' || currentStatus === 'Uncertified') ? cocEarned : 0,
+              dateOfIssuance: null, // This log doesn't have an issuance date
               validUntil: validUntil ? formatDate(validUntil) : null,
-              status: status,
+              status: currentStatus,
               isHistorical: false
             });
           }
