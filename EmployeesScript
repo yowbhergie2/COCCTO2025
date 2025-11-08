@@ -404,10 +404,19 @@
                   <th>Date of Issuance</th>
                   <th>Valid Until</th>
                   <th>Status</th>
+                  <th style="text-align: center;">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                ${records.map(r => `
+                ${records.map(r => {
+                  const statusColors = {
+                    'Active': '#10b981',
+                    'Used': '#6b7280',
+                    'Expired': '#ef4444'
+                  };
+                  const statusColor = statusColors[r.status] || '#6b7280';
+
+                  return `
                   <tr>
                     <td>${r.month} ${r.year}</td>
                     <td>${r.cocEarned}</td>
@@ -416,12 +425,21 @@
                     <td>${r.dateOfIssuance}</td>
                     <td>${r.validUntil}</td>
                     <td>
-                      <span class="badge ${r.status === 'Active' ? 'badge-success' : 'badge-inactive'}">
+                      <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; background: ${statusColor}15; color: ${statusColor}; font-size: 0.8125rem;">
                         ${r.status}
                       </span>
                     </td>
+                    <td style="text-align: center;">
+                      <button class="icon-btn" onclick="editHistoricalBalance(${r.batchId})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="icon-btn icon-btn-danger" onclick="deleteHistoricalBalance(${r.batchId}, '${r.month}', ${r.year})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
                   </tr>
-                `).join('')}
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -443,6 +461,70 @@
       return;
     }
     showOverlay('HistoryForm', { employeeId: selectedEmployee.employeeId });
+  }
+
+  /**
+   * Edit a historical balance record
+   */
+  function editHistoricalBalance(batchId) {
+    if (!selectedEmployee) {
+      showAlert('Please select an employee first', 'error');
+      return;
+    }
+
+    // Check if employee has overtime logs
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.hasOvertimeLogs) {
+          showAlert('Cannot edit Historical Balance: Employee already has overtime logs. Editing would cause data conflicts.', 'error');
+        } else {
+          // TODO: Implement edit functionality - show form with pre-filled data
+          showAlert('Edit functionality coming soon', 'info');
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error checking overtime logs: ' + err.message, 'error');
+      })
+      .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
+  }
+
+  /**
+   * Delete a historical balance record
+   */
+  function deleteHistoricalBalance(batchId, month, year) {
+    if (!selectedEmployee) {
+      showAlert('Please select an employee first', 'error');
+      return;
+    }
+
+    // Check if employee has overtime logs
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.hasOvertimeLogs) {
+          showAlert('Cannot delete Historical Balance: Employee already has overtime logs. Deleting would cause data conflicts.', 'error');
+        } else {
+          // Confirm deletion
+          if (confirm(`Are you sure you want to delete the Historical Balance for ${month} ${year}?\n\nThis action cannot be undone.`)) {
+            google.script.run
+              .withSuccessHandler(deleteResult => {
+                if (deleteResult.success) {
+                  showAlert(deleteResult.message, 'success');
+                  displayHistoricalBalances(selectedEmployee.employeeId);
+                } else {
+                  showAlert(deleteResult.message, 'error');
+                }
+              })
+              .withFailureHandler(err => {
+                showAlert('Error deleting record: ' + err.message, 'error');
+              })
+              .deleteHistoricalBalance(batchId);
+          }
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error checking overtime logs: ' + err.message, 'error');
+      })
+      .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
   }
 
   /**

@@ -225,3 +225,123 @@ function getEmployeeCurrentBalance(employeeId) {
   
   return totalBalance;
 }
+
+/**
+ * Check if an employee has any overtime logs
+ * Used to prevent editing/deleting historical balances after overtime has been logged
+ * @param {number} employeeId - Employee ID to check
+ * @returns {Object} Result with hasOvertimeLogs boolean
+ */
+function checkEmployeeHasOvertimeLogs(employeeId) {
+  try {
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return { hasOvertimeLogs: false };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (!data || data.length <= 1) {
+      return { hasOvertimeLogs: false };  // No data or only headers
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+
+    // Check if any row belongs to this employee
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[employeeIdIndex] === employeeId) {
+        return { hasOvertimeLogs: true };
+      }
+    }
+
+    return { hasOvertimeLogs: false };
+  } catch (error) {
+    Logger.log('Error in checkEmployeeHasOvertimeLogs: ' + error.toString());
+    return { hasOvertimeLogs: false };
+  }
+}
+
+/**
+ * Delete a historical balance record
+ * Only allowed if employee has no overtime logs yet
+ * @param {number} batchId - Batch ID to delete
+ * @returns {Object} Result with success status and message
+ */
+function deleteHistoricalBalance(batchId) {
+  try {
+    const creditBatchesSheet = getDbSheet('CreditBatches');
+    if (!creditBatchesSheet) {
+      return {
+        success: false,
+        message: 'CreditBatches sheet not found'
+      };
+    }
+
+    const data = creditBatchesSheet.getDataRange().getValues();
+    if (!data || data.length <= 1) {
+      return {
+        success: false,
+        message: 'No records found'
+      };
+    }
+
+    const headers = data[0];
+    const batchIdIndex = headers.indexOf('BatchID');
+    const notesIndex = headers.indexOf('Notes');
+
+    // Find the row to delete
+    let rowToDelete = -1;
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[batchIdIndex] === batchId) {
+        // Verify it's a historical record
+        if (!row[notesIndex] || !row[notesIndex].toString().includes('Historical data migration')) {
+          return {
+            success: false,
+            message: 'This is not a historical balance record and cannot be deleted here'
+          };
+        }
+        rowToDelete = i + 1; // +1 because sheet rows are 1-indexed
+        break;
+      }
+    }
+
+    if (rowToDelete === -1) {
+      return {
+        success: false,
+        message: 'Historical balance record not found'
+      };
+    }
+
+    // Delete the row from CreditBatches
+    creditBatchesSheet.deleteRow(rowToDelete);
+
+    // Also delete related Ledger entries
+    const ledgerSheet = getDbSheet('Ledger');
+    if (ledgerSheet) {
+      const ledgerData = ledgerSheet.getDataRange().getValues();
+      const ledgerHeaders = ledgerData[0];
+      const ledgerBatchIdIndex = ledgerHeaders.indexOf('BatchID');
+
+      // Delete from bottom to top to avoid index shifting issues
+      for (let i = ledgerData.length - 1; i >= 1; i--) {
+        const row = ledgerData[i];
+        if (row[ledgerBatchIdIndex] === batchId) {
+          ledgerSheet.deleteRow(i + 1); // +1 because sheet rows are 1-indexed
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Historical balance deleted successfully'
+    };
+  } catch (error) {
+    Logger.log('Error in deleteHistoricalBalance: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error deleting historical balance: ' + error.message
+    };
+  }
+}
