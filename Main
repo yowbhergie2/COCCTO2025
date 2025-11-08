@@ -30,13 +30,13 @@
               <span>Employees</span>
             </div>
             <div class="nav-dropdown" id="cocDropdown">
-              <div class="nav-dropdown-toggle" onclick="toggleDropdown('cocDropdown', event)">
+              <div class="nav-dropdown-toggle">
                 <i class="fas fa-business-time"></i>
                 <span>COC</span>
                 <i class="fas fa-chevron-down"></i>
               </div>
               <div class="nav-dropdown-menu">
-                <div class="nav-dropdown-item" onclick="navigateToCOCPage('logovertime')" data-view="logovertime">
+                <div class="nav-dropdown-item" data-page="logovertime" data-view="logovertime">
                   <i class="fas fa-clock"></i>
                   <span>Log Overtime</span>
                 </div>
@@ -48,7 +48,7 @@
                   <i class="fas fa-calendar-check"></i>
                   <span>Log CTO</span>
                 </div>
-                <div class="nav-dropdown-item" onclick="navigateToCOCPage('uncertifiedreport')" data-view="uncertifiedreport">
+                <div class="nav-dropdown-item" data-page="uncertifiedreport" data-view="uncertifiedreport">
                   <i class="fas fa-list-alt"></i>
                   <span>Uncertified Report</span>
                 </div>
@@ -94,6 +94,9 @@
     loadCurrentUser();
     loadDashboard();
 
+    // Setup COC dropdown event listeners
+    setupCOCDropdown();
+
     function loadCurrentUser() {
       google.script.run
         .withSuccessHandler(email => {
@@ -121,32 +124,45 @@
     }
 
     /**
-     * Toggle dropdown menu
+     * Setup COC dropdown functionality
      */
-    function toggleDropdown(dropdownId, event) {
-      // Stop event from bubbling to document listener
-      if (event) {
-        event.stopPropagation();
-      }
+    function setupCOCDropdown() {
+      const dropdown = document.getElementById('cocDropdown');
+      const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+      const items = dropdown.querySelectorAll('.nav-dropdown-item:not(.disabled)');
 
-      const dropdown = document.getElementById(dropdownId);
-      const isOpen = dropdown.classList.contains('open');
+      // Toggle dropdown on click
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.contains('open');
 
-      // Close all dropdowns first
-      document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
-
-      // Toggle this dropdown
-      if (!isOpen) {
-        dropdown.classList.add('open');
-      }
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(event) {
-      if (!event.target.closest('.nav-dropdown')) {
+        // Close all dropdowns
         document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
-      }
-    });
+
+        // Toggle this dropdown
+        if (!isOpen) {
+          dropdown.classList.add('open');
+        }
+      });
+
+      // Handle menu item clicks
+      items.forEach(item => {
+        item.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const page = this.getAttribute('data-page');
+          if (page) {
+            navigateToCOCPage(page);
+          }
+        });
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', function(event) {
+        if (!event.target.closest('.nav-dropdown')) {
+          document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
+        }
+      });
+    }
 
     /**
      * Navigate to COC sub-page
