@@ -1102,6 +1102,10 @@ function getEmployeeLedgerDetailed(employeeId) {
         const yearIndex = overtimeHeaders.indexOf('Year');
         const dateWorkedIndex = overtimeHeaders.indexOf('DateWorked');
         const dayTypeIndex = overtimeHeaders.indexOf('DayType');
+        const amInIndex = overtimeHeaders.indexOf('AMIn');
+        const amOutIndex = overtimeHeaders.indexOf('AMOut');
+        const pmInIndex = overtimeHeaders.indexOf('PMIn');
+        const pmOutIndex = overtimeHeaders.indexOf('PMOut');
         const cocEarnedIndex = overtimeHeaders.indexOf('COCEarned');
         const certifiedIndex = overtimeHeaders.indexOf('Certified');
         const validUntilIndex = overtimeHeaders.indexOf('ValidUntil');
@@ -1143,6 +1147,10 @@ function getEmployeeLedgerDetailed(employeeId) {
               year: row[yearIndex],
               dateWorked: formatDate(new Date(row[dateWorkedIndex])),
               dayType: row[dayTypeIndex],
+              amIn: row[amInIndex] || '',
+              amOut: row[amOutIndex] || '',
+              pmIn: row[pmInIndex] || '',
+              pmOut: row[pmOutIndex] || '',
               cocEarned: cocEarned,
               validUntil: validUntil,
               status: status,
@@ -1170,6 +1178,10 @@ function getEmployeeLedgerDetailed(employeeId) {
         year: tx.year,
         dateWorked: tx.dateWorked,
         dayType: tx.dayType,
+        amIn: tx.amIn || '',
+        amOut: tx.amOut || '',
+        pmIn: tx.pmIn || '',
+        pmOut: tx.pmOut || '',
         cocEarned: tx.cocEarned,
         cocUsed: tx.cocUsed || 0,
         cocRemaining: tx.cocRemaining || 0,

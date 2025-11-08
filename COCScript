@@ -1542,80 +1542,139 @@
     }
 
     // ========================================
-    // PART 2: Render COC Ledger (Current Transactions)
+    // PART 2: Render COC Ledger (Certificates)
     // ========================================
     const ledgerTableContainer = document.getElementById('ledgerTableContainer');
     if (!ledgerTableContainer) return;
 
-    if (currentTransactions.length === 0) {
+    // Group current transactions by certificate (Month/Year)
+    const certificates = {};
+    const ctoUsage = [];
+
+    currentTransactions.forEach(tx => {
+      if (tx.status === 'Uncertified' || tx.status === 'Active' || tx.status === 'Expired') {
+        // This is part of a certificate
+        const key = `${tx.month}-${tx.year}`;
+        if (!certificates[key]) {
+          certificates[key] = {
+            month: tx.month,
+            year: tx.year,
+            cocEarned: 0,
+            cocUsed: 0,
+            cocRemaining: 0,
+            dateOfIssuance: tx.dateOfIssuance,
+            validUntil: tx.validUntil,
+            status: tx.status,
+            entries: []
+          };
+        }
+        certificates[key].cocEarned += tx.cocEarned;
+        certificates[key].entries.push(tx);
+      } else if (tx.status === 'Used') {
+        // This is CTO usage
+        ctoUsage.push(tx);
+      }
+    });
+
+    if (Object.keys(certificates).length === 0 && ctoUsage.length === 0) {
       ledgerTableContainer.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-info-circle"></i>
-          <p>No transactions found</p>
+          <p>No certificates or CTO usage found</p>
         </div>`;
       return;
     }
 
-    // Build ledger table with running balance
+    // Build ledger table with certificates and CTO usage
     let ledgerRows = '';
-    let runningBalance = 0;
+    const statusColors = {
+      'Active': '#10b981',
+      'Uncertified': '#f59e0b',
+      'Used': '#6b7280',
+      'Expired': '#ef4444'
+    };
 
-    // Sort by date (oldest first for proper running balance calculation)
-    const sortedTransactions = [...currentTransactions].sort((a, b) => {
-      const dateA = new Date(a.dateWorked);
-      const dateB = new Date(b.dateWorked);
-      return dateA - dateB;
-    });
+    // Render certificates
+    Object.keys(certificates).sort().forEach((key, index) => {
+      const cert = certificates[key];
+      const statusColor = statusColors[cert.status] || '#6b7280';
+      const dateOfIssuanceDisplay = cert.dateOfIssuance || '--';
+      const validUntilDisplay = cert.validUntil
+        ? new Date(cert.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '--';
 
-    sortedTransactions.forEach(tx => {
-      // Determine transaction type
-      let particular = '';
-      let cocEarned = 0;
-      let cocUsed = 0;
-      let dateOfCTO = '--';
-
-      if (tx.status === 'Uncertified' || tx.status === 'Active' || tx.status === 'Expired') {
-        // This is an "Earned" transaction
-        particular = `Overtime - ${tx.dayType} (${tx.month} ${tx.year})`;
-        cocEarned = tx.cocEarned;
-        runningBalance += cocEarned;
-      } else if (tx.status === 'Used') {
-        // This is a "Used" transaction (future CTO usage)
-        particular = `CTO Used`;
-        cocUsed = tx.cocEarned; // For CTO, this would be negative
-        runningBalance -= cocUsed;
-        dateOfCTO = tx.dateWorked;
-      }
-
-      const statusColors = {
-        'Active': '#10b981',
-        'Uncertified': '#f59e0b',
-        'Used': '#6b7280',
-        'Expired': '#ef4444'
-      };
-      const statusColor = statusColors[tx.status] || '#6b7280';
+      const detailsId = `cert-details-${index}`;
 
       ledgerRows += `
-        <tr style="border-bottom: 1px solid #f0f2f5;">
-          <td style="padding: 0.75rem; font-size: 0.875rem;">
-            <div style="font-weight: 500; color: #1a1f36;">${particular}</div>
-            <div style="font-size: 0.75rem; color: #697386; margin-top: 0.25rem;">${tx.dateWorked}</div>
+        <tr style="border-bottom: 1px solid #e1e4e8;">
+          <td>
+            <div style="font-weight: 600; color: #1a1f36;">Certificate - ${cert.month} ${cert.year}</div>
+            <button onclick="toggleDetails('${detailsId}')" style="margin-top: 0.25rem; padding: 0.125rem 0.5rem; font-size: 0.65rem; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 4px; cursor: pointer;">
+              <i class="fas fa-eye"></i> View Details
+            </button>
           </td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #10b981; font-size: 0.875rem;">
-            ${cocEarned > 0 ? '+' + cocEarned.toFixed(1) : '--'}
+          <td style="text-align: center; font-weight: 600; color: #10b981;">${cert.cocEarned.toFixed(1)}</td>
+          <td style="text-align: center; font-weight: 600; color: #ef4444;">${cert.cocUsed.toFixed(1)}</td>
+          <td style="text-align: center; font-weight: 600; color: #4f46e5;">${cert.cocRemaining.toFixed(1)}</td>
+          <td style="text-align: center; font-size: 0.7rem;">${dateOfIssuanceDisplay}</td>
+          <td style="text-align: center; font-size: 0.7rem;">${validUntilDisplay}</td>
+          <td style="text-align: center;">
+            <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+              ${cert.status}
+            </span>
           </td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #ef4444; font-size: 0.875rem;">
-            ${cocUsed > 0 ? '-' + cocUsed.toFixed(1) : '--'}
+        </tr>
+        <tr id="${detailsId}" style="display: none; background: #f9fafb;">
+          <td colspan="7" style="padding: 0.75rem;">
+            <div style="font-size: 0.7rem; font-weight: 600; color: #697386; margin-bottom: 0.5rem;">OVERTIME ENTRIES:</div>
+            <table style="width: 100%; font-size: 0.65rem;">
+              <thead>
+                <tr style="background: #f0f2f5;">
+                  <th style="padding: 0.25rem; text-align: left;">Date</th>
+                  <th style="padding: 0.25rem; text-align: left;">Day Type</th>
+                  <th style="padding: 0.25rem; text-align: center;">AM In</th>
+                  <th style="padding: 0.25rem; text-align: center;">AM Out</th>
+                  <th style="padding: 0.25rem; text-align: center;">PM In</th>
+                  <th style="padding: 0.25rem; text-align: center;">PM Out</th>
+                  <th style="padding: 0.25rem; text-align: center;">COC Earned</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cert.entries.map(entry => `
+                  <tr style="border-bottom: 1px solid #e1e4e8;">
+                    <td style="padding: 0.25rem;">${entry.dateWorked}</td>
+                    <td style="padding: 0.25rem;">${entry.dayType}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.amIn || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.amOut || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.pmIn || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.pmOut || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center; font-weight: 600; color: #10b981;">${entry.cocEarned.toFixed(1)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">
-            ${runningBalance.toFixed(1)}
+        </tr>
+      `;
+    });
+
+    // Render CTO usage
+    ctoUsage.forEach(cto => {
+      const statusColor = statusColors['Used'];
+      ledgerRows += `
+        <tr style="border-bottom: 1px solid #e1e4e8;">
+          <td>
+            <div style="font-weight: 600; color: #1a1f36;">CTO Used</div>
+            <div style="font-size: 0.65rem; color: #697386; margin-top: 0.125rem;">${cto.dateWorked}</div>
           </td>
-          <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">
-            ${dateOfCTO}
-          </td>
-          <td style="padding: 0.75rem; text-align: center;">
-            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
-              ${tx.status}
+          <td style="text-align: center;">--</td>
+          <td style="text-align: center; font-weight: 600; color: #ef4444;">${cto.cocEarned.toFixed(1)}</td>
+          <td style="text-align: center;">--</td>
+          <td style="text-align: center;">--</td>
+          <td style="text-align: center;">--</td>
+          <td style="text-align: center;">
+            <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+              Used
             </span>
           </td>
         </tr>
@@ -1624,15 +1683,16 @@
 
     const ledgerTable = `
       <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; border-radius: 8px;">
-          <thead style="background: #fafbfc;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead style="background: #f6f8fa;">
             <tr>
-              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Particular</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Used COCs</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining COCs</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date of CTO</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
+              <th style="text-align: left; font-weight: 600; color: #697386; text-transform: uppercase;">Type / Period</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Earned</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Used</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Date of Issuance</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
+              <th style="text-align: center; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -1643,6 +1703,20 @@
     `;
 
     ledgerTableContainer.innerHTML = ledgerTable;
+  }
+
+  /**
+   * Toggle visibility of certificate details
+   */
+  function toggleDetails(detailsId) {
+    const detailsRow = document.getElementById(detailsId);
+    if (detailsRow) {
+      if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+      } else {
+        detailsRow.style.display = 'none';
+      }
+    }
   }
 
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
