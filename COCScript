@@ -1304,7 +1304,12 @@
 
     // Get today's date in YYYY-MM-DD format for max attribute
     const today = new Date();
-    const maxDate = today.toISOString().split('T')[0];
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    const maxDateToday = today.toISOString().split('T')[0];
+
+    // Month names array
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
 
     // Render each month group
     monthGroups.forEach((group, index) => {
@@ -1313,6 +1318,23 @@
       card.id = `cert-month-${index}`;
 
       const detailsId = `cert-details-${index}`;
+
+      // --- NEW: Calculate min/max issuance dates ---
+      const monthIndex = monthNames.indexOf(group.month);
+      const year = group.year;
+
+      // Min date: Last day of earned month
+      const minIssuanceDate = new Date(year, monthIndex + 1, 0);
+      minIssuanceDate.setHours(0, 0, 0, 0);
+      const minDateStr = minIssuanceDate.toISOString().split('T')[0];
+
+      // Max date: Last day of NEXT month
+      const maxIssuanceDate = new Date(year, monthIndex + 2, 0);
+      maxIssuanceDate.setHours(0, 0, 0, 0);
+
+      // Effective max date is the EARLIER of (today) or (last day of next month)
+      const effectiveMaxDate = new Date(Math.min(today, maxIssuanceDate));
+      const maxDateStr = effectiveMaxDate.toISOString().split('T')[0];
 
       card.innerHTML = `
         <div class="month-header">
@@ -1371,7 +1393,9 @@
               Date of Issuance <span style="color: #ef4444;">*</span>
             </label>
             <input type="date" id="certDate-${index}" required class="form-input"
-                   style="max-width: 300px;" max="${maxDate}"
+                   style="max-width: 300px;" 
+                   min="${minDateStr}"
+                   max="${maxDateStr}"
                    onchange="updateCertValidUntil(${index})">
             <p style="color: #697386; font-size: 0.75rem; margin-top: 0.5rem;">
               <i class="fas fa-info-circle"></i> Valid Until: <span id="certValidUntil-${index}">--</span>
@@ -1445,15 +1469,40 @@
       return false;
     }
 
-    // Validate date is not in the future
-    const selectedDate = new Date(dateOfIssuance);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+    // === START VALIDATION BLOCK ===
+    // Note: Using T00:00:00 to ensure date comparison is local and not affected by timezone
+    const issuanceDate = new Date(dateOfIssuance + 'T00:00:00');
+    issuanceDate.setHours(0, 0, 0, 0);
 
-    if (selectedDate > today) {
+    // 1. Check if in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (issuanceDate > today) {
       showAlert('Date of Issuance cannot be in the future', 'error');
       return false;
     }
+
+    // 2. Check if on or after last day of earned month AND on or before last day of NEXT month
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthIndex = monthNames.indexOf(month);
+    
+    // Min date: Last day of earned month
+    const minIssuanceDate = new Date(year, monthIndex + 1, 0);
+    minIssuanceDate.setHours(0, 0, 0, 0);
+    const minDateStr = (minIssuanceDate.getMonth() + 1) + '/' + minIssuanceDate.getDate() + '/' + minIssuanceDate.getFullYear();
+
+    // Max date: Last day of NEXT month
+    const maxIssuanceDate = new Date(year, monthIndex + 2, 0);
+    maxIssuanceDate.setHours(0, 0, 0, 0);
+    const maxDateStr = (maxIssuanceDate.getMonth() + 1) + '/' + maxIssuanceDate.getDate() + '/' + maxIssuanceDate.getFullYear();
+
+    if (issuanceDate < minIssuanceDate || issuanceDate > maxIssuanceDate) {
+      showAlert('Date of Issuance must be between ' + minDateStr + ' and ' + maxDateStr, 'error');
+      return false;
+    }
+    // === END VALIDATION BLOCK ===
+
 
     const certBtn = document.getElementById(`certBtn-${index}`);
     const originalBtnContent = certBtn ? certBtn.innerHTML : '';
@@ -1473,19 +1522,8 @@
     google.script.run
       .withSuccessHandler(result => {
         if (result.success) {
-          showAlert(result.message, 'success');
-
-          // If PDF was generated, open it in a new tab
-          if (result.pdfUrl) {
-            setTimeout(() => {
-              window.open(result.pdfUrl, '_blank');
-            }, 500);
-          }
-
-          // Reload uncertified logs for this employee
-          setTimeout(() => {
-            selectCertEmployee(selectedCertEmployee, document.querySelector('#certEmployeeListContainer .employee-list-item.active'));
-          }, 2000);
+          // --- NEW: Use Success Modal ---
+          showSuccessModal(result.message, result.pdfUrl);
         } else {
           showAlert(result.message, 'error');
         }
@@ -1506,6 +1544,54 @@
 
     return false;
   }
+
+  // --- NEW: Success Modal Functions ---
+  /**
+   * Shows the success modal
+   */
+  function showSuccessModal(message, pdfUrl) {
+    const overlay = document.getElementById('successModalOverlay');
+    const messageEl = document.getElementById('successModalMessage');
+    const pdfButton = document.getElementById('successModalPdfButton');
+
+    if (overlay && messageEl && pdfButton) {
+      messageEl.textContent = message;
+      
+      if (pdfUrl) {
+        pdfButton.style.display = 'inline-flex';
+        pdfButton.onclick = () => {
+          window.open(pdfUrl, '_blank');
+        };
+      } else {
+        pdfButton.style.display = 'none';
+      }
+
+      overlay.style.display = 'flex';
+    } else {
+      // Fallback if modal elements aren't found
+      showAlert(message, 'success');
+      if (pdfUrl) {
+        window.open(pdfUrl, '_blank');
+      }
+    }
+  }
+
+  /**
+   * Closes the success modal and refreshes the data
+   */
+  function closeSuccessModal() {
+    const overlay = document.getElementById('successModalOverlay');
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
+
+    // Reload uncertified logs for this employee
+    if (selectedCertEmployee) {
+      selectCertEmployee(selectedCertEmployee, document.querySelector('#certEmployeeListContainer .employee-list-item.active'));
+    }
+  }
+  // --- END: Success Modal Functions ---
+
 
   // ========== EMPLOYEE LEDGER PAGE ==========
 
