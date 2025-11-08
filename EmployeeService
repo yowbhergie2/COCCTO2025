@@ -115,8 +115,8 @@ function updateEmployee(employeeId, employeeData) {
       currentDate,
       currentEmail
     ];
-    
-    updateRowById('Employees', employeeId, rowData, 1);
+
+    updateRowById('Employees', employeeId, rowData, 0);
     
     return {
       success: true,
