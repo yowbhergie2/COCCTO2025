@@ -545,6 +545,28 @@
       }
     }
 
+    // Check if date is filled but ALL time inputs are empty
+    const dateInput = row.querySelector('.date-input');
+    if (dateInput && dateInput.value) {
+      const hasAnyTime = (amInInput && amInInput.value) ||
+                         (amOutInput && amOutInput.value) ||
+                         (pmInInput && pmInInput.value) ||
+                         (pmOutInput && pmOutInput.value);
+
+      if (!hasAnyTime) {
+        // Mark all time inputs as error to show user they need at least one
+        if (amInInput) amInInput.classList.add('error');
+        if (amOutInput) amOutInput.classList.add('error');
+        if (pmInInput) pmInInput.classList.add('error');
+        if (pmOutInput) pmOutInput.classList.add('error');
+        isValid = false;
+      } else {
+        // If at least one time is entered, remove the "required" error from empty fields
+        // (but keep errors from other validation rules like range/pair validation)
+        // This is handled by the individual validateTimeInput calls above
+      }
+    }
+
     return isValid;
   }
 
@@ -615,6 +637,13 @@
       const pmOut = row.querySelector('.pm-out')?.value;
 
       if (dateInput && dateInput.value) {
+        // Check if at least one time input is filled
+        const hasAnyTime = amIn || amOut || pmIn || pmOut;
+        if (!hasAnyTime) {
+          // Skip entries with date but no time inputs
+          return;
+        }
+
         entries.push({
           dateWorked: dateInput.value,
           amIn: formatTimeFor12Hour(amIn),
@@ -626,7 +655,7 @@
     });
 
     if (entries.length === 0) {
-      showAlert('Please add at least one overtime entry with a date', 'error');
+      showAlert('Please add at least one overtime entry with date and time', 'error');
       return false;
     }
 
