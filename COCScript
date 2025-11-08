@@ -1410,16 +1410,16 @@
       employeeIdDisplay.textContent = `Employee ID: ${empId}`;
     }
 
-    // Update balance displays
+    // Update balance displays (compact format - no "hrs" suffix)
     const activeBalanceDisplay = document.getElementById('activeBalanceDisplay');
     const uncertifiedBalanceDisplay = document.getElementById('uncertifiedBalanceDisplay');
     const totalEarnedDisplay = document.getElementById('totalEarnedDisplay');
     const usedCOCsDisplay = document.getElementById('usedCOCsDisplay');
 
-    if (activeBalanceDisplay) activeBalanceDisplay.textContent = (ledgerData.activeBalance || 0).toFixed(1) + ' hrs';
-    if (uncertifiedBalanceDisplay) uncertifiedBalanceDisplay.textContent = (ledgerData.uncertifiedBalance || 0).toFixed(1) + ' hrs';
-    if (totalEarnedDisplay) totalEarnedDisplay.textContent = (ledgerData.totalEarned || 0).toFixed(1) + ' hrs';
-    if (usedCOCsDisplay) usedCOCsDisplay.textContent = (ledgerData.usedCOCs || 0).toFixed(1) + ' hrs';
+    if (activeBalanceDisplay) activeBalanceDisplay.textContent = (ledgerData.activeBalance || 0).toFixed(1);
+    if (uncertifiedBalanceDisplay) uncertifiedBalanceDisplay.textContent = (ledgerData.uncertifiedBalance || 0).toFixed(1);
+    if (totalEarnedDisplay) totalEarnedDisplay.textContent = (ledgerData.totalEarned || 0).toFixed(1);
+    if (usedCOCsDisplay) usedCOCsDisplay.textContent = (ledgerData.usedCOCs || 0).toFixed(1);
 
     // Separate historical data from current transactions
     const transactions = ledgerData.transactions || [];
@@ -1495,10 +1495,10 @@
               </tbody>
             </table>
           </div>
-          <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 6px; border: 1px solid #e1e4e8;">
+          <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 4px; border: 1px solid #e1e4e8;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600; color: #1a1f36;">Total Historical Balance:</span>
-              <span style="font-size: 1.25rem; font-weight: 700; color: #4f46e5;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+              <span style="font-weight: 600; color: #1a1f36; font-size: 0.75rem;">Total:</span>
+              <span style="font-size: 1rem; font-weight: 700; color: #4f46e5;">${totalHistoricalEarned.toFixed(1)} hrs</span>
             </div>
           </div>
         `;

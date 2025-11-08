@@ -1,47 +1,60 @@
 <style>
   /* Custom layout for Employee Ledger - narrower left panel for more table space */
   #employeeListPanel {
-    width: 280px;
+    width: 240px;
     flex-shrink: 0;
   }
 
   #employeeLedgerPanel {
     flex: 1;
     min-width: 0; /* Allow panel to shrink below content width */
+    overflow-x: auto; /* Allow horizontal scroll if needed */
   }
 
   /* Override split-view for this page */
   .split-view {
     display: flex !important;
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
-  /* More compact table styling for ledger tables */
+  /* Very compact table styling for ledger tables */
   #beginningBalanceContainer table th,
   #beginningBalanceContainer table td,
   #ledgerTableContainer table th,
   #ledgerTableContainer table td {
-    padding: 0.5rem 0.4rem !important;
-    font-size: 0.8rem !important;
+    padding: 0.35rem 0.25rem !important;
+    font-size: 0.7rem !important;
+    white-space: nowrap;
   }
 
   #beginningBalanceContainer table th,
   #ledgerTableContainer table th {
-    font-size: 0.7rem !important;
+    font-size: 0.65rem !important;
+    padding: 0.4rem 0.25rem !important;
   }
 
-  /* Responsive balance cards - make them stack better */
+  /* Compact balance cards */
   .balance-cards {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
 
-  @media (max-width: 1400px) {
-    .balance-cards {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  .balance-card {
+    padding: 0.75rem 0.5rem !important;
+    border-radius: 6px !important;
+  }
+
+  .balance-card-label {
+    font-size: 0.65rem !important;
+    opacity: 0.9;
+    margin-bottom: 0.25rem;
+  }
+
+  .balance-card-value {
+    font-size: 1.25rem !important;
+    font-weight: 700;
   }
 </style>
 
@@ -81,13 +94,12 @@
       <!-- Ledger Content (hidden by default) -->
       <div id="ledgerContent" style="display: none;">
       <!-- Employee Info -->
-      <div id="employeeInfoSection" style="margin-bottom: 1.5rem; padding: 0.875rem; background: #f9fafb; border: 1px solid #e1e4e8; border-radius: 8px;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <i class="fas fa-user-circle" style="font-size: 1.75rem; color: #4f46e5;"></i>
+      <div id="employeeInfoSection" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: #f9fafb; border: 1px solid #e1e4e8; border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-user-circle" style="font-size: 1.25rem; color: #4f46e5;"></i>
           <div>
-            <div style="font-size: 0.75rem; color: #697386;">Viewing ledger for:</div>
-            <div id="employeeNameDisplay" style="font-size: 1rem; font-weight: 600; color: #1a1f36;">--</div>
-            <div id="employeeIdDisplay" style="font-size: 0.75rem; color: #697386;">Employee ID: --</div>
+            <div id="employeeNameDisplay" style="font-size: 0.875rem; font-weight: 600; color: #1a1f36;">--</div>
+            <div id="employeeIdDisplay" style="font-size: 0.7rem; color: #697386;">Employee ID: --</div>
           </div>
         </div>
       </div>
@@ -95,44 +107,44 @@
       <!-- Balance Summary Cards -->
       <div class="balance-cards">
         <!-- Active Balance -->
-        <div style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; padding: 1.25rem; border-radius: 8px;">
-          <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;">Active COC Balance</div>
-          <div id="activeBalanceDisplay" style="font-size: 2rem; font-weight: 700;">0.0 hrs</div>
+        <div class="balance-card" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white;">
+          <div class="balance-card-label">Active</div>
+          <div class="balance-card-value" id="activeBalanceDisplay">0.0</div>
         </div>
 
         <!-- Uncertified -->
-        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 1.25rem; border-radius: 8px;">
-          <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;">Uncertified</div>
-          <div id="uncertifiedBalanceDisplay" style="font-size: 2rem; font-weight: 700;">0.0 hrs</div>
+        <div class="balance-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+          <div class="balance-card-label">Uncertified</div>
+          <div class="balance-card-value" id="uncertifiedBalanceDisplay">0.0</div>
         </div>
 
         <!-- Total Earned -->
-        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.25rem; border-radius: 8px;">
-          <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Earned</div>
-          <div id="totalEarnedDisplay" style="font-size: 2rem; font-weight: 700;">0.0 hrs</div>
+        <div class="balance-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+          <div class="balance-card-label">Total Earned</div>
+          <div class="balance-card-value" id="totalEarnedDisplay">0.0</div>
         </div>
 
         <!-- Used COCs -->
-        <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); color: white; padding: 1.25rem; border-radius: 8px;">
-          <div style="font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.5rem;">Used COCs</div>
-          <div id="usedCOCsDisplay" style="font-size: 2rem; font-weight: 700;">0.0 hrs</div>
+        <div class="balance-card" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); color: white;">
+          <div class="balance-card-label">Used</div>
+          <div class="balance-card-value" id="usedCOCsDisplay">0.0</div>
         </div>
       </div>
 
       <!-- Beginning Balance (Historical Data) -->
-      <div id="beginningBalanceSection" style="margin-top: 1.5rem; display: none;">
-        <h3 style="font-size: 1rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.875rem;">
-          <i class="fas fa-history"></i> Beginning Balance (Historical Data)
+      <div id="beginningBalanceSection" style="margin-top: 1rem; display: none;">
+        <h3 style="font-size: 0.875rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">
+          <i class="fas fa-history" style="font-size: 0.75rem;"></i> Beginning Balance
         </h3>
-        <div id="beginningBalanceContainer" style="background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 8px; padding: 0.875rem;">
+        <div id="beginningBalanceContainer" style="background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px; padding: 0.5rem;">
           <!-- Populated by JavaScript -->
         </div>
       </div>
 
       <!-- COC Ledger -->
-      <div style="margin-top: 1.5rem;">
-        <h3 style="font-size: 1rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.875rem;">
-          <i class="fas fa-book"></i> COC Ledger
+      <div style="margin-top: 1rem;">
+        <h3 style="font-size: 0.875rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">
+          <i class="fas fa-book" style="font-size: 0.75rem;"></i> COC Ledger
         </h3>
         <div id="ledgerTableContainer">
           <div class="empty-state">
