@@ -1279,22 +1279,126 @@
     if (totalEarnedDisplay) totalEarnedDisplay.textContent = ledgerData.totalEarned.toFixed(1) + ' hrs';
     if (usedCOCsDisplay) usedCOCsDisplay.textContent = ledgerData.usedCOCs.toFixed(1) + ' hrs';
 
-    // Render transaction history
-    const transactionContainer = document.getElementById('transactionHistoryContainer');
-    if (!transactionContainer) return;
+    // Separate historical data from current transactions
+    const historicalData = ledgerData.transactions.filter(tx => tx.isHistorical);
+    const currentTransactions = ledgerData.transactions.filter(tx => !tx.isHistorical);
 
-    if (!ledgerData.transactions || ledgerData.transactions.length === 0) {
-      transactionContainer.innerHTML = `
+    // ========================================
+    // PART 1: Render Beginning Balance (Historical Data)
+    // ========================================
+    const beginningBalanceSection = document.getElementById('beginningBalanceSection');
+    const beginningBalanceContainer = document.getElementById('beginningBalanceContainer');
+
+    if (historicalData.length > 0) {
+      if (beginningBalanceSection) beginningBalanceSection.style.display = 'block';
+
+      if (beginningBalanceContainer) {
+        let historicalRows = '';
+        let totalHistoricalEarned = 0;
+        let totalHistoricalRemaining = 0;
+
+        historicalData.forEach(tx => {
+          const statusColors = {
+            'Active': '#10b981',
+            'Used': '#6b7280',
+            'Expired': '#ef4444'
+          };
+          const statusColor = statusColors[tx.status] || '#6b7280';
+
+          const validUntilDisplay = tx.validUntil
+            ? new Date(tx.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '--';
+
+          totalHistoricalEarned += tx.cocEarned;
+
+          historicalRows += `
+            <tr style="border-bottom: 1px solid #e1e4e8;">
+              <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.month} ${tx.year}</td>
+              <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #10b981; font-size: 0.875rem;">${tx.cocEarned.toFixed(1)} hrs</td>
+              <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${validUntilDisplay}</td>
+              <td style="padding: 0.75rem; text-align: center;">
+                <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+                  ${tx.status}
+                </span>
+              </td>
+            </tr>
+          `;
+        });
+
+        beginningBalanceContainer.innerHTML = `
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead style="background: #f6f8fa;">
+                <tr>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Period</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${historicalRows}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 6px; border: 1px solid #e1e4e8;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600; color: #1a1f36;">Total Historical Balance:</span>
+              <span style="font-size: 1.25rem; font-weight: 700; color: #4f46e5;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      if (beginningBalanceSection) beginningBalanceSection.style.display = 'none';
+    }
+
+    // ========================================
+    // PART 2: Render COC Ledger (Current Transactions)
+    // ========================================
+    const ledgerTableContainer = document.getElementById('ledgerTableContainer');
+    if (!ledgerTableContainer) return;
+
+    if (currentTransactions.length === 0) {
+      ledgerTableContainer.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-info-circle"></i>
-          <p>No transactions found for this employee</p>
+          <p>No transactions found</p>
         </div>`;
       return;
     }
 
-    // Build transaction table
-    let transactionRows = '';
-    ledgerData.transactions.forEach(tx => {
+    // Build ledger table with running balance
+    let ledgerRows = '';
+    let runningBalance = 0;
+
+    // Sort by date (oldest first for proper running balance calculation)
+    const sortedTransactions = [...currentTransactions].sort((a, b) => {
+      const dateA = new Date(a.dateWorked);
+      const dateB = new Date(b.dateWorked);
+      return dateA - dateB;
+    });
+
+    sortedTransactions.forEach(tx => {
+      // Determine transaction type
+      let particular = '';
+      let cocEarned = 0;
+      let cocUsed = 0;
+      let dateOfCTO = '--';
+
+      if (tx.status === 'Uncertified' || tx.status === 'Active' || tx.status === 'Expired') {
+        // This is an "Earned" transaction
+        particular = `Overtime - ${tx.dayType} (${tx.month} ${tx.year})`;
+        cocEarned = tx.cocEarned;
+        runningBalance += cocEarned;
+      } else if (tx.status === 'Used') {
+        // This is a "Used" transaction (future CTO usage)
+        particular = `CTO Used`;
+        cocUsed = tx.cocEarned; // For CTO, this would be negative
+        runningBalance -= cocUsed;
+        dateOfCTO = tx.dateWorked;
+      }
+
       const statusColors = {
         'Active': '#10b981',
         'Uncertified': '#f59e0b',
@@ -1303,17 +1407,24 @@
       };
       const statusColor = statusColors[tx.status] || '#6b7280';
 
-      const validUntilDisplay = tx.validUntil
-        ? new Date(tx.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : '--';
-
-      transactionRows += `
+      ledgerRows += `
         <tr style="border-bottom: 1px solid #f0f2f5;">
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.month} ${tx.year}</td>
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dateWorked}</td>
-          <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.dayType}</td>
-          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">${tx.cocEarned.toFixed(1)}</td>
-          <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${validUntilDisplay}</td>
+          <td style="padding: 0.75rem; font-size: 0.875rem;">
+            <div style="font-weight: 500; color: #1a1f36;">${particular}</div>
+            <div style="font-size: 0.75rem; color: #697386; margin-top: 0.25rem;">${tx.dateWorked}</div>
+          </td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #10b981; font-size: 0.875rem;">
+            ${cocEarned > 0 ? '+' + cocEarned.toFixed(1) : '--'}
+          </td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #ef4444; font-size: 0.875rem;">
+            ${cocUsed > 0 ? '-' + cocUsed.toFixed(1) : '--'}
+          </td>
+          <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">
+            ${runningBalance.toFixed(1)}
+          </td>
+          <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">
+            ${dateOfCTO}
+          </td>
           <td style="padding: 0.75rem; text-align: center;">
             <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
               ${tx.status}
@@ -1323,27 +1434,27 @@
       `;
     });
 
-    const transactionTable = `
+    const ledgerTable = `
       <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse;">
+        <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; border-radius: 8px;">
           <thead style="background: #fafbfc;">
             <tr>
-              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
-              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date Worked</th>
-              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Day Type</th>
+              <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Particular</th>
               <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
-              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Used COCs</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining COCs</th>
+              <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date of CTO</th>
               <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
             </tr>
           </thead>
           <tbody>
-            ${transactionRows}
+            ${ledgerRows}
           </tbody>
         </table>
       </div>
     `;
 
-    transactionContainer.innerHTML = transactionTable;
+    ledgerTableContainer.innerHTML = ledgerTable;
   }
 
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
