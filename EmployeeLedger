@@ -42,15 +42,25 @@
         </div>
       </div>
 
-      <!-- Transaction History -->
+      <!-- Beginning Balance (Historical Data) -->
+      <div id="beginningBalanceSection" style="margin-top: 2rem; display: none;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">
+          <i class="fas fa-history"></i> Beginning Balance (Historical Data)
+        </h3>
+        <div id="beginningBalanceContainer" style="background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 8px; padding: 1rem;">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- COC Ledger -->
       <div style="margin-top: 2rem;">
         <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">
-          <i class="fas fa-history"></i> Transaction History
+          <i class="fas fa-book"></i> COC Ledger
         </h3>
-        <div id="transactionHistoryContainer">
+        <div id="ledgerTableContainer">
           <div class="empty-state">
             <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading transactions...</p>
+            <p>Loading ledger...</p>
           </div>
         </div>
       </div>
