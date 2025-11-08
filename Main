@@ -54,6 +54,8 @@
                 </div>
               </div>
             </div>
+            <!-- === END OF MODIFICATION === -->
+            
             <div class="nav-link" onclick="navigateTo('reports')" data-view="reports">
               <i class="fas fa-chart-line"></i>
               <span>Reports</span>
@@ -172,7 +174,11 @@
      * Main navigation function
      */
     function navigateTo(view) {
-      if (currentView === view) return; // Do nothing if clicking the same tab
+      // Don't reload if clicking the same view
+      if (currentView === view) {
+         closeAllDropdowns(); // Still close dropdown if a sub-link is clicked
+         return;
+      }
 
       // Close all dropdowns
       document.querySelectorAll('.nav-dropdown').forEach(d => d.classList.remove('open'));
@@ -188,7 +194,6 @@
       // *** FIX: Show spinner IMMEDIATELY ***
       showMainContentSpinner();
 
-      // Load content after a short delay to let spinner render
       setTimeout(() => {
         switch(view) {
           case 'dashboard': loadDashboard(); break;
@@ -198,6 +203,40 @@
         }
       }, 50); // 50ms delay
     }
+    
+    // === NEW: Functions to control the dropdown menu ===
+    
+    /**
+     * Toggles a specific dropdown menu.
+     * @param {Event} event - The click event.
+     * @param {string} dropdownId - The ID of the dropdown menu to toggle.
+     */
+    function toggleDropdown(event, dropdownId) {
+      event.stopPropagation(); // Prevents window.onclick from firing
+      const dropdown = document.getElementById(dropdownId);
+      const isShown = dropdown.classList.contains('show');
+      closeAllDropdowns(); // Close all others first
+      if (!isShown) {
+        dropdown.classList.add('show');
+      }
+    }
+
+    /**
+     * Closes all open dropdown menus.
+     */
+    function closeAllDropdowns() {
+      document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
+        menu.classList.remove('show');
+      });
+    }
+
+    // Add a global click listener to close dropdowns when clicking outside
+    window.onclick = function(event) {
+      if (!event.target.closest('.nav-dropdown-container')) {
+        closeAllDropdowns();
+      }
+    }
+    // === END OF NEW FUNCTIONS ===
 
     function loadDashboard() {
       google.script.run
@@ -266,6 +305,18 @@
           document.getElementById('mainContent').innerHTML = `<p>Error loading Uncertified Report: ${err.message}</p>`;
         })
         .include('UncertifiedReport');
+    }
+
+    // === NEW: Function to load specific COC placeholder pages ===
+    function loadSpecificCOCView(viewName) {
+      google.script.run
+        .withSuccessHandler(html => {
+          document.getElementById('mainContent').innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          document.getElementById('mainContent').innerHTML = `<p>Error loading view: ${err.message}</p>`;
+        })
+        .include(viewName); // e.g., 'COC_LogOvertime'
     }
 
     function loadReportsView() {
