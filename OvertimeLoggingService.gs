@@ -1178,7 +1178,10 @@ function getEmployeeLedgerDetailed(employeeId) {
               pmIn: formatTime(row[pmInIndex]),
               pmOut: formatTime(row[pmOutIndex]),
               cocEarned: cocEarned,
-              validUntil: validUntil,
+              cocUsed: 0,  // Current transactions haven't been used yet
+              cocRemaining: cocEarned,  // Remaining equals earned for current transactions
+              dateOfIssuance: certified ? formatDate(new Date()) : null,  // Use current date if certified
+              validUntil: validUntil ? formatDate(validUntil) : null,
               status: status,
               isHistorical: false
             });
