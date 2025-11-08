@@ -1541,12 +1541,41 @@
     }
 
     // ========================================
-    // PART 2: Render COC Ledger (Current Transactions)
+    // PART 2: Render COC Ledger (Certificates)
     // ========================================
     const ledgerTableContainer = document.getElementById('ledgerTableContainer');
     if (!ledgerTableContainer) return;
 
-    if (currentTransactions.length === 0) {
+    // Group current transactions by certificate (Month/Year)
+    const certificates = {};
+    const ctoUsage = [];
+
+    currentTransactions.forEach(tx => {
+      if (tx.status === 'Uncertified' || tx.status === 'Active' || tx.status === 'Expired') {
+        // This is part of a certificate
+        const key = `${tx.month}-${tx.year}`;
+        if (!certificates[key]) {
+          certificates[key] = {
+            month: tx.month,
+            year: tx.year,
+            cocEarned: 0,
+            cocUsed: 0,
+            cocRemaining: 0,
+            dateOfIssuance: tx.dateOfIssuance,
+            validUntil: tx.validUntil,
+            status: tx.status,
+            entries: []
+          };
+        }
+        certificates[key].cocEarned += tx.cocEarned;
+        certificates[key].entries.push(tx);
+      } else if (tx.status === 'Used') {
+        // This is CTO usage
+        ctoUsage.push(tx);
+      }
+    });
+
+    if (Object.keys(certificates).length === 0 && ctoUsage.length === 0) {
       ledgerTableContainer.innerHTML = `
         <div class="empty-state">
           <i class="fas fa-info-circle"></i>
@@ -1555,44 +1584,25 @@
       return;
     }
 
-    // Build ledger table with running balance
+    // Build ledger table with certificates and CTO usage
     let ledgerRows = '';
-    let runningBalance = 0;
+    const statusColors = {
+      'Active': '#10b981',
+      'Uncertified': '#f59e0b',
+      'Used': '#6b7280',
+      'Expired': '#ef4444'
+    };
 
-    // Sort by date (oldest first for proper running balance calculation)
-    const sortedTransactions = [...currentTransactions].sort((a, b) => {
-      const dateA = new Date(a.dateWorked);
-      const dateB = new Date(b.dateWorked);
-      return dateA - dateB;
-    });
+    // Render certificates
+    Object.keys(certificates).sort().forEach((key, index) => {
+      const cert = certificates[key];
+      const statusColor = statusColors[cert.status] || '#6b7280';
+      const dateOfIssuanceDisplay = cert.dateOfIssuance || '--';
+      const validUntilDisplay = cert.validUntil
+        ? new Date(cert.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '--';
 
-    sortedTransactions.forEach(tx => {
-      // Determine transaction type
-      let particular = '';
-      let cocEarned = 0;
-      let cocUsed = 0;
-      let dateOfCTO = '--';
-
-      if (tx.status === 'Uncertified' || tx.status === 'Active' || tx.status === 'Expired') {
-        // This is an "Earned" transaction
-        particular = `Overtime - ${tx.dayType} (${tx.month} ${tx.year})`;
-        cocEarned = tx.cocEarned;
-        runningBalance += cocEarned;
-      } else if (tx.status === 'Used') {
-        // This is a "Used" transaction (future CTO usage)
-        particular = `CTO Used`;
-        cocUsed = tx.cocEarned; // For CTO, this would be negative
-        runningBalance -= cocUsed;
-        dateOfCTO = tx.dateWorked;
-      }
-
-      const statusColors = {
-        'Active': '#10b981',
-        'Uncertified': '#f59e0b',
-        'Used': '#6b7280',
-        'Expired': '#ef4444'
-      };
-      const statusColor = statusColors[tx.status] || '#6b7280';
+      const detailsId = `cert-details-${index}`;
 
       // Note: Removed inline styles, will be controlled by <style> tag in EmployeeLedger
       ledgerRows += `
@@ -1643,6 +1653,20 @@
     `;
 
     ledgerTableContainer.innerHTML = ledgerTable;
+  }
+
+  /**
+   * Toggle visibility of certificate details
+   */
+  function toggleDetails(detailsId) {
+    const detailsRow = document.getElementById(detailsId);
+    if (detailsRow) {
+      if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+      } else {
+        detailsRow.style.display = 'none';
+      }
+    }
   }
 
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
