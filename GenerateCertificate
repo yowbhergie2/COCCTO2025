@@ -1,0 +1,82 @@
+<div class="page-header">
+  <h1 class="page-title">Generate COC Certificate</h1>
+  <p class="page-subtitle">Activate uncertified overtime credits by issuing certificates</p>
+</div>
+
+<div class="card">
+  <div class="card-body" style="text-align: center; padding: 4rem 2rem;">
+    <div style="margin-bottom: 2rem;">
+      <i class="fas fa-certificate" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+    </div>
+
+    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">
+      Coming in Phase 3
+    </h2>
+
+    <p style="color: #697386; font-size: 1rem; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
+      This feature will allow HR Staff to generate certificates for uncertified overtime credits.
+      Once activated, credits will be available for use and an expiration date will be set.
+    </p>
+
+    <div class="info-box" style="text-align: left; max-width: 700px; margin: 0 auto;">
+      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
+        <i class="fas fa-lightbulb"></i> <strong>What this feature will do:</strong>
+      </p>
+      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
+        <li>Select an employee and date range of uncertified overtime</li>
+        <li>Preview total hours to be certified</li>
+        <li>Generate certificate number (format: COC-YYYY-####)</li>
+        <li>Set "Valid Until" date (6 months from certificate date)</li>
+        <li>Activate credits and make them available for CTO usage</li>
+        <li>Send email notification to employee</li>
+        <li>Validate against 120-hour total balance cap</li>
+      </ul>
+    </div>
+
+    <div style="margin-top: 2rem;">
+      <button class="btn btn-secondary" disabled>
+        <i class="fas fa-lock"></i> Feature Locked
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview of Future Layout -->
+<div class="card" style="margin-top: 1.5rem; opacity: 0.5;">
+  <div class="card-header">
+    <div class="card-title">Certificate Preview (Coming Soon)</div>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Employee</label>
+        <select class="form-input" disabled>
+          <option>-- Select Employee --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date Range</label>
+        <input type="text" class="form-input" disabled placeholder="Select date range">
+      </div>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 0.875rem; color: #697386;">Total Hours to Certify</div>
+          <div style="font-size: 2rem; font-weight: 700; color: #1a1f36;">0.0 hrs</div>
+        </div>
+        <div>
+          <div style="font-size: 0.875rem; color: #697386;">Valid Until</div>
+          <div style="font-size: 1.25rem; font-weight: 600; color: #1a1f36;">--/--/----</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: right; margin-top: 1.5rem;">
+      <button class="btn btn-primary" disabled>
+        <i class="fas fa-certificate"></i> Generate Certificate
+      </button>
+    </div>
+  </div>
+</div>

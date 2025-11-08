@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <?!= include('Styles'); ?>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: transparent;
+    }
+
+    .entry-grid {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    .entry-grid th {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      text-align: left;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #1a1f36;
+      border-bottom: 2px solid #e8ebed;
+    }
+
+    .entry-grid td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e8ebed;
+    }
+
+    .entry-grid input,
+    .entry-grid select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #e8ebed;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .entry-grid input:focus,
+    .entry-grid select:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .delete-row-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .delete-row-btn:hover {
+      background: #dc2626;
+    }
+
+    .coc-earned-cell {
+      font-weight: 600;
+      color: #4f46e5;
+      text-align: center;
+    }
+
+    .day-type-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .day-type-weekday {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .day-type-weekend {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .day-type-holiday {
+      background: #fce7f3;
+      color: #9f1239;
+    }
+
+    .grand-total-box {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+
+    .grand-total-label {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+    }
+
+    .grand-total-value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div style="
+    width: 95%;
+    max-width: 1200px;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  ">
+    <div style="margin-bottom: 2rem;">
+      <h2 style="font-size: 1.5rem; font-weight: 700; color: #1a1f36; margin-bottom: 0.5rem;">
+        Log Overtime (Add COC)
+      </h2>
+      <p style="color: #697386; font-size: 0.9375rem;">
+        Record approved overtime work. Each entry will be saved as "Uncertified" until a certificate is generated.
+      </p>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
+
+    <form id="overtimeForm" onsubmit="return handleFormSubmit(event)">
+      <!-- Employee, Month, Year Selection -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
+          <select name="employeeId" id="employeeId" required class="form-input">
+            <option value="">-- Select Employee --</option>
+            <!-- Populated by server -->
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Month <span style="color: #ef4444;">*</span></label>
+          <select name="month" id="month" required class="form-input">
+            <option value="">-- Select --</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Year <span style="color: #ef4444;">*</span></label>
+          <select name="year" id="year" required class="form-input">
+            <option value="">-- Select --</option>
+            <!-- Years populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Entry Grid -->
+      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">Overtime Entries</h3>
+          <button type="button" class="btn btn-secondary" onclick="addRow()">
+            <i class="fas fa-plus"></i> Add Day
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="entry-grid" id="entryTable">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Date Worked</th>
+                <th style="width: 100px;">Day Type</th>
+                <th style="width: 100px;">AM In</th>
+                <th style="width: 100px;">AM Out</th>
+                <th style="width: 100px;">PM In</th>
+                <th style="width: 100px;">PM Out</th>
+                <th style="width: 100px;">COC Earned</th>
+                <th style="width: 80px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="entryTableBody">
+              <!-- Rows added dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <p style="color: #697386; font-size: 0.875rem; margin-top: 1rem;">
+          <i class="fas fa-info-circle"></i> <strong>Note:</strong> COC Earned is auto-calculated based on policy rules.
+          Weekdays: 5PM-7PM window (max 2 hrs × 1.0x). Weekends/Holidays: 8AM-12PM & 1PM-5PM windows × 1.5x rate.
+        </p>
+      </div>
+
+      <!-- Grand Total -->
+      <div class="grand-total-box">
+        <div class="grand-total-label">Grand Total COC Earned</div>
+        <div class="grand-total-value" id="grandTotal">0.0 hours</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
+        <button type="button" onclick="hideOverlay()" class="btn btn-secondary">Cancel</button>
+        <button type="submit" id="saveBtn" class="btn btn-primary">Save Overtime Batch</button>
+      </div>
+    </form>
+
+    <!-- Error Modal -->
+    <div id="errorModal" style="
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    ">
+      <div style="
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+      ">
+        <i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">Error</h3>
+        <p id="errorModalMessage" style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;"></p>
+        <button type="button" onclick="hideErrorModal()" class="btn btn-primary" style="background: #ef4444; width: 100%; justify-content: center;">
+          Okay
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rowCounter = 0;
+
+    // Initialize form
+    function initForm() {
+      // Populate years (current year and 2 years back)
+      const yearSelect = document.getElementById('year');
+      const currentYear = new Date().getFullYear();
+      for (let i = 0; i <= 2; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (i === 0) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+
+      // Load employees
+      google.script.run
+        .withSuccessHandler(employees => {
+          const empSelect = document.getElementById('employeeId');
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            empSelect.appendChild(option);
+          });
+        })
+        .withFailureHandler(err => {
+          showErrorModal('Error loading employees: ' + err.message);
+        })
+        .getEmployeesForDropdown();
+
+      // Add first row
+      addRow();
+    }
+
+    // Add a new entry row
+    function addRow() {
+      rowCounter++;
+      const tbody = document.getElementById('entryTableBody');
+      const row = document.createElement('tr');
+      row.id = 'row-' + rowCounter;
+
+      row.innerHTML = `
+        <td>
+          <input type="date" class="date-input" onchange="updateRow(${rowCounter})" required>
+        </td>
+        <td>
+          <div class="day-type-badge day-type-weekday" id="dayType-${rowCounter}">Weekday</div>
+        </td>
+        <td>
+          <input type="time" class="am-in" oninput="updateRow(${rowCounter})">
+        </td>
+        <td>
+          <input type="time" class="am-out" oninput="updateRow(${rowCounter})">
+        </td>
+        <td>
+          <input type="time" class="pm-in" oninput="updateRow(${rowCounter})">
+        </td>
+        <td>
+          <input type="time" class="pm-out" oninput="updateRow(${rowCounter})">
+        </td>
+        <td class="coc-earned-cell" id="cocEarned-${rowCounter}">0.0</td>
+        <td>
+          <button type="button" class="delete-row-btn" onclick="deleteRow(${rowCounter})">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    }
+
+    // Update row calculations
+    function updateRow(rowId) {
+      const row = document.getElementById('row-' + rowId);
+      if (!row) return;
+
+      const dateInput = row.querySelector('.date-input');
+      const dayTypeDiv = document.getElementById('dayType-' + rowId);
+      const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
+
+      // Determine day type
+      if (dateInput.value) {
+        const date = new Date(dateInput.value);
+        const dayOfWeek = date.getDay();
+
+        // For now, simple weekend detection (Saturday = 6, Sunday = 0)
+        // TODO: Check holidays via server call
+        let dayType = 'Weekday';
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          dayType = 'Weekend';
+        }
+
+        dayTypeDiv.textContent = dayType;
+        dayTypeDiv.className = 'day-type-badge day-type-' + dayType.toLowerCase();
+      }
+
+      // Get time inputs
+      const amIn = row.querySelector('.am-in').value;
+      const amOut = row.querySelector('.am-out').value;
+      const pmIn = row.querySelector('.pm-in').value;
+      const pmOut = row.querySelector('.pm-out').value;
+
+      // Simple client-side calculation (approximate)
+      // Server will do the accurate calculation
+      let cocEarned = 0;
+      if (dateInput.value && (amIn || amOut || pmIn || pmOut)) {
+        // Placeholder - just show "~" to indicate it will be calculated
+        cocEarnedDiv.textContent = '~';
+      } else {
+        cocEarnedDiv.textContent = '0.0';
+      }
+
+      updateGrandTotal();
+    }
+
+    // Delete a row
+    function deleteRow(rowId) {
+      const row = document.getElementById('row-' + rowId);
+      if (row) {
+        row.remove();
+        updateGrandTotal();
+      }
+
+      // Ensure at least one row exists
+      const tbody = document.getElementById('entryTableBody');
+      if (tbody.children.length === 0) {
+        addRow();
+      }
+    }
+
+    // Update grand total
+    function updateGrandTotal() {
+      // Since COC is calculated server-side, just show placeholder
+      const rows = document.querySelectorAll('#entryTableBody tr');
+      let hasData = false;
+
+      rows.forEach(row => {
+        const dateInput = row.querySelector('.date-input');
+        if (dateInput && dateInput.value) {
+          hasData = true;
+        }
+      });
+
+      const grandTotalDiv = document.getElementById('grandTotal');
+      if (hasData) {
+        grandTotalDiv.textContent = '(Calculated on save)';
+      } else {
+        grandTotalDiv.textContent = '0.0 hours';
+      }
+    }
+
+    // Handle form submission
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const employeeId = parseInt(document.getElementById('employeeId').value);
+      const month = document.getElementById('month').value;
+      const year = parseInt(document.getElementById('year').value);
+
+      if (!employeeId || !month || !year) {
+        showErrorModal('Please select Employee, Month, and Year');
+        return false;
+      }
+
+      // Collect entries
+      const entries = [];
+      const rows = document.querySelectorAll('#entryTableBody tr');
+
+      rows.forEach(row => {
+        const dateInput = row.querySelector('.date-input');
+        const amIn = row.querySelector('.am-in').value;
+        const amOut = row.querySelector('.am-out').value;
+        const pmIn = row.querySelector('.pm-in').value;
+        const pmOut = row.querySelector('.pm-out').value;
+
+        if (dateInput && dateInput.value) {
+          entries.push({
+            dateWorked: dateInput.value,
+            amIn: formatTimeFor12Hour(amIn),
+            amOut: formatTimeFor12Hour(amOut),
+            pmIn: formatTimeFor12Hour(pmIn),
+            pmOut: formatTimeFor12Hour(pmOut)
+          });
+        }
+      });
+
+      if (entries.length === 0) {
+        showErrorModal('Please add at least one overtime entry with a date');
+        return false;
+      }
+
+      // Prepare batch data
+      const batchData = {
+        employeeId: employeeId,
+        month: month,
+        year: year,
+        entries: entries
+      };
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      // Submit to server
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showMessage(result.message, 'success');
+            setTimeout(() => {
+              hideOverlay(true);
+            }, 2000);
+          } else {
+            showErrorModal(result.message);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Overtime Batch';
+          }
+        })
+        .withFailureHandler(err => {
+          showErrorModal('Error: ' + err.message);
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Overtime Batch';
+        })
+        .saveOvertimeBatch(batchData);
+    }
+
+    // Format time from 24-hour to 12-hour
+    function formatTimeFor12Hour(time24) {
+      if (!time24 || time24.trim() === '') return '';
+
+      try {
+        const [hours, minutes] = time24.split(':');
+        let h = parseInt(hours, 10);
+        const m = minutes;
+        const period = h >= 12 ? 'PM' : 'AM';
+
+        if (h === 0) h = 12;
+        else if (h > 12) h -= 12;
+
+        return `${h.toString().padStart(2, '0')}:${m} ${period}`;
+      } catch (error) {
+        return '';
+      }
+    }
+
+    function showMessage(message, type) {
+      const colors = {
+        success: { bg: '#e0e7ff', border: '#4f46e5', text: '#4338ca' },
+        error: { bg: '#fee', border: '#ef4444', text: '#ef4444' },
+        info: { bg: '#e6f3ff', border: '#3b82f6', text: '#3b82f6' }
+      };
+      const color = colors[type];
+
+      const container = document.getElementById('messageContainer');
+      if (!container) return;
+
+      container.style.cssText = `
+        background: ${color.bg};
+        border: 1px solid ${color.border};
+        color: ${color.text};
+        padding: 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.9375rem;
+        margin-bottom: 1.5rem;
+        display: block;
+      `;
+      container.textContent = message;
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showErrorModal(message) {
+      const modal = document.getElementById('errorModal');
+      const modalMessage = document.getElementById('errorModalMessage');
+
+      if (!modal || !modalMessage) {
+        alert(message);
+        return;
+      }
+
+      modalMessage.textContent = message;
+      modal.style.display = 'flex';
+    }
+
+    function hideErrorModal() {
+      const modal = document.getElementById('errorModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // Initialize on load
+    initForm();
+  </script>
+</body>
+</html>
