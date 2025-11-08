@@ -254,6 +254,10 @@
       google.script.run
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
+          // Initialize form after HTML is loaded
+          if (typeof initLogOvertimeForm === 'function') {
+            initLogOvertimeForm();
+          }
         })
         .withFailureHandler(err => {
           document.getElementById('mainContent').innerHTML = `<p>Error loading Log Overtime: ${err.message}</p>`;
@@ -287,6 +291,10 @@
       google.script.run
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
+          // Initialize report after HTML is loaded
+          if (typeof loadUncertifiedReport === 'function') {
+            loadUncertifiedReport();
+          }
         })
         .withFailureHandler(err => {
           document.getElementById('mainContent').innerHTML = `<p>Error loading Uncertified Report: ${err.message}</p>`;
