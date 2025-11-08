@@ -1448,16 +1448,24 @@
           };
           const statusColor = statusColors[tx.status] || '#6b7280';
 
+          const dateOfIssuanceDisplay = tx.dateOfIssuance || '--';
           const validUntilDisplay = tx.validUntil
             ? new Date(tx.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
             : '--';
 
-          totalHistoricalEarned += tx.cocEarned;
+          const earned = tx.cocEarned || 0;
+          const used = tx.cocUsed || 0;
+          const remaining = tx.cocRemaining || 0;
+
+          totalHistoricalEarned += earned;
 
           historicalRows += `
             <tr style="border-bottom: 1px solid #e1e4e8;">
               <td style="padding: 0.75rem; font-size: 0.875rem;">${tx.month} ${tx.year}</td>
-              <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #10b981; font-size: 0.875rem;">${tx.cocEarned.toFixed(1)} hrs</td>
+              <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #10b981; font-size: 0.875rem;">${earned.toFixed(1)}</td>
+              <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #ef4444; font-size: 0.875rem;">${used.toFixed(1)}</td>
+              <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: #4f46e5; font-size: 0.875rem;">${remaining.toFixed(1)}</td>
+              <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${dateOfIssuanceDisplay}</td>
               <td style="padding: 0.75rem; text-align: center; font-size: 0.875rem;">${validUntilDisplay}</td>
               <td style="padding: 0.75rem; text-align: center;">
                 <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
@@ -1473,8 +1481,11 @@
             <table style="width: 100%; border-collapse: collapse;">
               <thead style="background: #f6f8fa;">
                 <tr>
-                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Period</th>
-                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">COC Earned</th>
+                  <th style="padding: 0.75rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Month/Year</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Earned</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Used</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Remaining</th>
+                  <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Date of Issuance</th>
                   <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Valid Until</th>
                   <th style="padding: 0.75rem; text-align: center; font-size: 0.75rem; font-weight: 600; color: #697386; text-transform: uppercase;">Status</th>
                 </tr>
