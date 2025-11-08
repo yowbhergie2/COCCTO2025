@@ -1302,6 +1302,10 @@
 
     container.innerHTML = '';
 
+    // Get today's date in YYYY-MM-DD format for max attribute
+    const today = new Date();
+    const maxDate = today.toISOString().split('T')[0];
+
     // Render each month group
     monthGroups.forEach((group, index) => {
       const card = document.createElement('div');
@@ -1367,7 +1371,7 @@
               Date of Issuance <span style="color: #ef4444;">*</span>
             </label>
             <input type="date" id="certDate-${index}" required class="form-input"
-                   style="max-width: 300px;"
+                   style="max-width: 300px;" max="${maxDate}"
                    onchange="updateCertValidUntil(${index})">
             <p style="color: #697386; font-size: 0.75rem; margin-top: 0.5rem;">
               <i class="fas fa-info-circle"></i> Valid Until: <span id="certValidUntil-${index}">--</span>
@@ -1438,6 +1442,16 @@
 
     if (!dateOfIssuance) {
       showAlert('Please enter Date of Issuance', 'error');
+      return false;
+    }
+
+    // Validate date is not in the future
+    const selectedDate = new Date(dateOfIssuance);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+
+    if (selectedDate > today) {
+      showAlert('Date of Issuance cannot be in the future', 'error');
       return false;
     }
 
