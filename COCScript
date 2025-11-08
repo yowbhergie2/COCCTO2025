@@ -1510,10 +1510,18 @@
               </tbody>
             </table>
           </div>
-          <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: white; border-radius: 4px; border: 1px solid #e1e4e8;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600; color: #1a1f36;">Total:</span>
-              <span style="font-weight: 700; color: #4f46e5; font-size: 1.125rem;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+          <div style="margin-top: 0.75rem; padding: 1rem; background: white; border-radius: 6px; border: 1px solid #e1e4e8; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Earned</span>
+              <span style="font-weight: 700; color: #10b981; font-size: 1.25rem;">${totalHistoricalEarned.toFixed(1)} hrs</span>
+            </div>
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Used</span>
+              <span style="font-weight: 700; color: #ef4444; font-size: 1.25rem;">${totalHistoricalUsed.toFixed(1)} hrs</span>
+            </div>
+            <div>
+              <span style="font-size: 0.8125rem; color: #697386; display: block; text-transform: uppercase; margin-bottom: 0.25rem;">Total Remaining</span>
+              <span style="font-weight: 700; color: #4f46e5; font-size: 1.25rem;">${totalHistoricalRemaining.toFixed(1)} hrs</span>
             </div>
           </div>
         `;
