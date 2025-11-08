@@ -3,80 +3,94 @@
   <p class="page-subtitle">Activate uncertified overtime credits by issuing certificates</p>
 </div>
 
-<div class="card">
-  <div class="card-body" style="text-align: center; padding: 4rem 2rem;">
-    <div style="margin-bottom: 2rem;">
-      <i class="fas fa-certificate" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
-    </div>
+<div class="card" style="max-width: 900px; margin: 0 auto;">
+  <div class="card-body" style="padding: 2rem;">
+    <form id="certificateForm" onsubmit="return handleCertificateFormSubmit(event)">
+      <!-- Employee, Month, Year Selection -->
+      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <label class="form-label">Employee <span style="color: #ef4444;">*</span></label>
+          <select name="employeeId" id="certEmployeeId" required class="form-input">
+            <option value="">-- Select Employee --</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Month <span style="color: #ef4444;">*</span></label>
+          <select name="month" id="certMonth" required class="form-input">
+            <option value="">-- Select --</option>
+            <option value="January">January</option>
+            <option value="February">February</option>
+            <option value="March">March</option>
+            <option value="April">April</option>
+            <option value="May">May</option>
+            <option value="June">June</option>
+            <option value="July">July</option>
+            <option value="August">August</option>
+            <option value="September">September</option>
+            <option value="October">October</option>
+            <option value="November">November</option>
+            <option value="December">December</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Year <span style="color: #ef4444;">*</span></label>
+          <select name="year" id="certYear" required class="form-input">
+            <option value="">-- Select --</option>
+          </select>
+        </div>
+      </div>
 
-    <h2 style="font-size: 1.5rem; font-weight: 600; color: #1a1f36; margin-bottom: 1rem;">
-      Coming in Phase 3
-    </h2>
+      <!-- Date of Issuance -->
+      <div style="margin-bottom: 1.5rem;">
+        <label class="form-label">Date of Issuance <span style="color: #ef4444;">*</span></label>
+        <input type="date" id="dateOfIssuance" name="dateOfIssuance" required class="form-input" style="max-width: 300px;">
+        <p style="color: #697386; font-size: 0.875rem; margin-top: 0.5rem;">
+          <i class="fas fa-info-circle"></i> This date determines the expiration date (Valid Until = Date of Issuance + 1 Year - 1 Day)
+        </p>
+      </div>
 
-    <p style="color: #697386; font-size: 1rem; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto;">
-      This feature will allow HR Staff to generate certificates for uncertified overtime credits.
-      Once activated, credits will be available for use and an expiration date will be set.
-    </p>
+      <!-- Uncertified Hours Summary -->
+      <div id="uncertifiedSummary" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div>
+            <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.25rem;">Total Uncertified Hours</div>
+            <div id="uncertifiedHours" style="font-size: 2rem; font-weight: 700; color: #4f46e5;">0.0 hrs</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 0.875rem; color: #697386; margin-bottom: 0.25rem;">Will be Valid Until</div>
+            <div id="validUntilDate" style="font-size: 1.25rem; font-weight: 600; color: #1a1f36;">--</div>
+          </div>
+        </div>
+        <div id="noUncertifiedMessage" style="display: none; color: #dc2626; font-size: 0.9375rem;">
+          <i class="fas fa-exclamation-circle"></i> No uncertified hours found for this employee/month/year.
+        </div>
+      </div>
 
-    <div class="info-box" style="text-align: left; max-width: 700px; margin: 0 auto;">
-      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-lightbulb"></i> <strong>What this feature will do:</strong>
-      </p>
-      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
-        <li>Select an employee and date range of uncertified overtime</li>
-        <li>Preview total hours to be certified</li>
-        <li>Generate certificate number (format: COC-YYYY-####)</li>
-        <li>Set "Valid Until" date (6 months from certificate date)</li>
-        <li>Activate credits and make them available for CTO usage</li>
-        <li>Send email notification to employee</li>
-        <li>Validate against 120-hour total balance cap</li>
-      </ul>
-    </div>
-
-    <div style="margin-top: 2rem;">
-      <button class="btn btn-secondary" disabled>
-        <i class="fas fa-lock"></i> Feature Locked
-      </button>
-    </div>
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
+        <button type="button" onclick="resetCertificateForm()" class="btn btn-secondary">Reset Form</button>
+        <button type="submit" id="generateCertBtn" class="btn btn-primary" disabled>
+          <i class="fas fa-certificate"></i> Generate Certificate
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Preview of Future Layout -->
-<div class="card" style="margin-top: 1.5rem; opacity: 0.5;">
-  <div class="card-header">
-    <div class="card-title">Certificate Preview (Coming Soon)</div>
-  </div>
+<!-- Info Box -->
+<div class="card" style="max-width: 900px; margin: 1.5rem auto 0;">
   <div class="card-body">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Employee</label>
-        <select class="form-input" disabled>
-          <option>-- Select Employee --</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Date Range</label>
-        <input type="text" class="form-input" disabled placeholder="Select date range">
-      </div>
-    </div>
-
-    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <div style="font-size: 0.875rem; color: #697386;">Total Hours to Certify</div>
-          <div style="font-size: 2rem; font-weight: 700; color: #1a1f36;">0.0 hrs</div>
-        </div>
-        <div>
-          <div style="font-size: 0.875rem; color: #697386;">Valid Until</div>
-          <div style="font-size: 1.25rem; font-weight: 600; color: #1a1f36;">--/--/----</div>
-        </div>
-      </div>
-    </div>
-
-    <div style="text-align: right; margin-top: 1.5rem;">
-      <button class="btn btn-primary" disabled>
-        <i class="fas fa-certificate"></i> Generate Certificate
-      </button>
+    <div class="info-box">
+      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
+        <i class="fas fa-lightbulb"></i> <strong>How Certificate Generation Works:</strong>
+      </p>
+      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
+        <li>Select employee, month, and year to see all uncertified overtime credits</li>
+        <li>Enter the Date of Issuance (typically the date you're issuing the certificate)</li>
+        <li>The system calculates Valid Until date: (Date of Issuance + 1 Year - 1 Day)</li>
+        <li>Upon generation, all uncertified credits become "Active" and available for CTO usage</li>
+        <li>System prevents duplicate certificates for the same employee/month/year</li>
+      </ul>
     </div>
   </div>
 </div>

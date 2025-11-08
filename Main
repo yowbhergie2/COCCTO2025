@@ -269,6 +269,10 @@
       google.script.run
         .withSuccessHandler(html => {
           document.getElementById('mainContent').innerHTML = html;
+          // Initialize form after HTML is loaded
+          if (typeof initGenerateCertificateForm === 'function') {
+            initGenerateCertificateForm();
+          }
         })
         .withFailureHandler(err => {
           document.getElementById('mainContent').innerHTML = `<p>Error loading Generate Certificate: ${err.message}</p>`;
