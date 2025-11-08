@@ -145,6 +145,37 @@
     <!-- Success/Error Messages -->
     <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
 
+    <!-- COC Progress Display -->
+    <div id="cocProgressContainer" style="display: none; margin-bottom: 1.5rem;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <!-- Monthly Progress -->
+        <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1rem; border-radius: 8px;">
+          <div style="font-size: 0.875rem; color: #4338ca; font-weight: 600; margin-bottom: 0.5rem;">
+            <i class="fas fa-calendar-alt"></i> This Month
+          </div>
+          <div style="font-size: 1.5rem; font-weight: 700; color: #4f46e5;">
+            <span id="monthProgress">0</span> / 40 hrs
+          </div>
+          <div style="font-size: 0.75rem; color: #6366f1; margin-top: 0.25rem;">
+            <span id="monthRemaining">40</span> hrs remaining
+          </div>
+        </div>
+
+        <!-- Total Balance Progress -->
+        <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 1rem; border-radius: 8px;">
+          <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">
+            <i class="fas fa-wallet"></i> Total Balance
+          </div>
+          <div style="font-size: 1.5rem; font-weight: 700; color: #2563eb;">
+            <span id="totalProgress">0</span> / 120 hrs
+          </div>
+          <div style="font-size: 0.75rem; color: #3b82f6; margin-top: 0.25rem;">
+            <span id="totalRemaining">120</span> hrs remaining
+          </div>
+        </div>
+      </div>
+    </div>
+
     <form id="overtimeForm" onsubmit="return handleFormSubmit(event)">
       <!-- Employee, Month, Year Selection -->
       <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
@@ -363,14 +394,19 @@
         .getEmployeesForDropdown();
 
       // Add event listeners to reload existing dates when selection changes
-      document.getElementById('employeeId').addEventListener('change', loadExistingDates);
+      document.getElementById('employeeId').addEventListener('change', () => {
+        loadExistingDates();
+        loadCOCProgress();
+      });
       document.getElementById('month').addEventListener('change', () => {
         loadExistingDates();
         updateDateInputConstraints();
+        loadCOCProgress();
       });
       document.getElementById('year').addEventListener('change', () => {
         loadExistingDates();
         updateDateInputConstraints();
+        loadCOCProgress();
       });
 
       // Add first row
@@ -792,6 +828,40 @@
           existingDatabaseDates = [];
         })
         .getExistingOvertimeDates(parseInt(employeeId), month, parseInt(year));
+    }
+
+    // Load and display COC progress
+    function loadCOCProgress() {
+      const employeeId = document.getElementById('employeeId').value;
+      const month = document.getElementById('month').value;
+      const year = document.getElementById('year').value;
+
+      const progressContainer = document.getElementById('cocProgressContainer');
+
+      if (!employeeId || !month || !year) {
+        progressContainer.style.display = 'none';
+        return;
+      }
+
+      // Call server to get COC progress
+      google.script.run
+        .withSuccessHandler(progress => {
+          // Update monthly progress
+          document.getElementById('monthProgress').textContent = progress.monthTotal.toFixed(1);
+          document.getElementById('monthRemaining').textContent = progress.monthRemaining.toFixed(1);
+
+          // Update total balance progress
+          document.getElementById('totalProgress').textContent = progress.totalBalance.toFixed(1);
+          document.getElementById('totalRemaining').textContent = progress.totalRemaining.toFixed(1);
+
+          // Show the progress container
+          progressContainer.style.display = 'block';
+        })
+        .withFailureHandler(err => {
+          console.error('Error loading COC progress:', err);
+          progressContainer.style.display = 'none';
+        })
+        .getEmployeeCOCProgress(parseInt(employeeId), month, parseInt(year));
     }
 
     // Add a new entry row
