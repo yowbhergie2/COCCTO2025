@@ -228,7 +228,7 @@
       <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h3 style="font-size: 1.125rem; font-weight: 600; color: #1a1f36;">Overtime Entries</h3>
-          <button type="button" class="btn btn-secondary" onclick="addRow()">
+          <button type="button" id="addDayBtn" class="btn btn-secondary" onclick="addRow()">
             <i class="fas fa-plus"></i> Add Day
           </button>
         </div>
@@ -850,33 +850,40 @@
       const month = document.getElementById('month').value;
       const year = document.getElementById('year').value;
 
+      console.log('checkIfCanLog called:', { employeeId, month, year });
+
       const warningDiv = document.getElementById('certificateWarning');
       const warningMessage = document.getElementById('certificateWarningMessage');
-      const entryTableBody = document.getElementById('entryTableBody');
-      const saveBtn = document.getElementById('saveBtn');
 
       if (!employeeId || !month || !year) {
+        console.log('Not all fields selected, hiding warning');
         warningDiv.style.display = 'none';
         enableForm();
         return;
       }
 
+      console.log('All fields selected, calling server...');
+
       // Call server to check if can log
       google.script.run
         .withSuccessHandler(result => {
+          console.log('Server response:', result);
           if (!result.canLog) {
             // Show warning and disable form
+            console.log('CANNOT LOG - Showing warning and disabling form');
             warningMessage.textContent = result.message;
             warningDiv.style.display = 'block';
             disableForm();
           } else {
             // Hide warning and enable form
+            console.log('CAN LOG - Hiding warning and enabling form');
             warningDiv.style.display = 'none';
             enableForm();
           }
         })
         .withFailureHandler(err => {
-          console.error('Error checking if can log:', err);
+          console.error('ERROR checking if can log:', err);
+          alert('Error checking certificate status: ' + err.message);
           warningDiv.style.display = 'none';
           enableForm();
         })
@@ -885,20 +892,40 @@
 
     // Disable form entries
     function disableForm() {
+      console.log('disableForm called');
       const saveBtn = document.getElementById('saveBtn');
+      const addDayBtn = document.getElementById('addDayBtn');
       const entryInputs = document.querySelectorAll('#entryTableBody input, #entryTableBody button');
 
-      if (saveBtn) saveBtn.disabled = true;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        console.log('Save button disabled');
+      }
+      if (addDayBtn) {
+        addDayBtn.disabled = true;
+        console.log('Add Day button disabled');
+      }
       entryInputs.forEach(input => input.disabled = true);
+      console.log('All entry inputs disabled');
     }
 
     // Enable form entries
     function enableForm() {
+      console.log('enableForm called');
       const saveBtn = document.getElementById('saveBtn');
+      const addDayBtn = document.getElementById('addDayBtn');
       const entryInputs = document.querySelectorAll('#entryTableBody input, #entryTableBody button');
 
-      if (saveBtn) saveBtn.disabled = false;
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        console.log('Save button enabled');
+      }
+      if (addDayBtn) {
+        addDayBtn.disabled = false;
+        console.log('Add Day button enabled');
+      }
       entryInputs.forEach(input => input.disabled = false);
+      console.log('All entry inputs enabled');
     }
 
     // Load and display COC progress
@@ -907,16 +934,23 @@
       const month = document.getElementById('month').value;
       const year = document.getElementById('year').value;
 
+      console.log('loadCOCProgress called:', { employeeId, month, year });
+
       const progressContainer = document.getElementById('cocProgressContainer');
 
       if (!employeeId || !month || !year) {
+        console.log('Not all fields selected, hiding progress');
         progressContainer.style.display = 'none';
         return;
       }
 
+      console.log('All fields selected, loading progress from server...');
+
       // Call server to get COC progress
       google.script.run
         .withSuccessHandler(progress => {
+          console.log('COC Progress received:', progress);
+
           // Update monthly progress
           document.getElementById('monthProgress').textContent = progress.monthTotal.toFixed(1);
           document.getElementById('monthRemaining').textContent = progress.monthRemaining.toFixed(1);
@@ -927,9 +961,11 @@
 
           // Show the progress container
           progressContainer.style.display = 'block';
+          console.log('COC Progress container displayed');
         })
         .withFailureHandler(err => {
-          console.error('Error loading COC progress:', err);
+          console.error('ERROR loading COC progress:', err);
+          alert('Error loading COC progress: ' + err.message);
           progressContainer.style.display = 'none';
         })
         .getEmployeeCOCProgress(parseInt(employeeId), month, parseInt(year));
