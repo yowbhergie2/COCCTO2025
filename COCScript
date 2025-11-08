@@ -1604,29 +1604,59 @@
 
       const detailsId = `cert-details-${index}`;
 
-      // Note: Removed inline styles, will be controlled by <style> tag in EmployeeLedger
+      // Calculate total used and remaining for this certificate
+      cert.cocUsed = cert.entries.reduce((sum, entry) => sum + (entry.cocUsed || 0), 0);
+      cert.cocRemaining = cert.entries.reduce((sum, entry) => sum + (entry.cocRemaining || 0), 0);
+
+      // Certificate summary row with View Details button
       ledgerRows += `
-        <tr>
+        <tr style="border-bottom: 1px solid #e1e4e8;">
           <td>
-            <div style="font-weight: 500; color: #1a1f36; font-size: 0.9375rem;">${particular}</div>
-            <div style="color: #697386; margin-top: 0.25rem; font-size: 0.8125rem;">${tx.dateWorked}</div>
+            <div style="font-weight: 600; color: #1a1f36;">Certificate - ${cert.month} ${cert.year}</div>
+            <button onclick="toggleDetails('${detailsId}')" style="margin-top: 0.25rem; padding: 0.125rem 0.5rem; font-size: 0.65rem; background: #e0e7ff; color: #4f46e5; border: none; border-radius: 4px; cursor: pointer;">
+              <i class="fas fa-eye"></i> View Details
+            </button>
           </td>
-          <td class="text-center font-semibold" style="color: #10b981;">
-            ${cocEarned > 0 ? '+' + cocEarned.toFixed(1) : '--'}
-          </td>
-          <td class="text-center font-semibold" style="color: #ef4444;">
-            ${cocUsed > 0 ? '-' + cocUsed.toFixed(1) : '--'}
-          </td>
-          <td class="text-center font-semibold" style="color: #4f46e5;">
-            ${runningBalance.toFixed(1)}
-          </td>
-          <td class="text-center">
-            ${dateOfCTO}
-          </td>
-          <td class="text-center">
-            <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; background: ${statusColor}15; color: ${statusColor}; font-size: 0.8125rem;">
-              ${tx.status}
+          <td style="text-align: center; font-weight: 600; color: #10b981;">${cert.cocEarned.toFixed(1)}</td>
+          <td style="text-align: center; font-weight: 600; color: #ef4444;">${cert.cocUsed.toFixed(1)}</td>
+          <td style="text-align: center; font-weight: 600; color: #4f46e5;">${cert.cocRemaining.toFixed(1)}</td>
+          <td style="text-align: center; font-size: 0.7rem;">${dateOfIssuanceDisplay}</td>
+          <td style="text-align: center; font-size: 0.7rem;">${validUntilDisplay}</td>
+          <td style="text-align: center;">
+            <span style="display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.65rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
+              ${cert.status}
             </span>
+          </td>
+        </tr>
+        <tr id="${detailsId}" style="display: none; background: #f9fafb;">
+          <td colspan="7" style="padding: 0.75rem;">
+            <div style="font-size: 0.7rem; font-weight: 600; color: #697386; margin-bottom: 0.5rem;">OVERTIME ENTRIES:</div>
+            <table style="width: 100%; font-size: 0.65rem;">
+              <thead>
+                <tr style="background: #f0f2f5;">
+                  <th style="padding: 0.25rem; text-align: left;">Date</th>
+                  <th style="padding: 0.25rem; text-align: left;">Day Type</th>
+                  <th style="padding: 0.25rem; text-align: center;">AM In</th>
+                  <th style="padding: 0.25rem; text-align: center;">AM Out</th>
+                  <th style="padding: 0.25rem; text-align: center;">PM In</th>
+                  <th style="padding: 0.25rem; text-align: center;">PM Out</th>
+                  <th style="padding: 0.25rem; text-align: center;">COC Earned</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cert.entries.map(entry => `
+                  <tr style="border-bottom: 1px solid #e1e4e8;">
+                    <td style="padding: 0.25rem;">${entry.dateWorked}</td>
+                    <td style="padding: 0.25rem;">${entry.dayType}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.amIn || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.amOut || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.pmIn || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center;">${entry.pmOut || '--'}</td>
+                    <td style="padding: 0.25rem; text-align: center; font-weight: 600; color: #10b981;">${entry.cocEarned.toFixed(1)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </td>
         </tr>
       `;
@@ -1637,11 +1667,12 @@
         <table style="width: 100%; border-collapse: collapse; background: white; border: 1px solid #e1e4e8; border-radius: 8px;">
           <thead>
             <tr>
-              <th>Particular</th>
+              <th>Certificate</th>
               <th class="text-center">COC Earned</th>
               <th class="text-center">Used COCs</th>
               <th class="text-center">Remaining COCs</th>
-              <th class="text-center">Date of CTO</th>
+              <th class="text-center">Date of Issuance</th>
+              <th class="text-center">Valid Until</th>
               <th class="text-center">Status</th>
             </tr>
           </thead>
