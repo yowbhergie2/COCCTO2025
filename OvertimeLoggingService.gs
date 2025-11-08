@@ -739,6 +739,15 @@ function generateCertificatePDF(certificateData, employee, validUntilDate, total
     const dateIssued = formatDate(new Date(certificateData.dateOfIssuance));
     const validUntil = formatDate(validUntilDate);
 
+    // Debug logging
+    Logger.log('PDF Generation - Employee Name: ' + employeeName);
+    Logger.log('PDF Generation - Position: ' + position);
+    Logger.log('PDF Generation - Office: ' + office);
+    Logger.log('PDF Generation - Total Hours: ' + totalHours);
+    Logger.log('PDF Generation - Date Issued: ' + dateIssued);
+    Logger.log('PDF Generation - Valid Until: ' + validUntil);
+    Logger.log('PDF Generation - Signatory: ' + JSON.stringify(signatory));
+
     // Ensure the sheet has enough columns (at least 6 columns = F)
     const maxColumns = tempSheet.getMaxColumns();
     if (maxColumns < 6) {
@@ -772,6 +781,10 @@ function generateCertificatePDF(certificateData, employee, validUntilDate, total
     tempSheet.getRange(40, 6).setValue(signatory.position || '');  // F40 - Position of Signatory (Assuming this is correct)
     tempSheet.getRange(43, 3).setValue(dateIssued);  // C43 - DATE ISSUED
     tempSheet.getRange(44, 3).setValue(validUntil);  // C44 - VALID UNTIL
+
+    // CRITICAL: Flush all pending changes to the spreadsheet before converting to PDF
+    // Without this, the setValue() calls above may not be written yet
+    SpreadsheetApp.flush();
 
     // Convert sheet to PDF
     const pdfBlob = convertSheetToPDF(dbSpreadsheet, tempSheet);
