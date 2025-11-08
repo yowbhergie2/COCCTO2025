@@ -1438,6 +1438,7 @@
       if (beginningBalanceContainer) {
         let historicalRows = '';
         let totalHistoricalEarned = 0;
+        let totalHistoricalUsed = 0;
         let totalHistoricalRemaining = 0;
 
         historicalData.forEach(tx => {
@@ -1458,6 +1459,7 @@
           const remaining = tx.cocRemaining || 0;
 
           totalHistoricalEarned += earned;
+          totalHistoricalUsed += used;
           totalHistoricalRemaining += remaining;
 
           console.log('Historical transaction:', {
