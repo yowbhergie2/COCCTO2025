@@ -634,3 +634,227 @@ function validateTotalBalanceCap(employeeId, newCOC) {
     return { valid: false, message: 'Error validating total cap: ' + error.message };
   }
 }
+
+/**
+ * Get total uncertified COC hours for an employee/month/year
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {Object} Result with hours
+ */
+function getUncertifiedHours(employeeId, month, year) {
+  try {
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return { hours: 0 };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return { hours: 0 };
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const cocEarnedIndex = headers.indexOf('COCEarned');
+    const certifiedIndex = headers.indexOf('Certified');
+
+    let totalHours = 0;
+
+    // Sum up uncertified COC for this employee, month, and year
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId &&
+          row[monthIndex] === month &&
+          row[yearIndex] === year &&
+          row[certifiedIndex] !== 'Yes') {
+        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
+      }
+    }
+
+    return { hours: totalHours };
+
+  } catch (error) {
+    Logger.log('Error in getUncertifiedHours: ' + error.toString());
+    return { hours: 0 };
+  }
+}
+
+/**
+ * Generate COC Certificate - Activates uncertified credits
+ * @param {Object} certificateData - {employeeId, month, year, dateOfIssuance}
+ * @returns {Object} Result with success status
+ */
+function generateCOCCertificate(certificateData) {
+  try {
+    // Validation
+    if (!certificateData.employeeId || !certificateData.month || !certificateData.year || !certificateData.dateOfIssuance) {
+      return {
+        success: false,
+        message: 'Employee, Month, Year, and Date of Issuance are required'
+      };
+    }
+
+    // Check if employee exists
+    const employee = getEmployeeById(certificateData.employeeId);
+    if (!employee) {
+      return {
+        success: false,
+        message: 'Employee not found'
+      };
+    }
+
+    const sheet = getDbSheet('OvertimeLogs');
+    if (!sheet) {
+      return {
+        success: false,
+        message: 'Database error: OvertimeLogs sheet not found'
+      };
+    }
+
+    // Check if certificate already exists for this employee/month/year
+    const existingCert = checkExistingCertificate(certificateData.employeeId, certificateData.month, certificateData.year);
+    if (existingCert) {
+      return {
+        success: false,
+        message: `Certificate already exists for ${employee.FullName} - ${certificateData.month} ${certificateData.year}. Cannot create duplicate.`
+      };
+    }
+
+    // Find all uncertified credits for this employee/month/year
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+    const certifiedIndex = headers.indexOf('Certified');
+    const validUntilIndex = headers.indexOf('ValidUntil');
+
+    // Calculate Valid Until date: (Date of Issuance + 1 Year - 1 Day)
+    const issuanceDate = new Date(certificateData.dateOfIssuance);
+    const validUntilDate = new Date(issuanceDate);
+    validUntilDate.setFullYear(validUntilDate.getFullYear() + 1);
+    validUntilDate.setDate(validUntilDate.getDate() - 1);
+
+    let updatedCount = 0;
+
+    // Update all matching uncertified entries
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === certificateData.employeeId &&
+          row[monthIndex] === certificateData.month &&
+          row[yearIndex] === certificateData.year &&
+          row[certifiedIndex] !== 'Yes') {
+
+        // Update Certified and ValidUntil columns
+        sheet.getRange(i + 1, certifiedIndex + 1).setValue('Yes');
+        sheet.getRange(i + 1, validUntilIndex + 1).setValue(validUntilDate);
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount === 0) {
+      return {
+        success: false,
+        message: 'No uncertified hours found for the selected period'
+      };
+    }
+
+    // Log certificate issuance
+    logCertificateIssuance(certificateData.employeeId, certificateData.month, certificateData.year, certificateData.dateOfIssuance);
+
+    return {
+      success: true,
+      message: `Certificate generated successfully for ${employee.FullName}. ${updatedCount} entries activated and set to expire on ${formatDate(validUntilDate)}.`
+    };
+
+  } catch (error) {
+    Logger.log('Error in generateCOCCertificate: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error generating certificate: ' + error.message
+    };
+  }
+}
+
+/**
+ * Check if a certificate already exists for employee/month/year
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @returns {boolean} True if certificate exists
+ */
+function checkExistingCertificate(employeeId, month, year) {
+  try {
+    const sheet = getDbSheet('CertificateLog');
+    if (!sheet) {
+      return false;
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return false;
+    }
+
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    const monthIndex = headers.indexOf('Month');
+    const yearIndex = headers.indexOf('Year');
+
+    // Check if certificate already exists
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+
+      if (row[employeeIdIndex] === employeeId &&
+          row[monthIndex] === month &&
+          row[yearIndex] === year) {
+        return true;
+      }
+    }
+
+    return false;
+
+  } catch (error) {
+    Logger.log('Error in checkExistingCertificate: ' + error.toString());
+    return false;
+  }
+}
+
+/**
+ * Log certificate issuance
+ * @param {number} employeeId - Employee ID
+ * @param {string} month - Month name
+ * @param {number} year - Year
+ * @param {string} dateOfIssuance - Date certificate was issued
+ */
+function logCertificateIssuance(employeeId, month, year, dateOfIssuance) {
+  try {
+    const sheet = getDbSheet('CertificateLog');
+    if (!sheet) {
+      return;
+    }
+
+    const currentEmail = getCurrentUserEmail();
+    const currentDate = new Date();
+    const certId = getNextId('CertificateLog', 'A');
+
+    const rowData = [
+      certId,                         // A: CertID
+      employeeId,                     // B: EmployeeID
+      month,                          // C: Month
+      year,                           // D: Year
+      new Date(dateOfIssuance),       // E: DateOfIssuance
+      currentDate,                    // F: CreatedAt
+      currentEmail                    // G: CreatedBy
+    ];
+
+    sheet.appendRow(rowData);
+
+  } catch (error) {
+    Logger.log('Error in logCertificateIssuance: ' + error.toString());
+  }
+}

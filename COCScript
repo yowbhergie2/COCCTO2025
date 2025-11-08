@@ -971,6 +971,226 @@
     showAlert('Report exported successfully', 'success');
   }
 
+  // ========== GENERATE CERTIFICATE PAGE ==========
+
+  /**
+   * Initialize Generate Certificate form when page loads
+   */
+  function initGenerateCertificateForm() {
+    // Populate years
+    const yearSelect = document.getElementById('certYear');
+    if (yearSelect) {
+      const currentYear = new Date().getFullYear();
+      for (let i = 0; i <= 2; i++) {
+        const year = currentYear - i;
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (i === 0) option.selected = true;
+        yearSelect.appendChild(option);
+      }
+    }
+
+    // Load employees
+    google.script.run
+      .withSuccessHandler(employees => {
+        const empSelect = document.getElementById('certEmployeeId');
+        if (empSelect) {
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = emp.name;
+            empSelect.appendChild(option);
+          });
+        }
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading employees:', err);
+        showAlert('Error loading employees: ' + err.message, 'error');
+      })
+      .getEmployeesForDropdown();
+
+    // Add event listeners
+    const empSelect = document.getElementById('certEmployeeId');
+    const monthSelect = document.getElementById('certMonth');
+    const yearSelectElem = document.getElementById('certYear');
+    const dateOfIssuance = document.getElementById('dateOfIssuance');
+
+    if (empSelect) {
+      empSelect.addEventListener('change', loadUncertifiedHours);
+    }
+    if (monthSelect) {
+      monthSelect.addEventListener('change', loadUncertifiedHours);
+    }
+    if (yearSelectElem) {
+      yearSelectElem.addEventListener('change', loadUncertifiedHours);
+    }
+    if (dateOfIssuance) {
+      dateOfIssuance.addEventListener('change', updateValidUntilDisplay);
+    }
+  }
+
+  /**
+   * Load uncertified hours for selected employee/month/year
+   */
+  function loadUncertifiedHours() {
+    const employeeId = document.getElementById('certEmployeeId')?.value;
+    const month = document.getElementById('certMonth')?.value;
+    const year = document.getElementById('certYear')?.value;
+
+    const summary = document.getElementById('uncertifiedSummary');
+    const hoursDisplay = document.getElementById('uncertifiedHours');
+    const noDataMessage = document.getElementById('noUncertifiedMessage');
+    const generateBtn = document.getElementById('generateCertBtn');
+
+    if (!employeeId || !month || !year) {
+      if (summary) summary.style.display = 'none';
+      if (generateBtn) generateBtn.disabled = true;
+      return;
+    }
+
+    // Show loading state
+    if (summary) summary.style.display = 'block';
+    if (hoursDisplay) hoursDisplay.textContent = 'Loading...';
+    if (noDataMessage) noDataMessage.style.display = 'none';
+    if (generateBtn) generateBtn.disabled = true;
+
+    // Fetch uncertified hours from server
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.hours > 0) {
+          if (hoursDisplay) hoursDisplay.textContent = result.hours.toFixed(1) + ' hrs';
+          if (noDataMessage) noDataMessage.style.display = 'none';
+
+          // Update Valid Until display
+          updateValidUntilDisplay();
+
+          // Enable button if date of issuance is set
+          const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
+          if (generateBtn && dateOfIssuance) {
+            generateBtn.disabled = false;
+          }
+        } else {
+          if (hoursDisplay) hoursDisplay.textContent = '0.0 hrs';
+          if (noDataMessage) noDataMessage.style.display = 'block';
+          if (generateBtn) generateBtn.disabled = true;
+        }
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading uncertified hours:', err);
+        if (hoursDisplay) hoursDisplay.textContent = 'Error';
+        showAlert('Error loading uncertified hours: ' + err.message, 'error');
+      })
+      .getUncertifiedHours(parseInt(employeeId), month, parseInt(year));
+  }
+
+  /**
+   * Update Valid Until date display based on Date of Issuance
+   */
+  function updateValidUntilDisplay() {
+    const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
+    const validUntilDisplay = document.getElementById('validUntilDate');
+    const generateBtn = document.getElementById('generateCertBtn');
+    const hoursDisplay = document.getElementById('uncertifiedHours');
+
+    if (!dateOfIssuance || !validUntilDisplay) return;
+
+    // Calculate Valid Until: (Date of Issuance + 1 Year - 1 Day)
+    const issuanceDate = new Date(dateOfIssuance);
+    const validUntil = new Date(issuanceDate);
+    validUntil.setFullYear(validUntil.getFullYear() + 1);
+    validUntil.setDate(validUntil.getDate() - 1);
+
+    // Format date as MM/DD/YYYY
+    const formattedDate = (validUntil.getMonth() + 1).toString().padStart(2, '0') + '/' +
+                          validUntil.getDate().toString().padStart(2, '0') + '/' +
+                          validUntil.getFullYear();
+
+    validUntilDisplay.textContent = formattedDate;
+
+    // Enable button if we have hours
+    const hasHours = hoursDisplay && hoursDisplay.textContent !== '0.0 hrs' &&
+                     hoursDisplay.textContent !== 'Loading...' &&
+                     hoursDisplay.textContent !== 'Error';
+    if (generateBtn && hasHours) {
+      generateBtn.disabled = false;
+    }
+  }
+
+  /**
+   * Handle certificate form submission
+   */
+  function handleCertificateFormSubmit(e) {
+    e.preventDefault();
+
+    const employeeId = parseInt(document.getElementById('certEmployeeId')?.value);
+    const month = document.getElementById('certMonth')?.value;
+    const year = parseInt(document.getElementById('certYear')?.value);
+    const dateOfIssuance = document.getElementById('dateOfIssuance')?.value;
+
+    if (!employeeId || !month || !year || !dateOfIssuance) {
+      showAlert('Please fill in all required fields', 'error');
+      return false;
+    }
+
+    const generateBtn = document.getElementById('generateCertBtn');
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    }
+
+    const certificateData = {
+      employeeId: employeeId,
+      month: month,
+      year: year,
+      dateOfIssuance: dateOfIssuance
+    };
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result.success) {
+          showAlert(result.message, 'success');
+          setTimeout(() => resetCertificateForm(), 2000);
+        } else {
+          showAlert(result.message, 'error');
+        }
+        if (generateBtn) {
+          generateBtn.disabled = false;
+          generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
+        }
+      })
+      .withFailureHandler(err => {
+        showAlert('Error generating certificate: ' + err.message, 'error');
+        if (generateBtn) {
+          generateBtn.disabled = false;
+          generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
+        }
+      })
+      .generateCOCCertificate(certificateData);
+
+    return false;
+  }
+
+  /**
+   * Reset certificate form
+   */
+  function resetCertificateForm() {
+    const form = document.getElementById('certificateForm');
+    if (form) form.reset();
+
+    const summary = document.getElementById('uncertifiedSummary');
+    if (summary) summary.style.display = 'none';
+
+    const generateBtn = document.getElementById('generateCertBtn');
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '<i class="fas fa-certificate"></i> Generate Certificate';
+    }
+
+    const validUntilDisplay = document.getElementById('validUntilDate');
+    if (validUntilDisplay) validUntilDisplay.textContent = '--';
+  }
+
   // ========== AUTO-LOAD ON PAGE CHANGE ==========
 
   // Note: Both initLogOvertimeForm() and loadUncertifiedReport() are now called
