@@ -5,20 +5,6 @@
 
 <div class="card">
   <div class="card-body">
-    <div class="info-box" style="margin-bottom: 1.5rem;">
-      <p style="color: #0c4a6e; font-size: 0.9375rem; margin-bottom: 0.75rem;">
-        <i class="fas fa-info-circle"></i> <strong>How it works:</strong>
-      </p>
-      <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0; font-size: 0.875rem; color: #0c4a6e;">
-        <li>Select an employee, month, and year</li>
-        <li>Enter overtime dates and time entries (AM/PM sessions)</li>
-        <li>System automatically calculates COC earned based on day type</li>
-        <li>Weekday (5PM-7PM): 1.0x rate, max 2 hours</li>
-        <li>Weekend/Holiday: 1.5x rate for 8AM-12PM and 1PM-5PM</li>
-        <li>All entries saved as "Uncertified" until certificate is generated</li>
-      </ul>
-    </div>
-
     <button class="btn btn-primary" onclick="showOvertimeForm()">
       <i class="fas fa-plus"></i> Log New Overtime Entry
     </button>

@@ -179,11 +179,16 @@
 
       currentView = page;
 
+      // For Log Overtime, show form directly
+      if (page === 'logovertime') {
+        showOvertimeForm();
+        return;
+      }
+
       showMainContentSpinner();
 
       setTimeout(() => {
         switch(page) {
-          case 'logovertime': loadLogOvertimeView(); break;
           case 'generatecertificate': loadGenerateCertificateView(); break;
           case 'logcto': loadLogCTOView(); break;
           case 'uncertifiedreport': loadUncertifiedReportView(); break;
