@@ -5,7 +5,6 @@
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <?!= include('Styles'); ?>
   <style>
     body {
       margin: 0;
@@ -364,11 +363,61 @@
 
       // Add event listeners to reload existing dates when selection changes
       document.getElementById('employeeId').addEventListener('change', loadExistingDates);
-      document.getElementById('month').addEventListener('change', loadExistingDates);
-      document.getElementById('year').addEventListener('change', loadExistingDates);
+      document.getElementById('month').addEventListener('change', () => {
+        loadExistingDates();
+        updateDateInputConstraints();
+      });
+      document.getElementById('year').addEventListener('change', () => {
+        loadExistingDates();
+        updateDateInputConstraints();
+      });
 
       // Add first row
       addRow();
+    }
+
+    // Update date input constraints based on selected month/year
+    function updateDateInputConstraints() {
+      const month = document.getElementById('month').value;
+      const year = document.getElementById('year').value;
+
+      if (!month || !year) {
+        // Clear constraints if month/year not selected
+        document.querySelectorAll('.date-input').forEach(input => {
+          input.removeAttribute('min');
+          input.removeAttribute('max');
+        });
+        return;
+      }
+
+      // Get the month index (0-11)
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthIndex = monthNames.indexOf(month);
+
+      if (monthIndex === -1) return;
+
+      // Calculate first and last day of the month
+      const firstDay = new Date(parseInt(year), monthIndex, 1);
+      const lastDay = new Date(parseInt(year), monthIndex + 1, 0);
+
+      // Format as YYYY-MM-DD
+      const minDate = formatDateForInput(firstDay);
+      const maxDate = formatDateForInput(lastDay);
+
+      // Apply to all date inputs
+      document.querySelectorAll('.date-input').forEach(input => {
+        input.setAttribute('min', minDate);
+        input.setAttribute('max', maxDate);
+      });
+    }
+
+    // Format date as YYYY-MM-DD for input
+    function formatDateForInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
     // Time validation helper functions
@@ -743,6 +792,9 @@
       `;
 
       tbody.appendChild(row);
+
+      // Apply date constraints to the new row
+      updateDateInputConstraints();
     }
 
     // Validate and update row (called on time input changes)
@@ -761,13 +813,13 @@
       const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
 
       // Determine day type
+      let dayType = 'Weekday';
       if (dateInput.value) {
         const date = new Date(dateInput.value);
         const dayOfWeek = date.getDay();
 
         // For now, simple weekend detection (Saturday = 6, Sunday = 0)
         // TODO: Check holidays via server call
-        let dayType = 'Weekday';
         if (dayOfWeek === 0 || dayOfWeek === 6) {
           dayType = 'Weekend';
         }
@@ -782,17 +834,77 @@
       const pmIn = row.querySelector('.pm-in').value;
       const pmOut = row.querySelector('.pm-out').value;
 
-      // Simple client-side calculation (approximate)
-      // Server will do the accurate calculation
+      // Calculate COC Earned
       let cocEarned = 0;
       if (dateInput.value && (amIn || amOut || pmIn || pmOut)) {
-        // Placeholder - just show "~" to indicate it will be calculated
-        cocEarnedDiv.textContent = '~';
-      } else {
-        cocEarnedDiv.textContent = '0.0';
+        cocEarned = calculateCOC(dayType, amIn, amOut, pmIn, pmOut);
       }
 
+      cocEarnedDiv.textContent = cocEarned.toFixed(1);
       updateGrandTotal();
+    }
+
+    // Calculate COC based on day type and time inputs
+    function calculateCOC(dayType, amIn, amOut, pmIn, pmOut) {
+      let totalCOC = 0;
+
+      if (dayType === 'Weekday') {
+        // Weekday: Only PM session counts (5PM-7PM window, 1.0x rate, max 2 hours)
+        if (pmIn && pmOut) {
+          const pmInMinutes = timeToMinutes(pmIn);
+          const pmOutMinutes = timeToMinutes(pmOut);
+
+          // Define 5PM-7PM window (17:00-19:00)
+          const windowStart = 17 * 60; // 5PM = 1020 minutes
+          const windowEnd = 19 * 60;   // 7PM = 1140 minutes
+
+          // Clamp times to the 5PM-7PM window
+          const effectiveIn = Math.max(pmInMinutes, windowStart);
+          const effectiveOut = Math.min(pmOutMinutes, windowEnd);
+
+          if (effectiveOut > effectiveIn) {
+            const hoursWorked = (effectiveOut - effectiveIn) / 60;
+            totalCOC = Math.min(hoursWorked, 2); // Max 2 hours
+          }
+        }
+      } else {
+        // Weekend/Holiday: Both AM and PM sessions count (1.5x rate)
+        // AM window: 8AM-12PM (08:00-12:00)
+        if (amIn && amOut) {
+          const amInMinutes = timeToMinutes(amIn);
+          const amOutMinutes = timeToMinutes(amOut);
+
+          const amWindowStart = 8 * 60;  // 8AM = 480 minutes
+          const amWindowEnd = 12 * 60;   // 12PM = 720 minutes
+
+          const effectiveAmIn = Math.max(amInMinutes, amWindowStart);
+          const effectiveAmOut = Math.min(amOutMinutes, amWindowEnd);
+
+          if (effectiveAmOut > effectiveAmIn) {
+            const amHoursWorked = (effectiveAmOut - effectiveAmIn) / 60;
+            totalCOC += amHoursWorked * 1.5; // 1.5x rate
+          }
+        }
+
+        // PM window: 1PM-5PM (13:00-17:00)
+        if (pmIn && pmOut) {
+          const pmInMinutes = timeToMinutes(pmIn);
+          const pmOutMinutes = timeToMinutes(pmOut);
+
+          const pmWindowStart = 13 * 60; // 1PM = 780 minutes
+          const pmWindowEnd = 17 * 60;   // 5PM = 1020 minutes
+
+          const effectivePmIn = Math.max(pmInMinutes, pmWindowStart);
+          const effectivePmOut = Math.min(pmOutMinutes, pmWindowEnd);
+
+          if (effectivePmOut > effectivePmIn) {
+            const pmHoursWorked = (effectivePmOut - effectivePmIn) / 60;
+            totalCOC += pmHoursWorked * 1.5; // 1.5x rate
+          }
+        }
+      }
+
+      return totalCOC;
     }
 
     // Delete a row
@@ -812,23 +924,23 @@
 
     // Update grand total
     function updateGrandTotal() {
-      // Since COC is calculated server-side, just show placeholder
       const rows = document.querySelectorAll('#entryTableBody tr');
-      let hasData = false;
+      let grandTotal = 0;
 
       rows.forEach(row => {
-        const dateInput = row.querySelector('.date-input');
-        if (dateInput && dateInput.value) {
-          hasData = true;
+        const rowIdMatch = row.id.match(/row-(\d+)/);
+        if (rowIdMatch) {
+          const rowId = parseInt(rowIdMatch[1]);
+          const cocEarnedDiv = document.getElementById('cocEarned-' + rowId);
+          if (cocEarnedDiv) {
+            const value = parseFloat(cocEarnedDiv.textContent) || 0;
+            grandTotal += value;
+          }
         }
       });
 
       const grandTotalDiv = document.getElementById('grandTotal');
-      if (hasData) {
-        grandTotalDiv.textContent = '(Calculated on save)';
-      } else {
-        grandTotalDiv.textContent = '0.0 hours';
-      }
+      grandTotalDiv.textContent = grandTotal.toFixed(1) + ' hours';
     }
 
     // Handle form submission
