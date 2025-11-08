@@ -29,7 +29,7 @@ function getAllEmployees() {
 function getEmployeeById(employeeId) {
   const row = getRowById('Employees', employeeId, 0);
   if (!row) return null;
-  
+
   return serializeDates({
     employeeId: row[0],
     lastName: row[1],
@@ -44,6 +44,67 @@ function getEmployeeById(employeeId) {
     modifiedDate: row[10],
     modifiedBy: row[11]
   });
+}
+
+/**
+ * Search employee by ID or Name
+ * @param {string} searchValue - Employee ID (number) or name (string)
+ * @returns {Object|null} Employee object or null if not found
+ */
+function searchEmployeeByIdOrName(searchValue) {
+  try {
+    if (!searchValue) return null;
+
+    const searchStr = searchValue.toString().trim().toLowerCase();
+
+    // Try to search by ID first (if numeric)
+    const numericId = parseInt(searchStr);
+    if (!isNaN(numericId)) {
+      const employee = getEmployeeById(numericId);
+      if (employee) return employee;
+    }
+
+    // If not found by ID, search by name
+    const data = getSheetData('Employees');
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const employeeId = row[0];
+      const lastName = (row[1] || '').toString().toLowerCase();
+      const firstName = (row[2] || '').toString().toLowerCase();
+      const fullName = `${firstName} ${lastName}`.trim();
+      const reverseName = `${lastName} ${firstName}`.trim();
+
+      // Check if search matches firstName, lastName, or full name
+      if (lastName.includes(searchStr) ||
+          firstName.includes(searchStr) ||
+          fullName.includes(searchStr) ||
+          reverseName.includes(searchStr)) {
+
+        return serializeDates({
+          employeeId: employeeId,
+          lastName: row[1],
+          firstName: row[2],
+          middleInitial: row[3],
+          suffix: row[4],
+          status: row[5],
+          position: row[6],
+          office: row[7],
+          createdDate: row[8],
+          createdBy: row[9],
+          modifiedDate: row[10],
+          modifiedBy: row[11]
+        });
+      }
+    }
+
+    // Not found
+    return null;
+
+  } catch (error) {
+    Logger.log('Error in searchEmployeeByIdOrName: ' + error.toString());
+    return null;
+  }
 }
 
 /**

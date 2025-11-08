@@ -5,12 +5,18 @@
 
 <div class="card" style="max-width: 1200px; margin: 0 auto;">
   <div class="card-body" style="padding: 2rem;">
-    <!-- Employee Selection -->
+    <!-- Employee Search -->
     <div style="margin-bottom: 2rem;">
-      <label class="form-label">Select Employee <span style="color: #ef4444;">*</span></label>
-      <select id="ledgerEmployeeId" class="form-input" style="max-width: 500px;">
-        <option value="">-- Select Employee --</option>
-      </select>
+      <label class="form-label">Employee ID or Name <span style="color: #ef4444;">*</span></label>
+      <div style="display: flex; gap: 0.75rem; max-width: 600px;">
+        <input type="text" id="employeeSearchInput" class="form-input" placeholder="Enter Employee ID or Name" style="flex: 1;">
+        <button type="button" id="searchLedgerBtn" onclick="searchEmployeeLedger()" class="btn btn-primary">
+          <i class="fas fa-search"></i> View Ledger
+        </button>
+      </div>
+      <p style="font-size: 0.875rem; color: #697386; margin-top: 0.5rem;">
+        <i class="fas fa-info-circle"></i> You can search by Employee ID number or employee name
+      </p>
     </div>
 
     <!-- Ledger Content -->

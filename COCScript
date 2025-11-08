@@ -1197,91 +1197,103 @@
    * Initialize Employee Ledger form when page loads
    */
   function initEmployeeLedgerForm() {
-    // Load employees
-    google.script.run
-      .withSuccessHandler(employees => {
-        const empSelect = document.getElementById('ledgerEmployeeId');
-        if (empSelect) {
-          employees.forEach(emp => {
-            const option = document.createElement('option');
-            option.value = emp.id;
-            option.textContent = emp.name;
-            empSelect.appendChild(option);
-          });
+    // Add Enter key listener to search input
+    const searchInput = document.getElementById('employeeSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          searchEmployeeLedger();
         }
-      })
-      .withFailureHandler(err => {
-        console.error('Error loading employees:', err);
-        showAlert('Error loading employees: ' + err.message, 'error');
-      })
-      .getEmployeesForDropdown();
-
-    // Add event listener for employee selection
-    const empSelect = document.getElementById('ledgerEmployeeId');
-    if (empSelect) {
-      empSelect.addEventListener('change', loadEmployeeLedgerData);
+      });
     }
   }
 
   /**
-   * Load ledger data for selected employee
+   * Search for employee and load their ledger
    */
-  function loadEmployeeLedgerData() {
-    const employeeId = document.getElementById('ledgerEmployeeId')?.value;
-    const ledgerContent = document.getElementById('ledgerContent');
-    const ledgerEmptyState = document.getElementById('ledgerEmptyState');
-    const transactionContainer = document.getElementById('transactionHistoryContainer');
+  function searchEmployeeLedger() {
+    const searchInput = document.getElementById('employeeSearchInput');
+    const searchValue = searchInput?.value.trim();
 
-    if (!employeeId) {
-      if (ledgerContent) ledgerContent.style.display = 'none';
-      if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
+    if (!searchValue) {
+      showAlert('Please enter an Employee ID or Name', 'error');
       return;
     }
+
+    const ledgerContent = document.getElementById('ledgerContent');
+    const ledgerEmptyState = document.getElementById('ledgerEmptyState');
+    const ledgerTableContainer = document.getElementById('ledgerTableContainer');
 
     // Show loading state
     if (ledgerContent) ledgerContent.style.display = 'block';
     if (ledgerEmptyState) ledgerEmptyState.style.display = 'none';
-    if (transactionContainer) {
-      transactionContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading transactions...</p></div>';
+    if (ledgerTableContainer) {
+      ledgerTableContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading ledger...</p></div>';
     }
 
-    // Fetch ledger data from server
+    // First, search for the employee
     google.script.run
-      .withSuccessHandler(ledgerData => {
-        renderEmployeeLedgerData(ledgerData);
+      .withSuccessHandler(employee => {
+        if (!employee) {
+          showAlert('Employee not found. Please check the ID or name and try again.', 'error');
+          if (ledgerContent) ledgerContent.style.display = 'none';
+          if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
+          return;
+        }
+
+        // Employee found, load their ledger
+        google.script.run
+          .withSuccessHandler(ledgerData => {
+            renderEmployeeLedgerData(ledgerData, employee);
+          })
+          .withFailureHandler(err => {
+            console.error('Error loading ledger:', err);
+            showAlert('Error loading ledger: ' + err.message, 'error');
+            if (ledgerTableContainer) {
+              ledgerTableContainer.innerHTML = `
+                <div class="empty-state">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <p>Error loading ledger</p>
+                </div>`;
+            }
+          })
+          .getEmployeeLedgerDetailed(employee.employeeId);
       })
       .withFailureHandler(err => {
-        console.error('Error loading ledger:', err);
-        showAlert('Error loading ledger: ' + err.message, 'error');
-        if (transactionContainer) {
-          transactionContainer.innerHTML = `
-            <div class="empty-state">
-              <i class="fas fa-exclamation-triangle"></i>
-              <p>Error loading transactions</p>
-            </div>`;
-        }
+        console.error('Error searching employee:', err);
+        showAlert('Error searching for employee: ' + err.message, 'error');
+        if (ledgerContent) ledgerContent.style.display = 'none';
+        if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
       })
-      .getEmployeeLedgerDetailed(parseInt(employeeId));
+      .searchEmployeeByIdOrName(searchValue);
   }
 
   /**
    * Render ledger data to the page
    */
-  function renderEmployeeLedgerData(ledgerData) {
+  function renderEmployeeLedgerData(ledgerData, employee) {
+    // Null check
+    if (!ledgerData) {
+      console.error('renderEmployeeLedgerData: ledgerData is null or undefined');
+      showAlert('Error: Failed to load ledger data', 'error');
+      return;
+    }
+
     // Update balance displays
     const activeBalanceDisplay = document.getElementById('activeBalanceDisplay');
     const uncertifiedBalanceDisplay = document.getElementById('uncertifiedBalanceDisplay');
     const totalEarnedDisplay = document.getElementById('totalEarnedDisplay');
     const usedCOCsDisplay = document.getElementById('usedCOCsDisplay');
 
-    if (activeBalanceDisplay) activeBalanceDisplay.textContent = ledgerData.activeBalance.toFixed(1) + ' hrs';
-    if (uncertifiedBalanceDisplay) uncertifiedBalanceDisplay.textContent = ledgerData.uncertifiedBalance.toFixed(1) + ' hrs';
-    if (totalEarnedDisplay) totalEarnedDisplay.textContent = ledgerData.totalEarned.toFixed(1) + ' hrs';
-    if (usedCOCsDisplay) usedCOCsDisplay.textContent = ledgerData.usedCOCs.toFixed(1) + ' hrs';
+    if (activeBalanceDisplay) activeBalanceDisplay.textContent = (ledgerData.activeBalance || 0).toFixed(1) + ' hrs';
+    if (uncertifiedBalanceDisplay) uncertifiedBalanceDisplay.textContent = (ledgerData.uncertifiedBalance || 0).toFixed(1) + ' hrs';
+    if (totalEarnedDisplay) totalEarnedDisplay.textContent = (ledgerData.totalEarned || 0).toFixed(1) + ' hrs';
+    if (usedCOCsDisplay) usedCOCsDisplay.textContent = (ledgerData.usedCOCs || 0).toFixed(1) + ' hrs';
 
     // Separate historical data from current transactions
-    const historicalData = ledgerData.transactions.filter(tx => tx.isHistorical);
-    const currentTransactions = ledgerData.transactions.filter(tx => !tx.isHistorical);
+    const transactions = ledgerData.transactions || [];
+    const historicalData = transactions.filter(tx => tx.isHistorical);
+    const currentTransactions = transactions.filter(tx => !tx.isHistorical);
 
     // ========================================
     // PART 1: Render Beginning Balance (Historical Data)
