@@ -983,6 +983,20 @@ function getEmployeeLedger(employeeId) {
  */
 function getEmployeeLedgerDetailed(employeeId) {
   try {
+    Logger.log('getEmployeeLedgerDetailed called with employeeId: ' + employeeId);
+
+    // Validate employeeId
+    if (!employeeId || isNaN(employeeId)) {
+      Logger.log('Invalid employeeId: ' + employeeId);
+      return {
+        activeBalance: 0,
+        uncertifiedBalance: 0,
+        totalEarned: 0,
+        usedCOCs: 0,
+        transactions: []
+      };
+    }
+
     let activeBalance = 0;
     let uncertifiedBalance = 0;
     let totalEarned = 0;
@@ -997,8 +1011,12 @@ function getEmployeeLedgerDetailed(employeeId) {
     // PART 1: Get Historical Data from CreditBatches
     // ========================================
     const creditBatchesSheet = getDbSheet('CreditBatches');
+    Logger.log('CreditBatches sheet found: ' + (creditBatchesSheet ? 'YES' : 'NO'));
+
     if (creditBatchesSheet) {
       const batchData = creditBatchesSheet.getDataRange().getValues();
+      Logger.log('CreditBatches rows: ' + batchData.length);
+
       if (batchData.length > 1) {
         const batchHeaders = batchData[0];
         const batchEmployeeIdIndex = batchHeaders.indexOf('EmployeeID');
@@ -1062,8 +1080,12 @@ function getEmployeeLedgerDetailed(employeeId) {
     // PART 2: Get Current Overtime Data from OvertimeLogs
     // ========================================
     const overtimeSheet = getDbSheet('OvertimeLogs');
+    Logger.log('OvertimeLogs sheet found: ' + (overtimeSheet ? 'YES' : 'NO'));
+
     if (overtimeSheet) {
       const overtimeData = overtimeSheet.getDataRange().getValues();
+      Logger.log('OvertimeLogs rows: ' + overtimeData.length);
+
       if (overtimeData.length > 1) {
         const overtimeHeaders = overtimeData[0];
         const employeeIdIndex = overtimeHeaders.indexOf('EmployeeID');
@@ -1129,7 +1151,7 @@ function getEmployeeLedgerDetailed(employeeId) {
       return dateB - dateA;
     });
 
-    return {
+    const result = {
       activeBalance: activeBalance,
       uncertifiedBalance: uncertifiedBalance,
       totalEarned: totalEarned,
@@ -1137,8 +1159,19 @@ function getEmployeeLedgerDetailed(employeeId) {
       transactions: transactions
     };
 
+    Logger.log('Returning ledger data: ' + JSON.stringify({
+      activeBalance: result.activeBalance,
+      uncertifiedBalance: result.uncertifiedBalance,
+      totalEarned: result.totalEarned,
+      usedCOCs: result.usedCOCs,
+      transactionCount: result.transactions.length
+    }));
+
+    return result;
+
   } catch (error) {
     Logger.log('Error in getEmployeeLedgerDetailed: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
     return {
       activeBalance: 0,
       uncertifiedBalance: 0,

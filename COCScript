@@ -1236,28 +1236,66 @@
    * Initialize Employee Ledger form when page loads
    */
   function initEmployeeLedgerForm() {
-    // Add Enter key listener to search input
-    const searchInput = document.getElementById('employeeSearchInput');
-    if (searchInput) {
-      searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-          searchEmployeeLedger();
+    console.log('initEmployeeLedgerForm called');
+
+    // Load employees into dropdown
+    google.script.run
+      .withSuccessHandler(employees => {
+        console.log('Employees loaded:', employees.length);
+        const dropdown = document.getElementById('ledgerEmployeeDropdown');
+        if (dropdown) {
+          // Clear existing options except first
+          dropdown.innerHTML = '<option value="">-- Select Employee --</option>';
+
+          // Add employee options
+          employees.forEach(emp => {
+            const option = document.createElement('option');
+            option.value = emp.id;
+            option.textContent = `${emp.name} (ID: ${emp.id})`;
+            option.dataset.employeeData = JSON.stringify({
+              employeeId: emp.id,
+              firstName: emp.firstName,
+              middleInitial: emp.middleInitial,
+              lastName: emp.lastName
+            });
+            dropdown.appendChild(option);
+          });
         }
-      });
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading employees:', err);
+        showAlert('Error loading employees: ' + err.message, 'error');
+      })
+      .getEmployeesForDropdown();
+
+    // Add change listener to dropdown
+    const dropdown = document.getElementById('ledgerEmployeeDropdown');
+    if (dropdown) {
+      dropdown.addEventListener('change', loadSelectedEmployeeLedger);
     }
   }
 
   /**
-   * Search for employee and load their ledger
+   * Load ledger for selected employee from dropdown
    */
-  function searchEmployeeLedger() {
-    const searchInput = document.getElementById('employeeSearchInput');
-    const searchValue = searchInput?.value.trim();
+  function loadSelectedEmployeeLedger() {
+    const dropdown = document.getElementById('ledgerEmployeeDropdown');
+    const employeeId = dropdown?.value;
 
-    if (!searchValue) {
-      showAlert('Please enter an Employee ID or Name', 'error');
+    if (!employeeId) {
+      // No employee selected - show empty state
+      const ledgerContent = document.getElementById('ledgerContent');
+      const ledgerEmptyState = document.getElementById('ledgerEmptyState');
+      if (ledgerContent) ledgerContent.style.display = 'none';
+      if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
       return;
     }
+
+    // Get employee data from selected option
+    const selectedOption = dropdown.options[dropdown.selectedIndex];
+    const employeeData = selectedOption.dataset.employeeData ? JSON.parse(selectedOption.dataset.employeeData) : null;
+
+    console.log('Loading ledger for employee:', employeeId, employeeData);
 
     const ledgerContent = document.getElementById('ledgerContent');
     const ledgerEmptyState = document.getElementById('ledgerEmptyState');
@@ -1270,41 +1308,27 @@
       ledgerTableContainer.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading ledger...</p></div>';
     }
 
-    // First, search for the employee
+    // Fetch ledger data
     google.script.run
-      .withSuccessHandler(employee => {
-        if (!employee) {
-          showAlert('Employee not found. Please check the ID or name and try again.', 'error');
-          if (ledgerContent) ledgerContent.style.display = 'none';
-          if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
-          return;
+      .withSuccessHandler(ledgerData => {
+        console.log('Ledger data received:', ledgerData);
+        if (!ledgerData) {
+          console.error('ledgerData is null or undefined');
         }
-
-        // Employee found, load their ledger
-        google.script.run
-          .withSuccessHandler(ledgerData => {
-            renderEmployeeLedgerData(ledgerData, employee);
-          })
-          .withFailureHandler(err => {
-            console.error('Error loading ledger:', err);
-            showAlert('Error loading ledger: ' + err.message, 'error');
-            if (ledgerTableContainer) {
-              ledgerTableContainer.innerHTML = `
-                <div class="empty-state">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <p>Error loading ledger</p>
-                </div>`;
-            }
-          })
-          .getEmployeeLedgerDetailed(employee.employeeId);
+        renderEmployeeLedgerData(ledgerData, employeeData);
       })
       .withFailureHandler(err => {
-        console.error('Error searching employee:', err);
-        showAlert('Error searching for employee: ' + err.message, 'error');
-        if (ledgerContent) ledgerContent.style.display = 'none';
-        if (ledgerEmptyState) ledgerEmptyState.style.display = 'block';
+        console.error('Error loading ledger:', err);
+        showAlert('Error loading ledger: ' + err.message, 'error');
+        if (ledgerTableContainer) {
+          ledgerTableContainer.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Error loading ledger</p>
+            </div>`;
+        }
       })
-      .searchEmployeeByIdOrName(searchValue);
+      .getEmployeeLedgerDetailed(parseInt(employeeId));
   }
 
   /**
