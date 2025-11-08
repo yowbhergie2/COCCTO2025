@@ -30,7 +30,7 @@
               <span>Employees</span>
             </div>
             <div class="nav-dropdown" id="cocDropdown">
-              <div class="nav-dropdown-toggle" onclick="toggleDropdown('cocDropdown')">
+              <div class="nav-dropdown-toggle" onclick="toggleDropdown('cocDropdown', event)">
                 <i class="fas fa-business-time"></i>
                 <span>COC</span>
                 <i class="fas fa-chevron-down"></i>
@@ -123,7 +123,12 @@
     /**
      * Toggle dropdown menu
      */
-    function toggleDropdown(dropdownId) {
+    function toggleDropdown(dropdownId, event) {
+      // Stop event from bubbling to document listener
+      if (event) {
+        event.stopPropagation();
+      }
+
       const dropdown = document.getElementById(dropdownId);
       const isOpen = dropdown.classList.contains('open');
 
