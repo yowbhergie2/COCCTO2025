@@ -51,6 +51,16 @@
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
 
+    .entry-grid input.error {
+      border-color: #ef4444;
+      background-color: #fee;
+    }
+
+    .entry-grid input.error:focus {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
     .delete-row-btn {
       background: #ef4444;
       color: white;
@@ -288,6 +298,181 @@
       addRow();
     }
 
+    // Time validation helper functions
+    function timeToMinutes(timeStr) {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    }
+
+    function validateTimeInput(input, minTime, maxTime, fieldName) {
+      if (!input.value) {
+        input.classList.remove('error');
+        return true;
+      }
+
+      const minutes = timeToMinutes(input.value);
+      const min = timeToMinutes(minTime);
+      const max = timeToMinutes(maxTime);
+
+      if (minutes < min || minutes > max) {
+        input.classList.add('error');
+        input.title = `${fieldName} must be between ${minTime} and ${maxTime}`;
+        return false;
+      }
+
+      input.classList.remove('error');
+      input.title = '';
+      return true;
+    }
+
+    function validateRow(rowId) {
+      const row = document.getElementById('row-' + rowId);
+      if (!row) return true;
+
+      const amInInput = row.querySelector('.am-in');
+      const amOutInput = row.querySelector('.am-out');
+      const pmInInput = row.querySelector('.pm-in');
+      const pmOutInput = row.querySelector('.pm-out');
+
+      let isValid = true;
+
+      // AM In validation: 05:00 - 12:59
+      if (amInInput.value) {
+        if (!validateTimeInput(amInInput, '05:00', '12:59', 'AM In')) {
+          isValid = false;
+        }
+      }
+
+      // AM Out validation: 08:00 - 12:59
+      if (amOutInput.value) {
+        if (!validateTimeInput(amOutInput, '08:00', '12:59', 'AM Out')) {
+          isValid = false;
+        }
+      }
+
+      // PM In validation: 12:00 - 23:59
+      if (pmInInput.value) {
+        if (!validateTimeInput(pmInInput, '12:00', '23:59', 'PM In')) {
+          isValid = false;
+        }
+      }
+
+      // PM Out validation: 12:00 - 23:59
+      if (pmOutInput.value) {
+        if (!validateTimeInput(pmOutInput, '12:00', '23:59', 'PM Out')) {
+          isValid = false;
+        }
+      }
+
+      // Check pairs: AM In/Out must be complete
+      if (amInInput.value && !amOutInput.value) {
+        amOutInput.classList.add('error');
+        amOutInput.title = 'AM Out is required when AM In is provided';
+        isValid = false;
+      } else if (!amInInput.value && amOutInput.value) {
+        amInInput.classList.add('error');
+        amInInput.title = 'AM In is required when AM Out is provided';
+        isValid = false;
+      } else if (amInInput.value && amOutInput.value) {
+        // Both have values, clear pair errors (but keep time range/comparison errors)
+        // Don't clear here - let comparison validation handle it
+      } else {
+        // Both are empty, clear any pair-related errors
+        if (amInInput.title.includes('required')) {
+          amInInput.classList.remove('error');
+          amInInput.title = '';
+        }
+        if (amOutInput.title.includes('required')) {
+          amOutInput.classList.remove('error');
+          amOutInput.title = '';
+        }
+      }
+
+      // Check pairs: PM In/Out must be complete
+      if (pmInInput.value && !pmOutInput.value) {
+        pmOutInput.classList.add('error');
+        pmOutInput.title = 'PM Out is required when PM In is provided';
+        isValid = false;
+      } else if (!pmInInput.value && pmOutInput.value) {
+        pmInInput.classList.add('error');
+        pmInInput.title = 'PM In is required when PM Out is provided';
+        isValid = false;
+      } else if (pmInInput.value && pmOutInput.value) {
+        // Both have values, clear pair errors
+        // Don't clear here - let comparison validation handle it
+      } else {
+        // Both are empty, clear any pair-related errors
+        if (pmInInput.title.includes('required')) {
+          pmInInput.classList.remove('error');
+          pmInInput.title = '';
+        }
+        if (pmOutInput.title.includes('required')) {
+          pmOutInput.classList.remove('error');
+          pmOutInput.title = '';
+        }
+      }
+
+      // AM Out must be later than AM In
+      if (amInInput.value && amOutInput.value) {
+        const amInMinutes = timeToMinutes(amInInput.value);
+        const amOutMinutes = timeToMinutes(amOutInput.value);
+        if (amOutMinutes <= amInMinutes) {
+          amOutInput.classList.add('error');
+          amOutInput.title = 'AM Out must be later than AM In';
+          isValid = false;
+        } else {
+          // Clear comparison error if it was set
+          if (amOutInput.title.includes('later than AM In')) {
+            amOutInput.classList.remove('error');
+            amOutInput.title = '';
+          }
+        }
+      }
+
+      // PM Out must be later than PM In
+      if (pmInInput.value && pmOutInput.value) {
+        const pmInMinutes = timeToMinutes(pmInInput.value);
+        const pmOutMinutes = timeToMinutes(pmOutInput.value);
+        if (pmOutMinutes <= pmInMinutes) {
+          pmOutInput.classList.add('error');
+          pmOutInput.title = 'PM Out must be later than PM In';
+          isValid = false;
+        } else {
+          // Clear comparison error if it was set
+          if (pmOutInput.title.includes('later than PM In')) {
+            pmOutInput.classList.remove('error');
+            pmOutInput.title = '';
+          }
+        }
+      }
+
+      // PM In must be later than AM Out (noon break)
+      if (amOutInput.value && pmInInput.value) {
+        const amOutMinutes = timeToMinutes(amOutInput.value);
+        const pmInMinutes = timeToMinutes(pmInInput.value);
+        if (pmInMinutes <= amOutMinutes) {
+          pmInInput.classList.add('error');
+          pmInInput.title = 'PM In must be later than AM Out (noon break required)';
+          isValid = false;
+        } else {
+          // Clear noon break error if it was set
+          if (pmInInput.title.includes('noon break')) {
+            pmInInput.classList.remove('error');
+            pmInInput.title = '';
+          }
+        }
+      } else {
+        // Clear noon break error if one of the inputs is empty
+        if (pmInInput.title.includes('noon break')) {
+          pmInInput.classList.remove('error');
+          pmInInput.title = '';
+        }
+      }
+
+      return isValid;
+    }
+
     // Add a new entry row
     function addRow() {
       rowCounter++;
@@ -303,16 +488,16 @@
           <div class="day-type-badge day-type-weekday" id="dayType-${rowCounter}">Weekday</div>
         </td>
         <td>
-          <input type="time" class="am-in" oninput="updateRow(${rowCounter})">
+          <input type="time" class="am-in" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="am-out" oninput="updateRow(${rowCounter})">
+          <input type="time" class="am-out" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="pm-in" oninput="updateRow(${rowCounter})">
+          <input type="time" class="pm-in" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td>
-          <input type="time" class="pm-out" oninput="updateRow(${rowCounter})">
+          <input type="time" class="pm-out" oninput="validateAndUpdateRow(${rowCounter})">
         </td>
         <td class="coc-earned-cell" id="cocEarned-${rowCounter}">0.0</td>
         <td>
@@ -323,6 +508,12 @@
       `;
 
       tbody.appendChild(row);
+    }
+
+    // Validate and update row (called on time input changes)
+    function validateAndUpdateRow(rowId) {
+      validateRow(rowId);
+      updateRow(rowId);
     }
 
     // Update row calculations
@@ -418,9 +609,29 @@
         return false;
       }
 
+      // Validate all rows first
+      const rows = document.querySelectorAll('#entryTableBody tr');
+      let allRowsValid = true;
+      const rowIds = [];
+
+      rows.forEach(row => {
+        const rowIdMatch = row.id.match(/row-(\d+)/);
+        if (rowIdMatch) {
+          const rowId = parseInt(rowIdMatch[1]);
+          rowIds.push(rowId);
+          if (!validateRow(rowId)) {
+            allRowsValid = false;
+          }
+        }
+      });
+
+      if (!allRowsValid) {
+        showErrorModal('Please fix the validation errors (red boxes) before submitting');
+        return false;
+      }
+
       // Collect entries
       const entries = [];
-      const rows = document.querySelectorAll('#entryTableBody tr');
 
       rows.forEach(row => {
         const dateInput = row.querySelector('.date-input');
