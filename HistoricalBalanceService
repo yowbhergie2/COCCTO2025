@@ -263,6 +263,15 @@ function getHistoricalBalanceByBatchId(batchId) {
     const batch = batches[0];
     Logger.log('Found batch: ' + JSON.stringify(batch));
 
+    // Convert dates to ISO string format for proper serialization
+    const dateOfIssuance = batch.dateOfIssuance instanceof Date
+      ? batch.dateOfIssuance.toISOString().split('T')[0]
+      : batch.dateOfIssuance;
+
+    const validUntil = batch.validUntil instanceof Date
+      ? batch.validUntil.toISOString().split('T')[0]
+      : batch.validUntil;
+
     return {
       success: true,
       data: {
@@ -272,8 +281,8 @@ function getHistoricalBalanceByBatchId(batchId) {
         year: batch.earnedYear,
         cocEarned: batch.originalHours,
         cocUsed: batch.originalHours - batch.remainingHours,
-        dateOfIssuance: batch.dateOfIssuance,
-        validUntil: batch.validUntil,
+        dateOfIssuance: dateOfIssuance,
+        validUntil: validUntil,
         status: batch.status
       }
     };

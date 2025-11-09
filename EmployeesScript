@@ -156,6 +156,11 @@
     }
     panel.innerHTML = '<div class="panel-body"><div class="empty-state" style="padding: 4rem 2rem;"><i class="fas fa-spinner fa-spin"></i><p>Loading details...</p></div></div>';
 
+    // DEBUG: Log employee position and office
+    console.log('Employee position:', employee.position, 'Office:', employee.office);
+    console.log('Available offices:', offices);
+    console.log('Available positions:', positions);
+
     // Generate Office options (with loading fallback)
     const officeOptions = (offices && offices.length > 0)
       ? offices.map(o => `<option value="${o}" ${o === employee.office ? 'selected' : ''}>${o}</option>`).join('')
@@ -257,9 +262,9 @@
     
     const panel = document.getElementById('employeeDetailsPanel');
     
-    // Generate Office options
+    // Generate Office options (no selected - for new employee)
     const officeOptions = offices.map(o => `<option value="${o}">${o}</option>`).join('');
-    // Generate Position options
+    // Generate Position options (no selected - for new employee)
     const positionOptions = positions.map(p => `<option value="${p}">${p}</option>`).join('');
     
     // *** FIX: Wrap entire content in <div class="panel-body"> ***
