@@ -245,17 +245,23 @@ function getEmployeeCurrentBalance(employeeId) {
  */
 function getHistoricalBalanceByBatchId(batchId) {
   try {
+    Logger.log('getHistoricalBalanceByBatchId called with batchId: ' + batchId + ' (type: ' + typeof batchId + ')');
+
     // Use queryDocuments for optimized query
     const batches = queryDocuments('creditBatches', 'batchId', '==', parseInt(batchId), 1);
 
+    Logger.log('Query returned ' + (batches ? batches.length : 0) + ' results');
+
     if (!batches || batches.length === 0) {
+      Logger.log('No batch found with batchId: ' + batchId);
       return {
         success: false,
-        message: 'Historical balance record not found'
+        message: 'Historical balance record not found (Batch ID: ' + batchId + ')'
       };
     }
 
     const batch = batches[0];
+    Logger.log('Found batch: ' + JSON.stringify(batch));
 
     return {
       success: true,
@@ -274,6 +280,7 @@ function getHistoricalBalanceByBatchId(batchId) {
 
   } catch (error) {
     Logger.log('Error in getHistoricalBalanceByBatchId: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
     return {
       success: false,
       message: 'Error retrieving historical balance: ' + error.message

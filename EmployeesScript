@@ -430,13 +430,13 @@
                         ${r.status}
                       </span>
                     </td>
-                    <td style="text-align: center;">
-                      <button class="icon-btn" onclick="editHistoricalBalance(${r.batchId})" title="Edit"
-                        style="padding: 0.5rem; border: none; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; margin-right: 0.5rem; transition: all 0.2s;">
+                    <td style="text-align: center; white-space: nowrap;">
+                      <button onclick="editHistoricalBalance(${r.batchId})" title="Edit"
+                        style="padding: 0.5rem 0.75rem; border: none; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; margin-right: 0.5rem; transition: all 0.2s; display: inline-block;">
                         <i class="fas fa-edit"></i>
                       </button>
-                      <button class="icon-btn icon-btn-danger" onclick="deleteHistoricalBalance(${r.batchId}, '${r.month}', ${r.year})" title="Delete"
-                        style="padding: 0.5rem; border: none; background: #ef4444; color: white; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                      <button onclick="deleteHistoricalBalance(${r.batchId}, '${r.month}', ${r.year})" title="Delete"
+                        style="padding: 0.5rem 0.75rem; border: none; background: #ef4444; color: white; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: inline-block;">
                         <i class="fas fa-trash"></i>
                       </button>
                     </td>
@@ -593,15 +593,17 @@
 
     google.script.run
       .withSuccessHandler(result => {
+        console.log('Batch data received:', result);
         batchData = result;
         dataComplete = true;
         if (formComplete && checkComplete) processResults();
       })
       .withFailureHandler(err => {
+        console.error('Error loading batch data:', err);
         hideOverlay();
         showAlert('Error loading batch data: ' + err.message, 'error');
       })
-      .getHistoricalBalanceByBatchId(batchId);
+      .getHistoricalBalanceByBatchId(parseInt(batchId));
 
     google.script.run
       .withSuccessHandler(html => {
@@ -625,12 +627,16 @@
       // Check if batchData is null or undefined
       if (!batchData) {
         hideOverlay();
-        showAlert('Error: Unable to load batch data', 'error');
+        console.error('batchData is null or undefined');
+        showAlert('Error: Unable to load batch data (data is null)', 'error');
         return;
       }
 
+      console.log('batchData:', batchData);
+
       if (!batchData.success) {
         hideOverlay();
+        console.error('batchData.success is false:', batchData.message);
         showAlert('Error: ' + batchData.message, 'error');
         return;
       }
