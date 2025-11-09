@@ -72,7 +72,7 @@ function getFirestore() {
   // Get credentials from script properties
   const projectId = scriptProperties.getProperty('FIREBASE_PROJECT_ID');
   const clientEmail = scriptProperties.getProperty('FIREBASE_CLIENT_EMAIL');
-  const privateKey = scriptProperties.getProperty('FIREBASE_PRIVATE_KEY');
+  let privateKey = scriptProperties.getProperty('FIREBASE_PRIVATE_KEY');
 
   // Validate credentials exist
   if (!projectId || !clientEmail || !privateKey) {
@@ -86,8 +86,42 @@ function getFirestore() {
     );
   }
 
+  // Fix private key format (handle common copy-paste issues)
+  privateKey = fixPrivateKeyFormat(privateKey);
+
   // Return Firestore instance
   return FirestoreApp.getFirestore(clientEmail, privateKey, projectId);
+}
+
+/**
+ * Fix common private key formatting issues
+ * This handles cases where users copy the key incorrectly
+ * @param {string} key - Private key from Script Properties
+ * @returns {string} Properly formatted private key
+ */
+function fixPrivateKeyFormat(key) {
+  if (!key) return key;
+
+  // Remove any surrounding quotes that might have been copied
+  key = key.trim();
+  if (key.startsWith('"') && key.endsWith('"')) {
+    key = key.slice(1, -1);
+  }
+  if (key.startsWith("'") && key.endsWith("'")) {
+    key = key.slice(1, -1);
+  }
+
+  // Ensure \n is treated as newline character, not literal \n
+  // (Some copy-paste methods might escape the backslash)
+  key = key.replace(/\\\\n/g, '\\n');
+
+  // Log the key format for debugging (first/last 50 chars only for security)
+  const keyStart = key.substring(0, 50);
+  const keyEnd = key.substring(key.length - 50);
+  Logger.log('Private key starts with: ' + keyStart);
+  Logger.log('Private key ends with: ' + keyEnd);
+
+  return key;
 }
 
 /**
@@ -152,8 +186,93 @@ function testFirebaseConnection() {
     Logger.log('2. Verify private key includes BEGIN/END markers');
     Logger.log('3. Make sure Firestore library is added');
     Logger.log('4. Check Firestore Database is enabled in Firebase Console');
+    Logger.log('\n💡 TIP: Run debugPrivateKey() to diagnose key issues');
 
     throw error;
+  }
+}
+
+/**
+ * Debug private key format
+ * Run this to check if your private key is formatted correctly
+ */
+function debugPrivateKey() {
+  Logger.log('🔍 Debugging Private Key Format...\n');
+
+  const scriptProperties = PropertiesService.getScriptProperties();
+  const privateKey = scriptProperties.getProperty('FIREBASE_PRIVATE_KEY');
+
+  if (!privateKey) {
+    Logger.log('❌ FIREBASE_PRIVATE_KEY not found in Script Properties!');
+    return;
+  }
+
+  Logger.log('✅ Private key exists in Script Properties');
+  Logger.log('Length: ' + privateKey.length + ' characters');
+
+  // Check for quotes
+  if (privateKey.startsWith('"') || privateKey.startsWith("'")) {
+    Logger.log('⚠️ WARNING: Private key starts with a quote character');
+    Logger.log('   Remove the opening quote!');
+  } else {
+    Logger.log('✅ No opening quote detected');
+  }
+
+  if (privateKey.endsWith('"') || privateKey.endsWith("'")) {
+    Logger.log('⚠️ WARNING: Private key ends with a quote character');
+    Logger.log('   Remove the closing quote!');
+  } else {
+    Logger.log('✅ No closing quote detected');
+  }
+
+  // Check BEGIN marker
+  if (privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    Logger.log('✅ Contains BEGIN PRIVATE KEY marker');
+  } else {
+    Logger.log('❌ ERROR: Missing BEGIN PRIVATE KEY marker!');
+  }
+
+  // Check END marker
+  if (privateKey.includes('-----END PRIVATE KEY-----')) {
+    Logger.log('✅ Contains END PRIVATE KEY marker');
+  } else {
+    Logger.log('❌ ERROR: Missing END PRIVATE KEY marker!');
+  }
+
+  // Check for \n characters
+  const newlineCount = (privateKey.match(/\\n/g) || []).length;
+  Logger.log('Found ' + newlineCount + ' \\n characters');
+  if (newlineCount < 10) {
+    Logger.log('⚠️ WARNING: Very few \\n characters found');
+    Logger.log('   Make sure newlines are preserved as \\n');
+  }
+
+  // Show first and last 60 characters
+  Logger.log('\nFirst 60 characters:');
+  Logger.log(privateKey.substring(0, 60));
+  Logger.log('\nLast 60 characters:');
+  Logger.log(privateKey.substring(privateKey.length - 60));
+
+  // Check if it looks correct
+  const looksCorrect =
+    privateKey.includes('-----BEGIN PRIVATE KEY-----') &&
+    privateKey.includes('-----END PRIVATE KEY-----') &&
+    newlineCount > 10 &&
+    !privateKey.startsWith('"') &&
+    !privateKey.endsWith('"');
+
+  if (looksCorrect) {
+    Logger.log('\n✅ Private key format looks CORRECT!');
+    Logger.log('💡 If you still get errors, the issue might be elsewhere.');
+  } else {
+    Logger.log('\n❌ Private key format looks INCORRECT!');
+    Logger.log('📝 Follow the instructions below to fix it:');
+    Logger.log('\n1. Delete FIREBASE_PRIVATE_KEY from Script Properties');
+    Logger.log('2. Add it again with this exact format:');
+    Logger.log('   - Start with: -----BEGIN PRIVATE KEY-----\\n');
+    Logger.log('   - End with: \\n-----END PRIVATE KEY-----\\n');
+    Logger.log('   - NO quotes at the beginning or end');
+    Logger.log('   - Keep all \\n characters as-is');
   }
 }
 
