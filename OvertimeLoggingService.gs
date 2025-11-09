@@ -203,6 +203,7 @@ function saveOvertimeBatch(batchData) {
 
 /**
  * Check if an overtime entry already exists
+ * OPTIMIZED: Uses Firestore compound query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @param {Date} dateWorked - Date worked
  * @param {string} month - Month name
@@ -211,24 +212,24 @@ function saveOvertimeBatch(batchData) {
  */
 function checkDuplicateEntry(employeeId, dateWorked, month, year) {
   try {
-    // Get all overtime logs from Firestore
-    const logs = getSheetData('OvertimeLogs');
+    // OPTIMIZATION: Query only logs for this employee/month/year
+    const logs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      month: month,
+      year: parseInt(year)
+    });
+
     if (!logs || logs.length === 0) {
       return false;
     }
 
     const dateStr = formatDate(dateWorked);
 
-    // Check for duplicate using object properties
+    // Check if any log has the same date
     for (const log of logs) {
-      if (log.employeeId === employeeId &&
-          log.month === month &&
-          log.year === year) {
-
-        const existingDateStr = formatDate(log.dateWorked);
-        if (existingDateStr === dateStr) {
-          return true;
-        }
+      const existingDateStr = formatDate(log.dateWorked);
+      if (existingDateStr === dateStr) {
+        return true;
       }
     }
 
@@ -242,23 +243,23 @@ function checkDuplicateEntry(employeeId, dateWorked, month, year) {
 
 /**
  * Get all overtime logs for an employee
+ * OPTIMIZED: Uses Firestore query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @returns {Array} Array of overtime log objects
  */
 function getEmployeeOvertimeLogs(employeeId) {
   try {
-    // Get all overtime logs from Firestore
-    const allLogs = getSheetData('OvertimeLogs');
-    if (!allLogs || allLogs.length === 0) {
+    // OPTIMIZATION: Query only logs for this employee
+    const logs = queryDocuments('overtimeLogs', 'employeeId', '==', parseInt(employeeId));
+
+    if (!logs || logs.length === 0) {
       return [];
     }
 
-    // Filter by employee ID
-    const logs = allLogs.filter(log =>
-      log.logId && log.employeeId === employeeId
-    );
+    // Filter out logs without logId (shouldn't happen, but safety check)
+    const validLogs = logs.filter(log => log.logId);
 
-    return serializeDates(logs);
+    return serializeDates(validLogs);
 
   } catch (error) {
     Logger.log('Error in getEmployeeOvertimeLogs: ' + error.toString());
@@ -355,30 +356,30 @@ function getOvertimeLogById(logId) {
 
 /**
  * Get all uncertified overtime logs (for reports)
+ * OPTIMIZED: Uses Firestore query instead of loading all logs
  * @returns {Array} Array of all uncertified logs
  */
 function getAllUncertifiedLogs() {
   try {
-    // Get all overtime logs from Firestore
-    const allLogs = getSheetData('OvertimeLogs');
-    if (!allLogs || allLogs.length === 0) {
+    // OPTIMIZATION: Query only uncertified logs
+    const uncertifiedLogs = queryDocuments('overtimeLogs', 'status', '==', 'Uncertified');
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return [];
     }
 
-    // Filter uncertified logs
-    const logs = allLogs
-      .filter(log => log.status === 'Uncertified')
-      .map(log => ({
-        logId: log.logId,
-        employeeId: log.employeeId,
-        month: log.month,
-        year: log.year,
-        dateWorked: log.dateWorked,
-        dayType: log.dayType,
-        cocEarned: log.cocEarned,
-        loggedBy: log.loggedBy,
-        loggedDate: log.loggedDate
-      }));
+    // Map to required fields
+    const logs = uncertifiedLogs.map(log => ({
+      logId: log.logId,
+      employeeId: log.employeeId,
+      month: log.month,
+      year: log.year,
+      dateWorked: log.dateWorked,
+      dayType: log.dayType,
+      cocEarned: log.cocEarned,
+      loggedBy: log.loggedBy,
+      loggedDate: log.loggedDate
+    }));
 
     return serializeDates(logs);
 
@@ -390,6 +391,7 @@ function getAllUncertifiedLogs() {
 
 /**
  * Get existing overtime dates for duplicate detection
+ * OPTIMIZED: Uses Firestore compound query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
@@ -397,26 +399,26 @@ function getAllUncertifiedLogs() {
  */
 function getExistingOvertimeDates(employeeId, month, year) {
   try {
-    // Get all overtime logs from Firestore
-    const allLogs = getSheetData('OvertimeLogs');
-    if (!allLogs || allLogs.length === 0) {
+    // OPTIMIZATION: Query only logs for this employee/month/year
+    const logs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      month: month,
+      year: parseInt(year)
+    });
+
+    if (!logs || logs.length === 0) {
       return [];
     }
 
     const existingDates = [];
 
-    // Filter matching logs and extract dates
-    for (const log of allLogs) {
-      if (log.employeeId === employeeId &&
-          log.month === month &&
-          log.year === year) {
-
-        const dateWorked = log.dateWorked;
-        if (dateWorked) {
-          const dateStr = formatDateForInput(dateWorked);
-          if (dateStr && !existingDates.includes(dateStr)) {
-            existingDates.push(dateStr);
-          }
+    // Extract dates
+    for (const log of logs) {
+      const dateWorked = log.dateWorked;
+      if (dateWorked) {
+        const dateStr = formatDateForInput(dateWorked);
+        if (dateStr && !existingDates.includes(dateStr)) {
+          existingDates.push(dateStr);
         }
       }
     }
@@ -454,6 +456,7 @@ function formatDateForInput(date) {
 
 /**
  * Get total uncertified COC hours for an employee/month/year
+ * OPTIMIZED: Uses Firestore compound query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
@@ -461,22 +464,23 @@ function formatDateForInput(date) {
  */
 function getUncertifiedHours(employeeId, month, year) {
   try {
-    // Get all overtime logs from Firestore
-    const allLogs = getSheetData('OvertimeLogs');
-    if (!allLogs || allLogs.length === 0) {
+    // OPTIMIZATION: Query only uncertified logs for this employee/month/year
+    const logs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      month: month,
+      year: parseInt(year),
+      status: 'Uncertified'
+    });
+
+    if (!logs || logs.length === 0) {
       return { hours: 0 };
     }
 
     let totalHours = 0;
 
-    // Sum up uncertified COC for this employee, month, and year
-    for (const log of allLogs) {
-      if (log.employeeId === employeeId &&
-          log.month === month &&
-          log.year === year &&
-          log.status === 'Uncertified') {
-        totalHours += parseFloat(log.cocEarned) || 0;
-      }
+    // Sum up COC earned
+    for (const log of logs) {
+      totalHours += parseFloat(log.cocEarned) || 0;
     }
 
     return { hours: totalHours };
@@ -536,12 +540,18 @@ function generateCOCCertificate(certificateData) {
       };
     }
 
-    // Get all overtime logs from Firestore
-    const allLogs = getSheetData('OvertimeLogs');
-    if (!allLogs || allLogs.length === 0) {
+    // OPTIMIZATION: Query only uncertified logs for this employee/month/year
+    const uncertifiedLogs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(certificateData.employeeId),
+      month: certificateData.month,
+      year: parseInt(certificateData.year),
+      status: 'Uncertified'
+    });
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return {
         success: false,
-        message: 'No overtime logs found'
+        message: 'No uncertified hours found for the selected period'
       };
     }
 
@@ -553,23 +563,17 @@ function generateCOCCertificate(certificateData) {
     let updatedCount = 0;
     let totalHours = 0;
 
-    // Find and update all matching uncertified entries
-    for (const log of allLogs) {
-      if (log.employeeId === certificateData.employeeId &&
-          log.month === certificateData.month &&
-          log.year === certificateData.year &&
-          log.status === 'Uncertified') {
+    // Update all matching uncertified entries
+    for (const log of uncertifiedLogs) {
+      // Update status to 'Active' and set validUntil date
+      updateRowById('OvertimeLogs', log.logId, {
+        ...log,
+        status: 'Active',
+        validUntil: validUntilDate
+      });
 
-        // Update status to 'Active' and set validUntil date
-        updateRowById('OvertimeLogs', log.logId, {
-          ...log,
-          status: 'Active',
-          validUntil: validUntilDate
-        });
-
-        updatedCount++;
-        totalHours += parseFloat(log.cocEarned) || 0;
-      }
+      updatedCount++;
+      totalHours += parseFloat(log.cocEarned) || 0;
     }
 
     if (updatedCount === 0) {
@@ -758,6 +762,7 @@ function convertSheetToPDF(spreadsheet, sheet) {
 
 /**
  * Check if a certificate already exists for employee/month/year
+ * OPTIMIZED: Uses Firestore compound query instead of loading all certificates
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
@@ -765,22 +770,14 @@ function convertSheetToPDF(spreadsheet, sheet) {
  */
 function checkExistingCertificate(employeeId, month, year) {
   try {
-    // Get all certificates from Firestore
-    const certificates = getSheetData('Certificates');
-    if (!certificates || certificates.length === 0) {
-      return false;
-    }
+    // OPTIMIZATION: Query only certificates for this employee/month/year
+    const certificates = findDocuments('certificates', {
+      employeeId: parseInt(employeeId),
+      month: month,
+      year: parseInt(year)
+    });
 
-    // Check if certificate already exists
-    for (const cert of certificates) {
-      if (cert.employeeId === employeeId &&
-          cert.month === month &&
-          cert.year === year) {
-        return true;
-      }
-    }
-
-    return false;
+    return certificates && certificates.length > 0;
 
   } catch (error) {
     Logger.log('Error in checkExistingCertificate: ' + error.toString());
@@ -829,39 +826,22 @@ function logCertificateIssuance(employeeId, month, year, dateOfIssuance) {
 
 /**
  * Get employee COC ledger (balance and transaction history)
+ * OPTIMIZED: Uses Firestore query instead of Sheets API
  * @param {number} employeeId - Employee ID
  * @returns {Object} Ledger data with activeBalance, uncertifiedBalance, and transactions array
  */
 function getEmployeeLedger(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Query only logs for this employee
+    const logs = queryDocuments('overtimeLogs', 'employeeId', '==', parseInt(employeeId));
+
+    if (!logs || logs.length === 0) {
       return {
         activeBalance: 0,
         uncertifiedBalance: 0,
         transactions: []
       };
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return {
-        activeBalance: 0,
-        uncertifiedBalance: 0,
-        transactions: []
-      };
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
-    const dayTypeIndex = headers.indexOf('DayType');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    // *** FIX: Use 'Status' column ***
-    const statusIndex = headers.indexOf('Status');
-    const validUntilIndex = headers.indexOf('ValidUntil');
 
     let activeBalance = 0;
     let uncertifiedBalance = 0;
@@ -871,51 +851,46 @@ function getEmployeeLedger(employeeId) {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
+    for (const log of logs) {
+      const statusValue = log.status || 'Uncertified';
+      const certified = statusValue !== 'Uncertified';
 
-      if (row[employeeIdIndex] === employeeId) {
-        // *** FIX: Use 'Status' column to determine if certified ***
-        const statusValue = row[statusIndex] || 'Uncertified';
-        const certified = statusValue !== 'Uncertified';
-        
-        const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
-        const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
+      const cocEarned = parseFloat(log.cocEarned) || 0;
+      const validUntil = log.validUntil ? new Date(log.validUntil) : null;
 
-        let status = statusValue;
+      let status = statusValue;
 
-        if (certified) {
-          if (status === 'Active') { // Only 'Active' logs contribute to balance
-            if (validUntil) {
-              // Check if expired
-              if (validUntil < now) {
-                status = 'Expired';
-              } else {
-                status = 'Active';
-                activeBalance += cocEarned;
-              }
+      if (certified) {
+        if (status === 'Active') { // Only 'Active' logs contribute to balance
+          if (validUntil) {
+            // Check if expired
+            if (validUntil < now) {
+              status = 'Expired';
             } else {
-              // Certified but no valid until date (shouldn't happen, but handle gracefully)
               status = 'Active';
               activeBalance += cocEarned;
             }
+          } else {
+            // Certified but no valid until date (shouldn't happen, but handle gracefully)
+            status = 'Active';
+            activeBalance += cocEarned;
           }
-          // 'Used' or 'Expired' logs are certified but don't add to active balance
-        } else {
-          // Uncertified
-          uncertifiedBalance += cocEarned;
         }
-
-        transactions.push({
-          month: row[monthIndex],
-          year: row[yearIndex],
-          dateWorked: formatDate(new Date(row[dateWorkedIndex])),
-          dayType: row[dayTypeIndex],
-          cocEarned: cocEarned,
-          validUntil: validUntil,
-          status: status
-        });
+        // 'Used' or 'Expired' logs are certified but don't add to active balance
+      } else {
+        // Uncertified
+        uncertifiedBalance += cocEarned;
       }
+
+      transactions.push({
+        month: log.month,
+        year: log.year,
+        dateWorked: formatDate(new Date(log.dateWorked)),
+        dayType: log.dayType,
+        cocEarned: cocEarned,
+        validUntil: validUntil,
+        status: status
+      });
     }
 
     // Sort transactions by date (newest first)
@@ -1002,150 +977,104 @@ function getEmployeeLedgerDetailed(employeeId) {
     // ========================================
     // PART 1: Get Historical Data from CreditBatches
     // ========================================
-    const creditBatchesSheet = getDbSheet('CreditBatches');
-    Logger.log('CreditBatches sheet found: ' + (creditBatchesSheet ? 'YES' : 'NO'));
+    // OPTIMIZATION: Query only batches for this employee
+    const batches = queryDocuments('creditBatches', 'employeeId', '==', parseInt(employeeId));
+    Logger.log('CreditBatches found: ' + (batches ? batches.length : 0));
 
-    if (creditBatchesSheet) {
-      const batchData = creditBatchesSheet.getDataRange().getValues();
-      Logger.log('CreditBatches rows: ' + batchData.length);
+    if (batches && batches.length > 0) {
+      for (const batch of batches) {
+        const originalHours = parseFloat(batch.originalHours) || 0;
+        const remainingHours = parseFloat(batch.remainingHours) || 0;
+        const batchStatus = batch.status;
+        const validUntil = batch.validUntil ? new Date(batch.validUntil) : null;
+        const dateOfIssuance = batch.dateOfIssuance ? new Date(batch.dateOfIssuance) : null;
 
-      if (batchData.length > 1) {
-        const batchHeaders = batchData[0];
-        const batchEmployeeIdIndex = batchHeaders.indexOf('EmployeeID');
-        const batchMonthIndex = batchHeaders.indexOf('EarnedMonth');
-        const batchYearIndex = batchHeaders.indexOf('EarnedYear');
-        const batchOriginalHoursIndex = batchHeaders.indexOf('OriginalHours');
-        const batchRemainingHoursIndex = batchHeaders.indexOf('RemainingHours');
-        const batchStatusIndex = batchHeaders.indexOf('Status');
-        const batchValidUntilIndex = batchHeaders.indexOf('ValidUntil');
-        const batchDateOfIssuanceIndex = batchHeaders.indexOf('DateOfIssuance');
+        Logger.log('Batch ' + batch.batchId + ' - DateOfIssuance: ' + dateOfIssuance);
 
-        Logger.log('CreditBatches Headers: ' + JSON.stringify(batchHeaders));
-        Logger.log('DateOfIssuance column index: ' + batchDateOfIssuanceIndex);
+        // Calculate used hours for this batch
+        const batchUsed = originalHours - remainingHours;
 
-        for (let i = 1; i < batchData.length; i++) {
-          const row = batchData[i];
+        // Add to total earned
+        totalEarned += originalHours;
 
-          if (row[batchEmployeeIdIndex] === employeeId) {
-            const originalHours = parseFloat(row[batchOriginalHoursIndex]) || 0;
-            const remainingHours = parseFloat(row[batchRemainingHoursIndex]) || 0;
-            const batchStatus = row[batchStatusIndex];
-            const validUntil = row[batchValidUntilIndex] ? new Date(row[batchValidUntilIndex]) : null;
-            const dateOfIssuance = row[batchDateOfIssuanceIndex] ? new Date(row[batchDateOfIssuanceIndex]) : null;
+        // Add to used COCs
+        if (batchUsed > 0) {
+          usedCOCs += batchUsed;
+        }
 
-            Logger.log('Row ' + i + ' - Raw DateOfIssuance value: ' + row[batchDateOfIssuanceIndex]);
-            Logger.log('Row ' + i + ' - Parsed dateOfIssuance: ' + dateOfIssuance);
-
-            // Calculate used hours for this batch
-            const batchUsed = originalHours - remainingHours;
-
-            // Add to total earned
-            totalEarned += originalHours;
-
-            // Add to used COCs
-            if (batchUsed > 0) {
-              usedCOCs += batchUsed;
-            }
-
-            // Determine current status and add to active balance
-            let currentStatus = batchStatus;
-            if (batchStatus === 'Active') {
-              // Check if expired
-              if (validUntil && validUntil < now) {
-                currentStatus = 'Expired';
-              } else {
-                activeBalance += remainingHours;
-              }
-            }
-
-            // Add to transactions (show as batch entry)
-            transactions.push({
-              month: row[batchMonthIndex],
-              year: row[batchYearIndex],
-              dateWorked: dateOfIssuance ? formatDate(dateOfIssuance) : 'Historical',
-              dayType: 'Historical Batch',
-              cocEarned: originalHours,
-              cocUsed: batchUsed,
-              cocRemaining: remainingHours,
-              dateOfIssuance: dateOfIssuance ? formatDate(dateOfIssuance) : '--',
-              validUntil: validUntil,
-              status: currentStatus,
-              isHistorical: true
-            });
+        // Determine current status and add to active balance
+        let currentStatus = batchStatus;
+        if (batchStatus === 'Active') {
+          // Check if expired
+          if (validUntil && validUntil < now) {
+            currentStatus = 'Expired';
+          } else {
+            activeBalance += remainingHours;
           }
         }
+
+        // Add to transactions (show as batch entry)
+        transactions.push({
+          month: batch.earnedMonth,
+          year: batch.earnedYear,
+          dateWorked: dateOfIssuance ? formatDate(dateOfIssuance) : 'Historical',
+          dayType: 'Historical Batch',
+          cocEarned: originalHours,
+          cocUsed: batchUsed,
+          cocRemaining: remainingHours,
+          dateOfIssuance: dateOfIssuance ? formatDate(dateOfIssuance) : '--',
+          validUntil: validUntil,
+          status: currentStatus,
+          isHistorical: true
+        });
       }
     }
 
     // ========================================
     // PART 2: Get Current Overtime Data from OvertimeLogs
     // ========================================
-    const overtimeSheet = getDbSheet('OvertimeLogs');
-    Logger.log('OvertimeLogs sheet found: ' + (overtimeSheet ? 'YES' : 'NO'));
+    // OPTIMIZATION: Query only logs for this employee
+    const logs = queryDocuments('overtimeLogs', 'employeeId', '==', parseInt(employeeId));
+    Logger.log('OvertimeLogs found: ' + (logs ? logs.length : 0));
 
-    if (overtimeSheet) {
-      const overtimeData = overtimeSheet.getDataRange().getValues();
-      Logger.log('OvertimeLogs rows: ' + overtimeData.length);
+    if (logs && logs.length > 0) {
+      for (const log of logs) {
+        const cocEarned = parseFloat(log.cocEarned) || 0;
+        const validUntil = log.validUntil ? new Date(log.validUntil) : null;
+        const status = log.status || 'Uncertified';
 
-      if (overtimeData.length > 1) {
-        const overtimeHeaders = overtimeData[0];
-        const employeeIdIndex = overtimeHeaders.indexOf('EmployeeID');
-        const monthIndex = overtimeHeaders.indexOf('Month');
-        const yearIndex = overtimeHeaders.indexOf('Year');
-        const dateWorkedIndex = overtimeHeaders.indexOf('DateWorked');
-        const dayTypeIndex = overtimeHeaders.indexOf('DayType');
-        const amInIndex = overtimeHeaders.indexOf('AMIn');
-        const amOutIndex = overtimeHeaders.indexOf('AMOut');
-        const pmInIndex = overtimeHeaders.indexOf('PMIn');
-        const pmOutIndex = overtimeHeaders.indexOf('PMOut');
-        const cocEarnedIndex = overtimeHeaders.indexOf('COCEarned');
-        // *** FIX: Use 'Status' column ***
-        const statusIndex = overtimeHeaders.indexOf('Status');
-        const validUntilIndex = overtimeHeaders.indexOf('ValidUntil');
+        totalEarned += cocEarned;
 
-        for (let i = 1; i < overtimeData.length; i++) {
-          const row = overtimeData[i];
+        let currentStatus = status;
 
-          if (row[employeeIdIndex] === employeeId) {
-            // *** FIX: Correctly read status and balances ***
-            const cocEarned = parseFloat(row[cocEarnedIndex]) || 0;
-            const validUntil = row[validUntilIndex] ? new Date(row[validUntilIndex]) : null;
-            const status = row[statusIndex] || 'Uncertified'; // Get status
-
-            totalEarned += cocEarned;
-
-            let currentStatus = status;
-
-            if (status === 'Active') {
-              if (validUntil && validUntil < now) {
-                currentStatus = 'Expired';
-              } else {
-                activeBalance += cocEarned;
-              }
-            } else if (status === 'Uncertified') {
-              uncertifiedBalance += cocEarned;
-            }
-            // 'Used' or 'Expired' logs do not add to active or uncertified balance
-
-            transactions.push({
-              month: row[monthIndex],
-              year: row[yearIndex],
-              dateWorked: formatDate(new Date(row[dateWorkedIndex])),
-              dayType: row[dayTypeIndex],
-              amIn: formatTime(row[amInIndex]),
-              amOut: formatTime(row[amOutIndex]),
-              pmIn: formatTime(row[pmInIndex]),
-              pmOut: formatTime(row[pmOutIndex]),
-              cocEarned: cocEarned,
-              cocUsed: 0,  // OvertimeLogs are earn-only (for now)
-              cocRemaining: (currentStatus === 'Active' || currentStatus === 'Uncertified') ? cocEarned : 0,
-              dateOfIssuance: null, // This log doesn't have an issuance date
-              validUntil: validUntil ? formatDate(validUntil) : null,
-              status: currentStatus,
-              isHistorical: false
-            });
+        if (status === 'Active') {
+          if (validUntil && validUntil < now) {
+            currentStatus = 'Expired';
+          } else {
+            activeBalance += cocEarned;
           }
+        } else if (status === 'Uncertified') {
+          uncertifiedBalance += cocEarned;
         }
+        // 'Used' or 'Expired' logs do not add to active or uncertified balance
+
+        transactions.push({
+          month: log.month,
+          year: log.year,
+          dateWorked: formatDate(new Date(log.dateWorked)),
+          dayType: log.dayType,
+          amIn: formatTime(log.amIn),
+          amOut: formatTime(log.amOut),
+          pmIn: formatTime(log.pmIn),
+          pmOut: formatTime(log.pmOut),
+          cocEarned: cocEarned,
+          cocUsed: 0,  // OvertimeLogs are earn-only (for now)
+          cocRemaining: (currentStatus === 'Active' || currentStatus === 'Uncertified') ? cocEarned : 0,
+          dateOfIssuance: null, // This log doesn't have an issuance date
+          validUntil: validUntil ? formatDate(validUntil) : null,
+          status: currentStatus,
+          isHistorical: false
+        });
       }
     }
 
@@ -1289,6 +1218,7 @@ function getEmployeeCOCProgress(employeeId, month, year) {
 
 /**
  * Check if a historical balance exists for an employee's specific month/year
+ * OPTIMIZED: Uses Firestore compound query instead of loading all batches
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
@@ -1296,19 +1226,20 @@ function getEmployeeCOCProgress(employeeId, month, year) {
  */
 function checkHistoricalBalanceExists(employeeId, month, year) {
   try {
-    // Get all credit batches from Firestore
-    const batches = getSheetData('CreditBatches');
+    // OPTIMIZATION: Query only batches for this employee/month/year
+    const batches = findDocuments('creditBatches', {
+      employeeId: parseInt(employeeId),
+      earnedMonth: month,
+      earnedYear: parseInt(year)
+    });
+
     if (!batches || batches.length === 0) {
       return false;
     }
 
-    // Check if historical balance exists for this employee/month/year
+    // Check if any batch is a historical migration
     for (const batch of batches) {
-      if (batch.employeeId === employeeId &&
-          batch.earnedMonth === month &&
-          batch.earnedYear === year &&
-          batch.notes &&
-          batch.notes.toString().includes('Historical data migration')) {
+      if (batch.notes && batch.notes.toString().includes('Historical data migration')) {
         return true;
       }
     }
