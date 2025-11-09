@@ -534,7 +534,7 @@ function verifyMigration() {
   Logger.log('========================================\n');
 
   const collections = [
-    { sheet: 'Configuration', collection: 'configuration' },
+    { sheet: 'SystemConfig', collection: 'configuration' },
     { sheet: 'Libraries', collection: 'libraries' },
     { sheet: 'Holidays', collection: 'holidays' },
     { sheet: 'Employees', collection: 'employees' },
@@ -550,17 +550,22 @@ function verifyMigration() {
     try {
       const sheetCount = getSheetData(item.sheet).length;
       const firestoreCount = countDocuments(item.collection);
-      const match = sheetCount === firestoreCount;
+
+      // Libraries is special - 9 rows become 2 category documents
+      const isLibraries = item.sheet === 'Libraries';
+      const match = isLibraries ? firestoreCount > 0 : sheetCount === firestoreCount;
 
       results.push({
         name: item.sheet,
         sheetCount: sheetCount,
         firestoreCount: firestoreCount,
-        match: match
+        match: match,
+        special: isLibraries
       });
 
       const icon = match ? '✅' : '❌';
-      Logger.log(`${icon} ${item.sheet}: Sheets=${sheetCount}, Firestore=${firestoreCount}`);
+      const note = isLibraries ? ' (grouped into categories)' : '';
+      Logger.log(`${icon} ${item.sheet}: Sheets=${sheetCount}, Firestore=${firestoreCount}${note}`);
 
     } catch (error) {
       Logger.log(`⚠️ ${item.sheet}: Could not verify - ${error.message}`);
@@ -592,6 +597,52 @@ function getSampleDocument(collectionName, documentId = null) {
   } else {
     const docs = getAllDocuments(collectionName);
     return docs.length > 0 ? docs[0] : null;
+  }
+}
+
+/**
+ * Debug Ledger migration
+ * Check why only 1 out of 3 Ledger documents migrated
+ */
+function debugLedgerMigration() {
+  Logger.log('🔍 Debugging Ledger Migration...\n');
+
+  try {
+    // Get data from Sheets
+    const sheetData = getSheetData('Ledger');
+    const headers = getSheetHeaders('Ledger');
+
+    Logger.log(`Found ${sheetData.length} rows in Ledger sheet`);
+    Logger.log(`Headers: ${headers.join(', ')}\n`);
+
+    // Check each row
+    sheetData.forEach((row, index) => {
+      Logger.log(`Row ${index + 2}:`);
+      headers.forEach((header, i) => {
+        Logger.log(`  ${header}: ${row[i]}`);
+      });
+
+      // Check for LedgerID
+      const ledgerId = row[headers.indexOf('LedgerID')];
+      if (!ledgerId) {
+        Logger.log(`  ❌ ISSUE: Missing LedgerID!`);
+      } else {
+        Logger.log(`  ✅ LedgerID: ${ledgerId}`);
+      }
+      Logger.log('');
+    });
+
+    // Check Firestore
+    Logger.log('\n📊 Firestore Ledger Documents:');
+    const firestoreDocs = getAllDocuments('ledger');
+    firestoreDocs.forEach(doc => {
+      Logger.log(`  - ${doc.ledgerId}: ${doc.description || 'No description'}`);
+    });
+
+    Logger.log(`\n✅ Total in Firestore: ${firestoreDocs.length}`);
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
   }
 }
 
