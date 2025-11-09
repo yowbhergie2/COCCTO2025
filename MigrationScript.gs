@@ -294,24 +294,33 @@ function migrateEmployees(dryRun = true) {
   const data = getSheetData(sheetName);
   const headers = getSheetHeaders(sheetName);
 
-  const documents = data.map(row => {
-    const employeeId = row[headers.indexOf('EmployeeID')];
+  const documents = data
+    .map(row => {
+      const employeeId = row[headers.indexOf('EmployeeID')];
 
-    return {
-      id: String(employeeId),
-      data: {
-        employeeId: String(employeeId),
-        firstName: row[headers.indexOf('FirstName')] || '',
-        lastName: row[headers.indexOf('LastName')] || '',
-        middleInitial: row[headers.indexOf('MiddleInitial')] || '',
-        suffix: row[headers.indexOf('Suffix')] || '',
-        status: row[headers.indexOf('Status')] || 'Active',
-        position: row[headers.indexOf('Position')] || '',
-        office: row[headers.indexOf('Office')] || '',
-        email: row[headers.indexOf('Email')] || ''
+      return {
+        id: String(employeeId),
+        data: {
+          employeeId: String(employeeId),
+          firstName: row[headers.indexOf('FirstName')] || '',
+          lastName: row[headers.indexOf('LastName')] || '',
+          middleInitial: row[headers.indexOf('MiddleInitial')] || '',
+          suffix: row[headers.indexOf('Suffix')] || '',
+          status: row[headers.indexOf('Status')] || 'Active',
+          position: row[headers.indexOf('Position')] || '',
+          office: row[headers.indexOf('Office')] || '',
+          email: row[headers.indexOf('Email')] || ''
+        }
+      };
+    })
+    .filter(doc => {
+      // Skip rows with invalid employee IDs
+      const isValid = doc.id && doc.id !== 'undefined' && doc.id !== 'null' && doc.id !== '';
+      if (!isValid) {
+        Logger.log(`⚠️ Skipping employee with invalid ID: ${doc.id}`);
       }
-    };
-  });
+      return isValid;
+    });
 
   if (!dryRun && documents.length > 0) {
     batchCreateDocuments(collectionName, documents);
