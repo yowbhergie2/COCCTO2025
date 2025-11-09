@@ -139,7 +139,7 @@ function getAllUncertifiedLogs() {
       const row = data[i];
       if (row[statusIndex] === 'Uncertified') {
         const employeeId = row[employeeIdIndex];
-        const employee = getEmployeeById(employeeId);
+        const employee = getEmployeeById_V2(employeeId);
         const employeeName = employee ?
           [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
             .filter(x => x).join(' ') :

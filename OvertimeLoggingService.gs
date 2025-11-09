@@ -25,7 +25,7 @@ function saveOvertimeBatch(batchData) {
     }
 
     // Check if employee exists
-    const employee = getEmployeeById(batchData.employeeId);
+    const employee = getEmployeeById_V2(batchData.employeeId);
     if (!employee) {
       return {
         success: false,
@@ -515,7 +515,7 @@ function generateCOCCertificate(certificateData) {
     }
 
     // Check if employee exists
-    const employee = getEmployeeById(certificateData.employeeId);
+    const employee = getEmployeeById_V2(certificateData.employeeId);
     if (!employee) {
       return {
         success: false,
