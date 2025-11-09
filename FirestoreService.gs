@@ -190,7 +190,7 @@ function getDocument(collectionName, documentId) {
 /**
  * Get all documents from a collection
  * @param {string} collectionName - Collection name
- * @param {number} limit - Maximum number of documents (default: 1000)
+ * @param {number} limit - Maximum number of documents (default: unlimited)
  * @param {string} orderBy - Field to order by (optional)
  * @returns {Array<Object>} Array of documents
  *
@@ -198,43 +198,41 @@ function getDocument(collectionName, documentId) {
  * const allEmployees = getAllDocuments('employees', 100, 'createdAt');
  * allEmployees.forEach(emp => Logger.log(emp.firstName));
  */
-function getAllDocuments(collectionName, limit = 1000, orderBy = null) {
+function getAllDocuments(collectionName, limit = null, orderBy = null) {
   try {
     const db = getDb();
 
-    // OPTIMIZATION: Use Firestore query with limit instead of loading all docs
-    let query = db.query(collectionName);
-
-    if (orderBy) {
-      query = query.orderBy(orderBy);
-    }
-
-    if (limit && limit > 0) {
-      query = query.limit(limit);
-    }
-
-    const documents = query.execute();
+    // Get all documents using the direct API (most reliable)
+    const documents = db.getDocuments(collectionName);
 
     if (!documents || documents.length === 0) {
       return [];
     }
 
     // Convert to plain objects
-    return documents.map(doc => firestoreFieldsToObject(doc.fields));
+    let results = documents.map(doc => firestoreFieldsToObject(doc.fields));
+
+    // Apply client-side ordering if specified
+    if (orderBy && results.length > 0) {
+      results.sort((a, b) => {
+        const aVal = a[orderBy];
+        const bVal = b[orderBy];
+        if (aVal < bVal) return -1;
+        if (aVal > bVal) return 1;
+        return 0;
+      });
+    }
+
+    // Apply client-side limit if specified
+    if (limit && limit > 0) {
+      results = results.slice(0, limit);
+    }
+
+    return results;
 
   } catch (error) {
     Logger.log(`ERROR getting documents from ${collectionName}: ${error.message}`);
-    // Fallback to old method if query fails
-    try {
-      const documents = db.getDocuments(collectionName);
-      if (!documents || documents.length === 0) return [];
-      return documents
-        .map(doc => firestoreFieldsToObject(doc.fields))
-        .slice(0, limit);
-    } catch (fallbackError) {
-      Logger.log(`ERROR in fallback method: ${fallbackError.message}`);
-      throw error;
-    }
+    throw error;
   }
 }
 
