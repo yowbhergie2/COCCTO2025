@@ -990,13 +990,41 @@ function testSingleCollectionMigration() {
  */
 
 /**
+ * IMPORTANT: Set this to your actual database spreadsheet ID
+ * You can find this in the spreadsheet URL:
+ * https://docs.google.com/spreadsheets/d/[SPREADSHEET_ID]/edit
+ */
+const DATABASE_SPREADSHEET_ID = '1vulzS7jxl8jEpHHoXZfF4eaffIxz0m9RL7NAaSQbR0I';
+
+/**
+ * Get the database spreadsheet (where the data is stored)
+ * @returns {Spreadsheet} Database spreadsheet
+ */
+function getDatabaseSpreadsheet() {
+  try {
+    // Try to open by ID first
+    if (DATABASE_SPREADSHEET_ID && DATABASE_SPREADSHEET_ID !== 'YOUR_SPREADSHEET_ID_HERE') {
+      Logger.log(`📂 Opening database spreadsheet: ${DATABASE_SPREADSHEET_ID}`);
+      return SpreadsheetApp.openById(DATABASE_SPREADSHEET_ID);
+    }
+
+    // Fallback to active spreadsheet
+    Logger.log('⚠️ Using active spreadsheet. Set DATABASE_SPREADSHEET_ID for production.');
+    return SpreadsheetApp.getActiveSpreadsheet();
+  } catch (error) {
+    Logger.log(`Error opening database spreadsheet: ${error.message}`);
+    throw new Error('Cannot access database spreadsheet. Check DATABASE_SPREADSHEET_ID.');
+  }
+}
+
+/**
  * Get sheet object from the database spreadsheet
  * @param {string} sheetName - Name of the sheet
  * @returns {Sheet|null} Sheet object or null if not found
  */
 function getSheetForMigration(sheetName) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getDatabaseSpreadsheet();
     const sheet = ss.getSheetByName(sheetName);
     return sheet;
   } catch (error) {
