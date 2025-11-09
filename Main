@@ -202,7 +202,7 @@
     function navigateTo(view) {
       // Don't reload if clicking the same view
       if (currentView === view) {
-         closeAllDropdowns(); // Still close dropdown if a sub-link is clicked
+         // closeAllDropdowns(); // Still close dropdown if a sub-link is clicked
          return;
       }
 
