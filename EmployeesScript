@@ -47,7 +47,7 @@
         console.error('Failed to load employees:', err);
         showAlert('Error: ' + (err.message || 'Unknown server error'), 'error');
       })
-      .getAllEmployees();
+      .getAllEmployees_V2_Client(); // CACHE FIX: Call V2 Client function
   }
 
   /**
@@ -344,7 +344,8 @@
     const data = Object.fromEntries(formData);
 
     // Convert employeeId to number (FormData returns strings, but DB stores numbers)
-    const employeeId = data.employeeId ? parseInt(data.employeeId, 10) : null;
+    // CACHE FIX: Pass ID as a string, which is what V2 functions expect
+    const employeeId = data.employeeId ? String(data.employeeId) : null;
     const serverFunc = employeeId ? 'updateEmployee' : 'createEmployee';
     
     google.script.run
@@ -425,7 +426,7 @@
                     <td>${r.dateOfIssuance}</td>
                     <td>${r.validUntil}</td>
                     <td>
-                      <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; background: ${statusColor}15; color: ${statusColor}; font-size: 0.8125rem;">
+                      <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8125rem; font-weight: 600; background: ${statusColor}15; color: ${statusColor};">
                         ${r.status}
                       </span>
                     </td>
