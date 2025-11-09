@@ -534,7 +534,7 @@ function verifyMigration() {
   Logger.log('========================================\n');
 
   const collections = [
-    { sheet: 'Configuration', collection: 'configuration' },
+    { sheet: 'SystemConfig', collection: 'configuration' },
     { sheet: 'Libraries', collection: 'libraries' },
     { sheet: 'Holidays', collection: 'holidays' },
     { sheet: 'Employees', collection: 'employees' },
@@ -550,17 +550,22 @@ function verifyMigration() {
     try {
       const sheetCount = getSheetData(item.sheet).length;
       const firestoreCount = countDocuments(item.collection);
-      const match = sheetCount === firestoreCount;
+
+      // Libraries is special - 9 rows become 2 category documents
+      const isLibraries = item.sheet === 'Libraries';
+      const match = isLibraries ? firestoreCount > 0 : sheetCount === firestoreCount;
 
       results.push({
         name: item.sheet,
         sheetCount: sheetCount,
         firestoreCount: firestoreCount,
-        match: match
+        match: match,
+        special: isLibraries
       });
 
       const icon = match ? '✅' : '❌';
-      Logger.log(`${icon} ${item.sheet}: Sheets=${sheetCount}, Firestore=${firestoreCount}`);
+      const note = isLibraries ? ' (grouped into categories)' : '';
+      Logger.log(`${icon} ${item.sheet}: Sheets=${sheetCount}, Firestore=${firestoreCount}${note}`);
 
     } catch (error) {
       Logger.log(`⚠️ ${item.sheet}: Could not verify - ${error.message}`);
