@@ -21,6 +21,7 @@
  */
 
 // Collection name mappings (Sheet name → Firestore collection)
+// THIS IS THE CRITICAL FIX for the 'undefined' collection issue
 const COLLECTION_MAPPING = {
   'Employees': 'employees',
   'OvertimeLogs': 'overtimeLogs',
@@ -46,6 +47,7 @@ const ID_FIELD_MAPPING = {
 
 /**
  * Get Firestore collection name from sheet name
+ * This function now correctly uses the COLLECTION_MAPPING
  */
 function getCollectionName(sheetName) {
   return COLLECTION_MAPPING[sheetName] || sheetName.toLowerCase();
@@ -274,7 +276,7 @@ function getFieldMapping(sheetName) {
  * @param {string} sheetName - Sheet name
  * @param {number|string} id - Document ID
  * @param {Object|Array} updatedData - New data
- * @param {number} idColumn - ID column index (not used, kept for compatibility)
+ * @param {number} idColumn - ID column index (not used, for compatibility)
  * @returns {boolean} Success status
  */
 function updateRowById(sheetName, id, updatedData, idColumn = 0) {
@@ -305,7 +307,7 @@ function updateRowById(sheetName, id, updatedData, idColumn = 0) {
  * Delete row by ID (replaces deleteRowById)
  * @param {string} sheetName - Sheet name
  * @param {number|string} id - Document ID
- * @param {number} idColumn - ID column index (not used, kept for compatibility)
+ * @param {number} idColumn - ID column index (not used, for compatibility)
  * @returns {boolean} Success status
  */
 function deleteRowById(sheetName, id, idColumn = 0) {
@@ -344,7 +346,7 @@ function findRows(sheetName, criteria) {
  * Get document by ID (replaces getRowById)
  * @param {string} sheetName - Sheet name
  * @param {number|string} id - Document ID
- * @param {number} idColumn - ID column index (not used, kept for compatibility)
+ * @param {number} idColumn - ID column index (not used, for compatibility)
  * @returns {Object|null} Document data or null
  */
 function getRowById(sheetName, id, idColumn = 0) {
@@ -392,5 +394,3 @@ function serializeDates(obj) {
 
   return obj;
 }
-
-
