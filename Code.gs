@@ -56,13 +56,10 @@ function getEmployeesForDropdown_V2_Client() {
 
 
 // =============================================================
-// ORIGINAL FUNCTIONS - Kept for cache, but V2 is used by UI
+// ORIGINAL FUNCTIONS - REMOVED TO FIX CACHE ISSUE
 // =============================================================
 
-/**
- * Get employees for dropdown (ID and full name)
- * This is the OLD, CACHED function.
- */
+/*
 function getEmployeesForDropdown() {
   const employees = getAllEmployees(); // Calls old, cached getAllEmployees
   return employees
@@ -77,6 +74,7 @@ function getEmployeesForDropdown() {
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+*/
 
 /**
  * Get current user email

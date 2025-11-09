@@ -414,9 +414,9 @@ function serializeDates(obj) {
 }
 
 // =============================================================
-// OLD FUNCTIONS - Kept temporarily to avoid breaking the cache
-// DO NOT USE THESE. They will be removed later.
+// OLD FUNCTIONS - REMOVED TO FIX CACHE ISSUE
 // =============================================================
+/*
 function getCollectionName(sheetName) {
   return COLLECTION_MAPPING[sheetName] || sheetName.toLowerCase();
 }
@@ -447,3 +447,4 @@ function getEmployeesForDropdown() {
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+*/
