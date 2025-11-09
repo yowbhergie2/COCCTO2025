@@ -257,16 +257,18 @@ function getFieldMapping(sheetName) {
       'timestamp'        // 8
     ],
     'CreditBatches': [
-      'batchId',         // 0
-      'employeeId',      // 1
-      'earnedMonth',     // 2
-      'earnedYear',      // 3
-      'originalHours',   // 4
-      'remainingHours',  // 5
-      'status',          // 6
-      'dateOfIssuance',  // 7
-      'validUntil',      // 8
-      'notes'            // 9
+      'batchId',         // 0 - A: BatchID
+      'employeeId',      // 1 - B: EmployeeID
+      'earnedMonth',     // 2 - C: EarnedMonth
+      'earnedYear',      // 3 - D: EarnedYear
+      'dateOfIssuance',  // 4 - E: DateOfIssuance
+      'validUntil',      // 5 - F: ValidUntil
+      'originalHours',   // 6 - G: OriginalHours
+      'remainingHours',  // 7 - H: RemainingHours
+      'status',          // 8 - I: Status
+      'certifiedBy',     // 9 - J: CertifiedBy
+      'certifiedDate',   // 10 - K: CertifiedDate
+      'notes'            // 11 - L: Notes
     ],
     'Ledger': [
       'transactionId',   // 0
