@@ -123,7 +123,7 @@ function migrateAllData(dryRun = true) {
  * Migrate Configuration sheet
  */
 function migrateConfiguration(dryRun = true) {
-  const sheetName = 'Configuration';
+  const sheetName = 'SystemConfig';  // Updated to match actual sheet name
   const collectionName = 'configuration';
 
   try {
