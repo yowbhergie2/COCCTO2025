@@ -216,34 +216,27 @@ function getDayType(date) {
 
 /**
  * Check if a date is a holiday
+ * OPTIMIZED: Uses Firestore query for specific year instead of loading all holidays
  * @param {Date} date - The date to check
  * @returns {boolean} True if holiday, false otherwise
  */
 function isHoliday(date) {
   try {
-    const sheet = getDbSheet('Holidays');
-    if (!sheet) {
-      return false;
-    }
+    const year = date.getFullYear();
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return false;
-    }
+    // OPTIMIZATION: Query only holidays for the specific year
+    const yearHolidays = queryDocuments('holidays', 'year', '==', year);
 
-    const headers = data[0];
-    const dateIndex = headers.indexOf('HolidayDate');
-
-    if (dateIndex === -1) {
+    if (!yearHolidays || yearHolidays.length === 0) {
       return false;
     }
 
     // Format date as string for comparison (MM/DD/YYYY)
     const dateStr = Utilities.formatDate(date, 'Asia/Manila', 'MM/dd/yyyy');
 
-    // Check if date exists in holidays
-    for (let i = 1; i < data.length; i++) {
-      const holidayDate = data[i][dateIndex];
+    // Check if date exists in holidays for this year
+    for (let i = 0; i < yearHolidays.length; i++) {
+      const holidayDate = yearHolidays[i].holidayDate;
       if (holidayDate instanceof Date) {
         const holidayStr = Utilities.formatDate(holidayDate, 'Asia/Manila', 'MM/dd/yyyy');
         if (holidayStr === dateStr) {
@@ -304,6 +297,7 @@ function validateMonthlyAccrualCap(employeeId, month, year, newHours) {
 
 /**
  * Get employee's total COC earned for a specific month
+ * OPTIMIZED: Uses Firestore compound query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @param {string} month - Month name
  * @param {number} year - Year
@@ -311,32 +305,21 @@ function validateMonthlyAccrualCap(employeeId, month, year, newHours) {
  */
 function getEmployeeMonthTotal(employeeId, month, year) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Use compound query to get only logs for this employee/month/year
+    const logs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      month: month,
+      year: parseInt(year)
+    });
+
+    if (!logs || logs.length === 0) {
       return 0;
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return 0;
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
 
     let total = 0;
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year) {
-        total += parseFloat(row[cocEarnedIndex]) || 0;
-      }
-    }
+    logs.forEach(log => {
+      total += parseFloat(log.cocEarned) || 0;
+    });
 
     return total;
 
@@ -392,35 +375,26 @@ function validateTotalBalanceCap(employeeId, newHours) {
 
 /**
  * Get employee's total uncertified COC balance
+ * OPTIMIZED: Uses Firestore compound query instead of loading all logs
  * @param {number} employeeId - Employee ID
  * @returns {number} Total uncertified balance
  */
 function getEmployeeUncertifiedBalance(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Use compound query to get only uncertified logs for this employee
+    const uncertifiedLogs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      status: 'Uncertified'
+    });
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return 0;
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return 0;
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const statusIndex = headers.indexOf('Status');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
 
     let total = 0;
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === employeeId &&
-          row[statusIndex] === 'Uncertified') {
-        total += parseFloat(row[cocEarnedIndex]) || 0;
-      }
-    }
+    uncertifiedLogs.forEach(log => {
+      total += parseFloat(log.cocEarned) || 0;
+    });
 
     return total;
 
