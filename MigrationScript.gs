@@ -601,6 +601,52 @@ function getSampleDocument(collectionName, documentId = null) {
 }
 
 /**
+ * Debug Ledger migration
+ * Check why only 1 out of 3 Ledger documents migrated
+ */
+function debugLedgerMigration() {
+  Logger.log('🔍 Debugging Ledger Migration...\n');
+
+  try {
+    // Get data from Sheets
+    const sheetData = getSheetData('Ledger');
+    const headers = getSheetHeaders('Ledger');
+
+    Logger.log(`Found ${sheetData.length} rows in Ledger sheet`);
+    Logger.log(`Headers: ${headers.join(', ')}\n`);
+
+    // Check each row
+    sheetData.forEach((row, index) => {
+      Logger.log(`Row ${index + 2}:`);
+      headers.forEach((header, i) => {
+        Logger.log(`  ${header}: ${row[i]}`);
+      });
+
+      // Check for LedgerID
+      const ledgerId = row[headers.indexOf('LedgerID')];
+      if (!ledgerId) {
+        Logger.log(`  ❌ ISSUE: Missing LedgerID!`);
+      } else {
+        Logger.log(`  ✅ LedgerID: ${ledgerId}`);
+      }
+      Logger.log('');
+    });
+
+    // Check Firestore
+    Logger.log('\n📊 Firestore Ledger Documents:');
+    const firestoreDocs = getAllDocuments('ledger');
+    firestoreDocs.forEach(doc => {
+      Logger.log(`  - ${doc.ledgerId}: ${doc.description || 'No description'}`);
+    });
+
+    Logger.log(`\n✅ Total in Firestore: ${firestoreDocs.length}`);
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+  }
+}
+
+/**
  * ========================================
  * ROLLBACK FUNCTIONS (USE WITH CAUTION!)
  * ========================================
