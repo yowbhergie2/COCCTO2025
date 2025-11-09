@@ -16,7 +16,7 @@ function saveHistoricalBalance(formData) {
     const dateOfIssuanceStr = formData.dateOfIssuance;
     
     // Validation 1: Check employee exists
-    const employee = getEmployeeById(employeeId);
+    const employee = getEmployeeById_V2(employeeId);
     if (!employee) {
       return {
         success: false,
