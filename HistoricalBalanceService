@@ -25,18 +25,18 @@ function saveHistoricalBalance(formData) {
     }
 
     // *** BAGONG VALIDATION: Check for duplicates ***
-    const data = getSheetData('CreditBatches');
-    const headers = getSheetHeaders('CreditBatches');
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('EarnedMonth');
-    const yearIndex = headers.indexOf('EarnedYear');
-    const notesIndex = headers.indexOf('Notes');
+    // PABILIS-FIX: Changed getSheetData to getSheetData_V2 to use Firestore
+    const data = getSheetData_V2('CreditBatches');
+    
+    // PABILIS-FIX: Removed getSheetHeaders and ...Index variables
+    // Use object property access instead of array index
 
     const isDuplicate = data.some(row => {
-      return row[employeeIdIndex] === employeeId &&
-             row[monthIndex] === month &&
-             row[yearIndex] === year &&
-             row[notesIndex] && row[notesIndex].toString().includes('Historical data migration');
+      // PABILIS-FIX: Check object properties directly
+      return row.EmployeeID === employeeId &&
+             row.EarnedMonth === month &&
+             row.EarnedYear === year &&
+             row.Notes && row.Notes.toString().includes('Historical data migration');
     });
 
     if (isDuplicate) {
@@ -69,6 +69,7 @@ function saveHistoricalBalance(formData) {
     lastDayOfMonth.setHours(0, 0, 0, 0);
     
     // Parse and normalize dateOfIssuance
+    // Add T00:00:00 to avoid timezone issues with date parsing
     const dateOfIssuance = new Date(dateOfIssuanceStr + 'T00:00:00');
     dateOfIssuance.setHours(0, 0, 0, 0);
     
@@ -78,6 +79,15 @@ function saveHistoricalBalance(formData) {
         message: 'Date of Issuance must be on or after ' + formatDate(lastDayOfMonth)
       };
     }
+
+    // --- BAGONG-DAGDAG: Validation 5: Check if Date of Issuance year matches Earned Year ---
+    if (dateOfIssuance.getFullYear() !== year) {
+      return {
+        success: false,
+        message: `Date of Issuance (${dateOfIssuance.getFullYear()}) must be in the same year as Earned Year (${year}).`
+      };
+    }
+    // --- END ---
     
     // Calculate Remaining balance
     const remaining = cocEarned - cocUsed;
@@ -102,6 +112,7 @@ function saveHistoricalBalance(formData) {
     }
     
     // Create BatchID
+    // PABILIS-FIX: This getNextId call is now Firestore-aware via DatabaseService.gs
     const batchId = getNextId('CreditBatches', 'A');
     const currentEmail = getCurrentUserEmail();
     const currentDate = new Date();
@@ -123,6 +134,7 @@ function saveHistoricalBalance(formData) {
     ];
     
     // Append to CreditBatches
+    // PABILIS-FIX: This appendToSheet call is now Firestore-aware via DatabaseService.gs
     appendToSheet('CreditBatches', batchRow);
     
     // Create ledger entries
@@ -195,31 +207,19 @@ function getMonthNumber(monthName) {
  * Get employee's current total balance (sum of all Active RemainingHours)
  */
 function getEmployeeCurrentBalance(employeeId) {
-  const sheet = getDbSheet('CreditBatches');
-  if (!sheet) {
-    Logger.log('getEmployeeCurrentBalance: CreditBatches sheet not found');
-    return 0;
+  // PABILIS-FIX: Use getSheetData_V2
+  const data = getSheetData_V2('CreditBatches');
+  if (!data || data.length === 0) {
+    return 0;  // No data
   }
 
-  const data = sheet.getDataRange().getValues();
-  if (!data || data.length <= 1) {
-    return 0;  // No data or only headers
-  }
-
-  const headers = data[0];
-  
-  // Get column indices
-  const employeeIdIndex = headers.indexOf('EmployeeID');
-  const statusIndex = headers.indexOf('Status');
-  const remainingIndex = headers.indexOf('RemainingHours');
-  
   let totalBalance = 0;
   
-  // Skip header row (index 0)
-  for (let i = 1; i < data.length; i++) {
+  // PABILIS-FIX: Use object properties
+  for (let i = 0; i < data.length; i++) {
     const row = data[i];
-    if (row[employeeIdIndex] === employeeId && row[statusIndex] === 'Active') {
-      totalBalance += parseFloat(row[remainingIndex]) || 0;
+    if (row.EmployeeID === employeeId && row.Status === 'Active') {
+      totalBalance += parseFloat(row.RemainingHours) || 0;
     }
   }
   
@@ -234,31 +234,24 @@ function getEmployeeCurrentBalance(employeeId) {
  */
 function checkEmployeeHasOvertimeLogs(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // PABILIS-FIX: Use getSheetData_V2
+    // --- OPTIMIZATION START: Use queryDocuments for speed ---
+    // Imbis na i-load lahat, mag-query lang para sa specific employee
+    // Siguraduhin na ang EmployeeID ay string kapag nag-query sa Firestore
+    const logs = queryDocuments('overtimeLogs', 'EmployeeID', '==', String(employeeId)); 
+    
+    if (logs && logs.length > 0) {
+      // May nahanap na kahit isang log
+      return { hasOvertimeLogs: true };
+    } else {
+      // Walang nahanap
       return { hasOvertimeLogs: false };
     }
+    // --- OPTIMIZATION END ---
 
-    const data = sheet.getDataRange().getValues();
-    if (!data || data.length <= 1) {
-      return { hasOvertimeLogs: false };  // No data or only headers
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-
-    // Check if any row belongs to this employee
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === employeeId) {
-        return { hasOvertimeLogs: true };
-      }
-    }
-
-    return { hasOvertimeLogs: false };
   } catch (error) {
     Logger.log('Error in checkEmployeeHasOvertimeLogs: ' + error.toString());
-    return { hasOvertimeLogs: false };
+    return { hasOvertimeLogs: false }; // Fail safe
   }
 }
 
@@ -270,44 +263,36 @@ function checkEmployeeHasOvertimeLogs(employeeId) {
  */
 function deleteHistoricalBalance(batchId) {
   try {
-    const creditBatchesSheet = getDbSheet('CreditBatches');
-    if (!creditBatchesSheet) {
-      return {
-        success: false,
-        message: 'CreditBatches sheet not found'
-      };
-    }
-
-    const data = creditBatchesSheet.getDataRange().getValues();
-    if (!data || data.length <= 1) {
+    // PABILIS-FIX: Use getSheetData_V2
+    const data = getSheetData_V2('CreditBatches');
+    if (!data || data.length === 0) {
       return {
         success: false,
         message: 'No records found'
       };
     }
 
-    const headers = data[0];
-    const batchIdIndex = headers.indexOf('BatchID');
-    const notesIndex = headers.indexOf('Notes');
-
-    // Find the row to delete
-    let rowToDelete = -1;
-    for (let i = 1; i < data.length; i++) {
+    // Find the document to delete
+    let docToDelete = null;
+    for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      if (row[batchIdIndex] === batchId) {
-        // Verify it's a historical record
-        if (!row[notesIndex] || !row[notesIndex].toString().includes('Historical data migration')) {
-          return {
-            success: false,
-            message: 'This is not a historical balance record and cannot be deleted here'
-          };
-        }
-        rowToDelete = i + 1; // +1 because sheet rows are 1-indexed
+      // PABILIS-FIX: Use object properties
+      if (row.BatchID === batchId) {
+        // --- FIX: Tinanggal ang validation para sa "Historical data migration" note ---
+        // Ito 'yung pumipigil sa pag-delete ng ibang batches.
+        // Ngayon, basta mahanap ang BatchID, ide-delete na niya.
+        // if (!row.Notes || !row.Notes.toString().includes('Historical data migration')) {
+        //   return {
+        //     success: false,
+        //     message: 'This is not a historical balance record and cannot be deleted here'
+        //   };
+        // }
+        docToDelete = row;
         break;
       }
     }
 
-    if (rowToDelete === -1) {
+    if (!docToDelete) {
       return {
         success: false,
         message: 'Historical balance record not found'
@@ -315,20 +300,20 @@ function deleteHistoricalBalance(batchId) {
     }
 
     // Delete the row from CreditBatches
-    creditBatchesSheet.deleteRow(rowToDelete);
+    // PABILIS-FIX: Use deleteRowById (which is Firestore-aware)
+    deleteRowById('CreditBatches', batchId, 0);
 
     // Also delete related Ledger entries
-    const ledgerSheet = getDbSheet('Ledger');
-    if (ledgerSheet) {
-      const ledgerData = ledgerSheet.getDataRange().getValues();
-      const ledgerHeaders = ledgerData[0];
-      const ledgerBatchIdIndex = ledgerHeaders.indexOf('BatchID');
-
-      // Delete from bottom to top to avoid index shifting issues
-      for (let i = ledgerData.length - 1; i >= 1; i--) {
+    // PABILIS-FIX: Use getSheetData_V2
+    const ledgerData = getSheetData_V2('Ledger');
+    if (ledgerData && ledgerData.length > 0) {
+      const ledgerDocsToDelete = [];
+      for (let i = 0; i < ledgerData.length; i++) {
         const row = ledgerData[i];
-        if (row[ledgerBatchIdIndex] === batchId) {
-          ledgerSheet.deleteRow(i + 1); // +1 because sheet rows are 1-indexed
+        // PABILIS-FIX: Use object properties
+        if (row.BatchID === batchId) {
+          // PABILIS-FIX: Use deleteRowById
+          deleteRowById('Ledger', row.TransactionID, 0);
         }
       }
     }
