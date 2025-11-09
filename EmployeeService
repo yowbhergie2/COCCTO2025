@@ -2,48 +2,26 @@
 
 /**
  * Get all employees
+ * UPDATED: Now uses Firestore objects instead of array-based rows
  */
 function getAllEmployees() {
   const data = getSheetData('Employees');
-  const employees = data.map(row => ({
-    employeeId: row[0],
-    lastName: row[1],
-    firstName: row[2],
-    middleInitial: row[3],
-    suffix: row[4],
-    status: row[5],
-    position: row[6],
-    office: row[7],
-    createdDate: row[8],
-    createdBy: row[9],
-    modifiedDate: row[10],
-    modifiedBy: row[11]
-  }));
-  
-  return serializeDates(employees);
+
+  // Data is already in object format from Firestore
+  // No need to map - just return as-is
+  return serializeDates(data);
 }
 
 /**
  * Get employee by ID
+ * UPDATED: Now uses Firestore objects instead of array-based rows
  */
 function getEmployeeById(employeeId) {
-  const row = getRowById('Employees', employeeId, 0);
-  if (!row) return null;
+  const employee = getRowById('Employees', employeeId, 0);
+  if (!employee) return null;
 
-  return serializeDates({
-    employeeId: row[0],
-    lastName: row[1],
-    firstName: row[2],
-    middleInitial: row[3],
-    suffix: row[4],
-    status: row[5],
-    position: row[6],
-    office: row[7],
-    createdDate: row[8],
-    createdBy: row[9],
-    modifiedDate: row[10],
-    modifiedBy: row[11]
-  });
+  // Data is already in object format from Firestore
+  return serializeDates(employee);
 }
 
 /**
@@ -68,10 +46,9 @@ function searchEmployeeByIdOrName(searchValue) {
     const data = getSheetData('Employees');
 
     for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const employeeId = row[0];
-      const lastName = (row[1] || '').toString().toLowerCase();
-      const firstName = (row[2] || '').toString().toLowerCase();
+      const employee = data[i];
+      const lastName = (employee.lastName || '').toString().toLowerCase();
+      const firstName = (employee.firstName || '').toString().toLowerCase();
       const fullName = `${firstName} ${lastName}`.trim();
       const reverseName = `${lastName} ${firstName}`.trim();
 
@@ -81,20 +58,7 @@ function searchEmployeeByIdOrName(searchValue) {
           fullName.includes(searchStr) ||
           reverseName.includes(searchStr)) {
 
-        return serializeDates({
-          employeeId: employeeId,
-          lastName: row[1],
-          firstName: row[2],
-          middleInitial: row[3],
-          suffix: row[4],
-          status: row[5],
-          position: row[6],
-          office: row[7],
-          createdDate: row[8],
-          createdBy: row[9],
-          modifiedDate: row[10],
-          modifiedBy: row[11]
-        });
+        return serializeDates(employee);
       }
     }
 
@@ -109,30 +73,28 @@ function searchEmployeeByIdOrName(searchValue) {
 
 /**
  * Create new employee
+ * UPDATED: Now uses Firestore objects instead of arrays
  */
 function createEmployee(employeeData) {
   try {
     const employeeId = getNextId('Employees', 'A');
     const currentEmail = getCurrentUserEmail();
     const currentDate = new Date();
-    
-    const rowData = [
-      employeeId,
-      employeeData.lastName || '',
-      employeeData.firstName || '',
-      employeeData.middleInitial || '',
-      employeeData.suffix || '',
-      employeeData.status || 'Active',
-      employeeData.position || '',
-      employeeData.office || '',
-      currentDate,
-      currentEmail,
-      currentDate,
-      currentEmail
-    ];
-    
-    appendToSheet('Employees', rowData);
-    
+
+    const employeeObject = {
+      employeeId: String(employeeId),
+      lastName: employeeData.lastName || '',
+      firstName: employeeData.firstName || '',
+      middleInitial: employeeData.middleInitial || '',
+      suffix: employeeData.suffix || '',
+      status: employeeData.status || 'Active',
+      position: employeeData.position || '',
+      office: employeeData.office || '',
+      email: employeeData.email || ''
+    };
+
+    appendToSheet('Employees', employeeObject);
+
     return {
       success: true,
       employeeId: employeeId,
@@ -148,6 +110,7 @@ function createEmployee(employeeData) {
 
 /**
  * Update employee
+ * UPDATED: Now uses Firestore objects instead of arrays
  */
 function updateEmployee(employeeId, employeeData) {
   try {
@@ -158,27 +121,21 @@ function updateEmployee(employeeId, employeeData) {
         message: 'Employee not found'
       };
     }
-    
-    const currentEmail = getCurrentUserEmail();
-    const currentDate = new Date();
-    
-    const rowData = [
-      employeeId,
-      employeeData.lastName || existing.lastName,
-      employeeData.firstName || existing.firstName,
-      employeeData.middleInitial || existing.middleInitial,
-      employeeData.suffix || existing.suffix,
-      employeeData.status || existing.status,
-      employeeData.position || existing.position,
-      employeeData.office || existing.office,
-      existing.createdDate,
-      existing.createdBy,
-      currentDate,
-      currentEmail
-    ];
 
-    updateRowById('Employees', employeeId, rowData, 0);
-    
+    const updatedEmployee = {
+      employeeId: String(employeeId),
+      lastName: employeeData.lastName || existing.lastName,
+      firstName: employeeData.firstName || existing.firstName,
+      middleInitial: employeeData.middleInitial || existing.middleInitial,
+      suffix: employeeData.suffix || existing.suffix,
+      status: employeeData.status || existing.status,
+      position: employeeData.position || existing.position,
+      office: employeeData.office || existing.office,
+      email: employeeData.email || existing.email
+    };
+
+    updateRowById('Employees', employeeId, updatedEmployee, 0);
+
     return {
       success: true,
       message: 'Employee updated successfully'

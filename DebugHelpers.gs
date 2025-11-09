@@ -323,6 +323,62 @@ function debugEmployeesSheet() {
 }
 
 /**
+ * VERIFICATION: Test if employees are loading correctly after fix
+ * This should show proper employee data, not undefined values
+ */
+function verifyEmployeesFix() {
+  Logger.log('✅ Verifying Employee Data After Fix\n');
+
+  try {
+    // Test 1: Get all employees
+    Logger.log('1️⃣ Testing getAllEmployees()...');
+    const employees = getAllEmployees();
+    Logger.log(`Total employees: ${employees.length}`);
+
+    if (employees.length === 0) {
+      Logger.log('⚠️ No employees found. Run superNuclearFixEmployees() first.\n');
+      return;
+    }
+
+    // Test 2: Show first employee
+    Logger.log('\n2️⃣ First Employee Data:');
+    const first = employees[0];
+    Logger.log(`  employeeId: ${first.employeeId} (${typeof first.employeeId})`);
+    Logger.log(`  firstName: ${first.firstName} (${typeof first.firstName})`);
+    Logger.log(`  lastName: ${first.lastName} (${typeof first.lastName})`);
+    Logger.log(`  position: ${first.position} (${typeof first.position})`);
+    Logger.log(`  office: ${first.office} (${typeof first.office})`);
+    Logger.log(`  status: ${first.status} (${typeof first.status})`);
+
+    // Test 3: Check for undefined values
+    Logger.log('\n3️⃣ Checking for undefined values...');
+    const hasUndefined =
+      first.employeeId === undefined ||
+      first.firstName === undefined ||
+      first.lastName === undefined;
+
+    if (hasUndefined) {
+      Logger.log('❌ FAILED: Still have undefined values!');
+      Logger.log('   Make sure you copied the updated EmployeeService file to Apps Script.');
+    } else {
+      Logger.log('✅ SUCCESS: All values are defined!');
+    }
+
+    // Test 4: Check dropdown format
+    Logger.log('\n4️⃣ Testing dropdown format...');
+    const dropdown = getEmployeesForDropdown();
+    Logger.log('Dropdown data:');
+    Logger.log(JSON.stringify(dropdown, null, 2));
+
+    Logger.log('\n✅ Verification complete!');
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
+
+/**
  * Helper: Migrate/update employees from Google Sheets to Firestore
  * This uses UPSERT so it will overwrite existing documents
  */
