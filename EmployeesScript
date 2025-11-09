@@ -431,10 +431,12 @@
                       </span>
                     </td>
                     <td style="text-align: center;">
-                      <button class="icon-btn" onclick="editHistoricalBalance(${r.batchId})" title="Edit">
+                      <button class="icon-btn" onclick="editHistoricalBalance(${r.batchId})" title="Edit"
+                        style="padding: 0.5rem; border: none; background: #3b82f6; color: white; border-radius: 6px; cursor: pointer; margin-right: 0.5rem; transition: all 0.2s;">
                         <i class="fas fa-edit"></i>
                       </button>
-                      <button class="icon-btn icon-btn-danger" onclick="deleteHistoricalBalance(${r.batchId}, '${r.month}', ${r.year})" title="Delete">
+                      <button class="icon-btn icon-btn-danger" onclick="deleteHistoricalBalance(${r.batchId}, '${r.month}', ${r.year})" title="Delete"
+                        style="padding: 0.5rem; border: none; background: #ef4444; color: white; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
                         <i class="fas fa-trash"></i>
                       </button>
                     </td>
@@ -617,6 +619,13 @@
       if (hasLogs) {
         hideOverlay();
         showAlert('Cannot edit Historical Balance: Employee already has overtime logs. Editing would cause data conflicts.', 'error');
+        return;
+      }
+
+      // Check if batchData is null or undefined
+      if (!batchData) {
+        hideOverlay();
+        showAlert('Error: Unable to load batch data', 'error');
         return;
       }
 
