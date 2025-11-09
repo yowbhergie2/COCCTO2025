@@ -227,6 +227,70 @@ function debugGetAllDocuments() {
 }
 
 /**
+ * Debug: Check what's actually in the Employees Google Sheet
+ */
+function debugEmployeesSheet() {
+  Logger.log('🔍 Debugging Employees Sheet...\n');
+
+  try {
+    const sheetName = 'Employees';
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+      Logger.log('❌ Employees sheet not found!');
+      return;
+    }
+
+    const data = sheet.getDataRange().getValues();
+    Logger.log(`Total rows (including header): ${data.length}\n`);
+
+    if (data.length === 0) {
+      Logger.log('❌ Sheet is empty!');
+      return;
+    }
+
+    // Show headers
+    Logger.log('📋 HEADERS (Row 1):');
+    Logger.log(JSON.stringify(data[0], null, 2));
+    Logger.log('\n---\n');
+
+    // Show first 3 data rows
+    Logger.log('📄 FIRST 3 DATA ROWS:\n');
+    for (let i = 1; i <= Math.min(3, data.length - 1); i++) {
+      Logger.log(`Row ${i + 1}:`);
+      Logger.log(JSON.stringify(data[i], null, 2));
+      Logger.log('');
+    }
+
+    // Check for EmployeeID column
+    const headers = data[0];
+    const employeeIdIndex = headers.indexOf('EmployeeID');
+    Logger.log('\n---\n');
+    Logger.log(`🔍 Looking for 'EmployeeID' column...`);
+    Logger.log(`  Found at index: ${employeeIdIndex}`);
+
+    if (employeeIdIndex === -1) {
+      Logger.log('\n⚠️ EmployeeID column not found! Available columns:');
+      headers.forEach((header, index) => {
+        Logger.log(`  ${index}: "${header}"`);
+      });
+    } else {
+      Logger.log(`\n✅ EmployeeID column found at index ${employeeIdIndex}`);
+      Logger.log('First 5 EmployeeID values:');
+      for (let i = 1; i <= Math.min(5, data.length - 1); i++) {
+        const value = data[i][employeeIdIndex];
+        Logger.log(`  Row ${i + 1}: "${value}" (type: ${typeof value})`);
+      }
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
+
+/**
  * Helper: Delete all employees and re-migrate
  * This is a convenience function to clean up and re-migrate employees
  */
