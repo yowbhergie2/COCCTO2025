@@ -455,6 +455,7 @@
 
   /**
    * Shows the overlay for historical balance form
+   * OPTIMIZED: Show loading immediately, check logs in parallel
    */
   function addHistoricalBalance() {
     if (!selectedEmployee) {
@@ -462,19 +463,84 @@
       return;
     }
 
-    // Check if employee has overtime logs
+    // OPTIMIZATION: Show loading overlay immediately for better UX
+    let overlay = document.getElementById('modalOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'modalOverlay';
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 100;
+        display: flex; align-items: flex-start; justify-content: center;
+        overflow-y: auto; padding-top: 5vh; padding-bottom: 5vh;
+      `;
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = '<div style="color: white; font-size: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Loading form...</div>';
+
+    // OPTIMIZATION: Load form and check logs in parallel
+    let formHtml = null;
+    let hasLogs = null;
+    let checkComplete = false;
+    let formComplete = false;
+
+    // Start both operations in parallel
     google.script.run
       .withSuccessHandler(result => {
-        if (result.hasOvertimeLogs) {
-          showAlert('Cannot add Historical Balance: Employee already has overtime logs. Adding historical data would cause data conflicts.', 'error');
-        } else {
-          showOverlay('HistoryForm', { employeeId: selectedEmployee.employeeId });
-        }
+        hasLogs = result.hasOvertimeLogs;
+        checkComplete = true;
+        if (formComplete) processResults();
       })
       .withFailureHandler(err => {
+        hideOverlay();
         showAlert('Error checking overtime logs: ' + err.message, 'error');
       })
       .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
+
+    google.script.run
+      .withSuccessHandler(html => {
+        formHtml = html;
+        formComplete = true;
+        if (checkComplete) processResults();
+      })
+      .withFailureHandler(err => {
+        hideOverlay();
+        showAlert('Error loading form: ' + err.message, 'error');
+      })
+      .include('HistoryForm');
+
+    function processResults() {
+      if (hasLogs) {
+        hideOverlay();
+        showAlert('Cannot add Historical Balance: Employee already has overtime logs. Adding historical data would cause data conflicts.', 'error');
+      } else {
+        // Display the form
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = formHtml;
+
+        const scripts = tempDiv.querySelectorAll('script');
+        const scriptContents = [];
+        scripts.forEach(script => {
+          scriptContents.push(script.textContent);
+          script.remove();
+        });
+
+        overlay.innerHTML = tempDiv.innerHTML;
+
+        scriptContents.forEach(content => {
+          const scriptElement = document.createElement('script');
+          scriptElement.textContent = content;
+          overlay.appendChild(scriptElement);
+        });
+
+        // Set employee ID
+        const empSelect = overlay.querySelector('#employeeId');
+        if (empSelect) {
+          empSelect.value = selectedEmployee.employeeId;
+          empSelect.disabled = true;
+        }
+      }
+    }
   }
 
   /**
