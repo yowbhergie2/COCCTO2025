@@ -67,8 +67,6 @@ function addHoliday(holidayData) {
     }
 
     const holidayId = getNextId('Holidays', 'A');
-    const holidayDate = new Date(holidayData.holidayDate);
-    const year = holidayDate.getFullYear();
 
     const rowData = [
       holidayId,
