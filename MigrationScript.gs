@@ -444,26 +444,35 @@ function migrateLedger(dryRun = true) {
     const headers = getSheetHeaders(sheetName);
 
     const documents = data.map(row => {
-      const ledgerId = row[headers.indexOf('LedgerID')];
+      // Use TransactionID as the document ID
+      const transactionId = row[headers.indexOf('TransactionID')];
+
+      // Skip empty rows
+      if (!transactionId) {
+        return null;
+      }
 
       return {
-        id: String(ledgerId),
+        id: String(transactionId),
         data: {
-          ledgerId: String(ledgerId),
-          employeeId: String(row[headers.indexOf('EmployeeID')]),
+          ledgerId: String(transactionId),
+          transactionId: String(transactionId),
+          employeeId: String(row[headers.indexOf('EmployeeID')] || ''),
           transactionType: row[headers.indexOf('TransactionType')] || 'Credit',
           hours: Number(row[headers.indexOf('Hours')] || 0),
-          relatedBatchId: row[headers.indexOf('RelatedBatchID')] || '',
-          relatedCertificateId: row[headers.indexOf('RelatedCertificateID')] || '',
-          description: row[headers.indexOf('Description')] || '',
+          batchId: String(row[headers.indexOf('BatchID')] || ''),
+          referenceId: String(row[headers.indexOf('ReferenceID')] || ''),
+          month: row[headers.indexOf('Month')] || '',
+          year: Number(row[headers.indexOf('Year')] || 0),
+          notes: row[headers.indexOf('Notes')] || '',
           transactionDate: row[headers.indexOf('TransactionDate')] ?
             dateToFirestoreTimestamp(new Date(row[headers.indexOf('TransactionDate')])) : getCurrentTimestamp(),
-          balanceBefore: Number(row[headers.indexOf('BalanceBefore')] || 0),
-          balanceAfter: Number(row[headers.indexOf('BalanceAfter')] || 0),
-          createdBy: row[headers.indexOf('CreatedBy')] || 'SYSTEM'
+          timestamp: row[headers.indexOf('Timestamp')] ?
+            dateToFirestoreTimestamp(new Date(row[headers.indexOf('Timestamp')])) : getCurrentTimestamp(),
+          performedBy: row[headers.indexOf('PerformedBy')] || 'SYSTEM'
         }
       };
-    });
+    }).filter(doc => doc !== null); // Remove null entries
 
     if (!dryRun && documents.length > 0) {
       batchCreateDocuments(collectionName, documents);
@@ -602,7 +611,7 @@ function getSampleDocument(collectionName, documentId = null) {
 
 /**
  * Debug Ledger migration
- * Check why only 1 out of 3 Ledger documents migrated
+ * Check Ledger sheet data and Firestore documents
  */
 function debugLedgerMigration() {
   Logger.log('🔍 Debugging Ledger Migration...\n');
@@ -622,12 +631,12 @@ function debugLedgerMigration() {
         Logger.log(`  ${header}: ${row[i]}`);
       });
 
-      // Check for LedgerID
-      const ledgerId = row[headers.indexOf('LedgerID')];
-      if (!ledgerId) {
-        Logger.log(`  ❌ ISSUE: Missing LedgerID!`);
+      // Check for TransactionID
+      const transactionId = row[headers.indexOf('TransactionID')];
+      if (!transactionId) {
+        Logger.log(`  ❌ ISSUE: Missing TransactionID!`);
       } else {
-        Logger.log(`  ✅ LedgerID: ${ledgerId}`);
+        Logger.log(`  ✅ TransactionID: ${transactionId}`);
       }
       Logger.log('');
     });
@@ -636,7 +645,7 @@ function debugLedgerMigration() {
     Logger.log('\n📊 Firestore Ledger Documents:');
     const firestoreDocs = getAllDocuments('ledger');
     firestoreDocs.forEach(doc => {
-      Logger.log(`  - ${doc.ledgerId}: ${doc.description || 'No description'}`);
+      Logger.log(`  - ${doc.transactionId || doc.ledgerId}: ${doc.notes || doc.description || 'No description'}`);
     });
 
     Logger.log(`\n✅ Total in Firestore: ${firestoreDocs.length}`);
