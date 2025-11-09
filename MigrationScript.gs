@@ -123,31 +123,50 @@ function migrateAllData(dryRun = true) {
  * Migrate Configuration sheet
  */
 function migrateConfiguration(dryRun = true) {
-  const sheetName = 'Configuration';
+  const sheetName = 'SystemConfig';  // Updated to match actual sheet name
   const collectionName = 'configuration';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
 
-  const documents = data.map(row => {
-    const configKey = row[headers.indexOf('ConfigKey')];
-    const configValue = row[headers.indexOf('ConfigValue')];
+  try {
+    // Check if sheet exists
+    const sheet = getDbSheet(sheetName);
+    if (!sheet) {
+      Logger.log(`⚠️ ${sheetName} sheet not found - skipping`);
+      return { count: 0, documents: [], skipped: true };
+    }
 
-    return {
-      id: configKey,
-      data: {
-        configKey: configKey,
-        configValue: configValue,
-        description: `Configuration for ${configKey}`,
-        dataType: inferDataType(configValue)
-      }
-    };
-  });
+    const data = getSheetData(sheetName);
+    const headers = getSheetHeaders(sheetName);
 
-  if (!dryRun && documents.length > 0) {
-    batchCreateDocuments(collectionName, documents);
+    if (data.length === 0) {
+      Logger.log(`⚠️ ${sheetName} sheet is empty - skipping`);
+      return { count: 0, documents: [], skipped: true };
+    }
+
+    const documents = data.map(row => {
+      const configKey = row[headers.indexOf('ConfigKey')];
+      const configValue = row[headers.indexOf('ConfigValue')];
+
+      return {
+        id: configKey,
+        data: {
+          configKey: configKey,
+          configValue: configValue,
+          description: `Configuration for ${configKey}`,
+          dataType: inferDataType(configValue)
+        }
+      };
+    }).filter(doc => doc.id); // Remove empty rows
+
+    if (!dryRun && documents.length > 0) {
+      batchCreateDocuments(collectionName, documents);
+    }
+
+    return { count: documents.length, documents: dryRun ? documents : [] };
+
+  } catch (error) {
+    Logger.log(`⚠️ ${sheetName} sheet not found or error - skipping`);
+    return { count: 0, documents: [], skipped: true, error: error.message };
   }
-
-  return { count: documents.length, documents: dryRun ? documents : [] };
 }
 
 /**
@@ -204,33 +223,59 @@ function migrateLibraries(dryRun = true) {
 function migrateHolidays(dryRun = true) {
   const sheetName = 'Holidays';
   const collectionName = 'holidays';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
 
-  const documents = data.map(row => {
-    const holidayId = row[headers.indexOf('HolidayID')] || generateHolidayId(row);
-    const holidayName = row[headers.indexOf('HolidayName')];
-    const holidayDate = row[headers.indexOf('HolidayDate')];
-    const year = row[headers.indexOf('Year')];
+  try {
+    const data = getSheetData(sheetName);
+    const headers = getSheetHeaders(sheetName);
 
-    return {
-      id: String(holidayId),
-      data: {
-        holidayId: String(holidayId),
-        holidayName: holidayName,
-        holidayDate: dateToFirestoreTimestamp(new Date(holidayDate)),
-        year: Number(year),
-        type: 'Regular',
-        isRecurring: false
-      }
-    };
-  });
+    const documents = data
+      .map((row, index) => {
+        try {
+          const holidayId = row[headers.indexOf('HolidayID')] || generateHolidayId(row, headers);
+          const holidayName = row[headers.indexOf('HolidayName')];
+          const holidayDateRaw = row[headers.indexOf('HolidayDate')];
+          const year = row[headers.indexOf('Year')];
 
-  if (!dryRun && documents.length > 0) {
-    batchCreateDocuments(collectionName, documents);
+          // Skip empty rows
+          if (!holidayName || !holidayDateRaw) {
+            return null;
+          }
+
+          // Parse date safely
+          const holidayDate = new Date(holidayDateRaw);
+          if (isNaN(holidayDate.getTime())) {
+            Logger.log(`⚠️ Row ${index + 2}: Invalid date "${holidayDateRaw}" - skipping`);
+            return null;
+          }
+
+          return {
+            id: String(holidayId),
+            data: {
+              holidayId: String(holidayId),
+              holidayName: holidayName,
+              holidayDate: dateToFirestoreTimestamp(holidayDate),
+              year: Number(year) || holidayDate.getFullYear(),
+              type: 'Regular',
+              isRecurring: false
+            }
+          };
+        } catch (error) {
+          Logger.log(`⚠️ Row ${index + 2}: Error processing - ${error.message}`);
+          return null;
+        }
+      })
+      .filter(doc => doc !== null); // Remove null entries
+
+    if (!dryRun && documents.length > 0) {
+      batchCreateDocuments(collectionName, documents);
+    }
+
+    return { count: documents.length, documents: dryRun ? documents : [] };
+
+  } catch (error) {
+    Logger.log(`❌ Error migrating ${sheetName}: ${error.message}`);
+    return { count: 0, documents: [], error: error.message };
   }
-
-  return { count: documents.length, documents: dryRun ? documents : [] };
 }
 
 /**
@@ -442,9 +487,25 @@ function migrateLedger(dryRun = true) {
 /**
  * Generate holiday ID if not present
  */
-function generateHolidayId(row) {
-  const date = new Date(row[1]); // Assuming date is in second column
-  return 'HOL' + Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyyMMdd');
+function generateHolidayId(row, headers) {
+  try {
+    // Try to find date column
+    const dateIndex = headers.indexOf('HolidayDate');
+    const dateValue = dateIndex >= 0 ? row[dateIndex] : row[1];
+
+    if (!dateValue) {
+      return 'HOL' + Date.now(); // Fallback to timestamp
+    }
+
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      return 'HOL' + Date.now(); // Fallback to timestamp
+    }
+
+    return 'HOL' + Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyyMMdd');
+  } catch (error) {
+    return 'HOL' + Date.now(); // Fallback to timestamp
+  }
 }
 
 /**
