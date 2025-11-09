@@ -12,9 +12,6 @@
     <button onclick="showConfigTab('holidays')" id="tab-holidays" class="config-tab">
       <i class="fas fa-calendar-alt"></i> Holidays
     </button>
-    <button onclick="showConfigTab('weekend')" id="tab-weekend" class="config-tab">
-      <i class="fas fa-calendar-week"></i> Weekend Config
-    </button>
     <button onclick="showConfigTab('signatory')" id="tab-signatory" class="config-tab">
       <i class="fas fa-user-tie"></i> Signatory
     </button>
@@ -105,59 +102,7 @@
   </div>
 </div>
 
-<!-- Tab 3: Weekend Configuration -->
-<div id="section-weekend" class="config-section">
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Weekend Days Configuration</div>
-    </div>
-    <div class="card-body">
-      <p style="color: #697386; margin-bottom: 1.5rem;">
-        Select which days of the week are considered "weekends" for COC accrual. Weekends use a 1.5x accrual rate.
-      </p>
-
-      <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;" id="weekendDaysCheckboxes">
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="1" class="weekend-checkbox"> Monday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="2" class="weekend-checkbox"> Tuesday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="3" class="weekend-checkbox"> Wednesday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="4" class="weekend-checkbox"> Thursday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="5" class="weekend-checkbox"> Friday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="6" class="weekend-checkbox"> Saturday
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" value="0" class="weekend-checkbox"> Sunday
-          </label>
-        </div>
-      </div>
-
-      <div style="text-align: right;">
-        <button onclick="saveWeekendConfig()" class="btn btn-primary">
-          <i class="fas fa-save"></i> Save Weekend Configuration
-        </button>
-      </div>
-
-      <div style="background: #e6f3ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem; margin-top: 1.5rem;">
-        <p style="font-size: 0.875rem; color: #1e40af; margin: 0;">
-          <i class="fas fa-info-circle"></i> <strong>Current Weekend Days:</strong> <span id="currentWeekendDays">Loading...</span>
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Tab 4: Signatory Configuration -->
+<!-- Tab 3: Signatory Configuration -->
 <div id="section-signatory" class="config-section">
   <div class="card">
     <div class="card-header">
