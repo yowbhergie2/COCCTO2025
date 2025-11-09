@@ -5,6 +5,7 @@
   let existingDatabaseDates = [];
   let duplicateContext = null;
   let pendingDuplicateAction = null;
+  let historicalBalanceMonths = []; // Stores months/years with historical balances
 
   /**
    * Initialize Log Overtime form when page loads
@@ -50,6 +51,7 @@
 
     if (empSelect) {
       empSelect.addEventListener('change', () => {
+        loadHistoricalBalanceMonths();
         loadCOCProgress();
         loadExistingDates();
         checkAddDayButtonState();
@@ -83,8 +85,34 @@
   }
 
   /**
+   * Load historical balance months for the selected employee
+   */
+  function loadHistoricalBalanceMonths() {
+    const employeeId = document.getElementById('employeeId')?.value;
+
+    if (!employeeId) {
+      historicalBalanceMonths = [];
+      updateMonthOptionsForYear();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(months => {
+        historicalBalanceMonths = months || [];
+        console.log('Loaded historical balance months:', historicalBalanceMonths);
+        updateMonthOptionsForYear();
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading historical balance months:', err);
+        historicalBalanceMonths = [];
+        updateMonthOptionsForYear();
+      })
+      .getHistoricalBalanceMonths(parseInt(employeeId));
+  }
+
+  /**
    * Update month dropdown options based on selected year
-   * Disable future months for current year
+   * Disable future months for current year and months with historical balances
    */
   function updateMonthOptionsForYear() {
     const yearSelect = document.getElementById('year');
@@ -104,7 +132,11 @@
 
     const selectedMonth = monthSelect.value;
 
-    // Enable/disable months based on whether it's the current year
+    // Check which months have historical balances for the selected year
+    const historicalMonthsForYear = historicalBalanceMonths.filter(hb => hb.year === selectedYear);
+    const historicalMonthNames = new Set(historicalMonthsForYear.map(hb => hb.month));
+
+    // Enable/disable months based on year and historical balances
     const options = monthSelect.querySelectorAll('option');
     options.forEach(option => {
       if (option.value === '') return; // Skip the placeholder option
@@ -112,10 +144,24 @@
       const monthIndex = monthNames.indexOf(option.value);
       if (monthIndex === -1) return;
 
-      // If current year, disable future months
+      let shouldDisable = false;
+      let disableReason = '';
+
+      // Check if future month in current year
       if (selectedYear === currentYear && monthIndex > currentMonth) {
+        shouldDisable = true;
+        disableReason = ' (Future)';
+      }
+
+      // Check if month has historical balance
+      if (historicalMonthNames.has(option.value)) {
+        shouldDisable = true;
+        disableReason = ' (Has Historical Balance)';
+      }
+
+      if (shouldDisable) {
         option.disabled = true;
-        option.textContent = option.value + ' (Future)';
+        option.textContent = option.value + disableReason;
 
         // If currently selected month is now disabled, clear selection
         if (option.value === selectedMonth) {
