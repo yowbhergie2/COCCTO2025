@@ -227,6 +227,33 @@ function debugGetAllDocuments() {
 }
 
 /**
+ * Debug: List all sheets in the spreadsheet
+ */
+function listAllSheets() {
+  Logger.log('📋 Listing all sheets in spreadsheet...\n');
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheets = ss.getSheets();
+
+    Logger.log(`Total sheets: ${sheets.length}\n`);
+
+    sheets.forEach((sheet, index) => {
+      const name = sheet.getName();
+      const rows = sheet.getLastRow();
+      const cols = sheet.getLastColumn();
+      Logger.log(`${index + 1}. "${name}" (${rows} rows × ${cols} columns)`);
+    });
+
+    Logger.log('\n💡 Use one of these sheet names for migration!');
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
+
+/**
  * Debug: Check what's actually in the Employees Google Sheet
  */
 function debugEmployeesSheet() {
@@ -239,6 +266,7 @@ function debugEmployeesSheet() {
 
     if (!sheet) {
       Logger.log('❌ Employees sheet not found!');
+      Logger.log('\n💡 Run listAllSheets() to see available sheets');
       return;
     }
 
