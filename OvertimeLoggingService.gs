@@ -1296,7 +1296,8 @@ function checkHistoricalBalanceExists(employeeId, month, year) {
 }
 
 /**
- * BAGONG FUNCTION: Get all months with historical balance for an employee
+ * BAGONG FUNCTION: Get all months with certificates for an employee
+ * Returns ALL months that have been certified (historical or not) to prevent duplicate logging
  * @param {number} employeeId - Employee ID
  * @returns {Array<string>} Array of "Month-Year" strings (e.g., ["February-2025", "October-2024"])
  */
@@ -1309,19 +1310,18 @@ function getHistoricalBalanceMonths(employeeId) {
       return [];
     }
 
-    const historicalMonths = [];
+    const certifiedMonths = [];
 
     for (const batch of batches) {
-      // Check if it's a historical balance
-      if (batch.notes && batch.notes.toString().includes('Historical data migration')) {
-        const monthYearKey = `${batch.earnedMonth}-${batch.earnedYear}`;
-        if (!historicalMonths.includes(monthYearKey)) {
-          historicalMonths.push(monthYearKey);
-        }
+      // Include ALL batches (both historical and regular certificates)
+      // This prevents logging overtime for months that already have certificates
+      const monthYearKey = `${batch.earnedMonth}-${batch.earnedYear}`;
+      if (!certifiedMonths.includes(monthYearKey)) {
+        certifiedMonths.push(monthYearKey);
       }
     }
 
-    return historicalMonths;
+    return certifiedMonths;
 
   } catch (error) {
     Logger.log('Error in getHistoricalBalanceMonths: ' + error.toString());
