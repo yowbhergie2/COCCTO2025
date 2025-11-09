@@ -157,3 +157,71 @@ function debugRawFirestoreData() {
     Logger.log(error.stack);
   }
 }
+
+/**
+ * Debug: Test getAllDocuments vs getDocument
+ * Compare batch retrieval vs single document retrieval
+ */
+function debugGetAllDocuments() {
+  Logger.log('🔍 Debugging getAllDocuments() function...\n');
+
+  try {
+    const db = getFirestore();
+
+    // Test 1: Get all documents RAW (no conversion)
+    Logger.log('1️⃣ Getting RAW documents from db.getDocuments()...');
+    const rawDocs = db.getDocuments('employees');
+    Logger.log(`Total documents: ${rawDocs.length}\n`);
+
+    if (rawDocs.length > 0) {
+      Logger.log('First raw document structure:');
+      Logger.log(JSON.stringify(rawDocs[0], null, 2));
+      Logger.log('\n---\n');
+
+      // Check if fields exist
+      if (rawDocs[0].fields) {
+        Logger.log('✅ First doc has .fields property');
+        Logger.log('Field keys: ' + Object.keys(rawDocs[0].fields).join(', '));
+      } else {
+        Logger.log('❌ First doc MISSING .fields property!');
+        Logger.log('Available keys: ' + Object.keys(rawDocs[0]).join(', '));
+      }
+      Logger.log('\n---\n');
+    }
+
+    // Test 2: Convert using firestoreFieldsToObject()
+    Logger.log('2️⃣ Testing conversion with firestoreFieldsToObject()...');
+    if (rawDocs.length > 0 && rawDocs[0].fields) {
+      const converted = firestoreFieldsToObject(rawDocs[0].fields);
+      Logger.log('Converted object:');
+      Logger.log(JSON.stringify(converted, null, 2));
+      Logger.log('\n---\n');
+
+      Logger.log('Checking individual values:');
+      Logger.log(`  employeeId: ${converted.employeeId}`);
+      Logger.log(`  firstName: ${converted.firstName}`);
+      Logger.log(`  lastName: ${converted.lastName}`);
+    }
+    Logger.log('\n---\n');
+
+    // Test 3: Use the actual getAllDocuments() function
+    Logger.log('3️⃣ Testing getAllDocuments() function...');
+    const employees = getAllDocuments('employees');
+    Logger.log(`Total employees: ${employees.length}`);
+
+    if (employees.length > 0) {
+      Logger.log('\nFirst employee from getAllDocuments():');
+      Logger.log(JSON.stringify(employees[0], null, 2));
+      Logger.log('\n---\n');
+
+      Logger.log('Checking individual values:');
+      Logger.log(`  employeeId: ${employees[0].employeeId}`);
+      Logger.log(`  firstName: ${employees[0].firstName}`);
+      Logger.log(`  lastName: ${employees[0].lastName}`);
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
