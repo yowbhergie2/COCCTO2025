@@ -89,11 +89,37 @@
   }
 
   /**
+   * Load historical balance months for the selected employee
+   */
+  function loadHistoricalBalanceMonths() {
+    const employeeId = document.getElementById('employeeId')?.value;
+
+    if (!employeeId) {
+      historicalBalanceMonths = [];
+      updateMonthOptionsForYear(); // Update options to clear old disabled states
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(months => {
+        historicalBalanceMonths = months || [];
+        console.log('Loaded historical balance months:', historicalBalanceMonths);
+        updateMonthOptionsForYear(); // Update month options after data is loaded
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading historical balance months:', err);
+        historicalBalanceMonths = [];
+        updateMonthOptionsForYear(); // Update to reset state
+      })
+      .getHistoricalBalanceMonths(parseInt(employeeId));
+  }
+
+  /**
    * BAGONG DAGDAG: Load historical balance months for the selected employee
    */
   function loadHistoricalMonths() {
     const employeeId = document.getElementById('employeeId')?.value;
-    
+
     if (!employeeId) {
       existingHistoricalMonths = [];
       updateMonthOptionsForYear(); // I-update pa rin ang options (para alisin ang old disabled)
@@ -161,6 +187,10 @@
       option.disabled = false;
       option.textContent = option.value;
 
+      // Initialize disable flags
+      let shouldDisable = false;
+      let disableReason = '';
+
       // Check 1: Disable future months
       if (selectedYear === currentYear && monthIndex > currentMonth) {
         shouldDisable = true;
@@ -175,7 +205,7 @@
 
       if (shouldDisable) {
         option.disabled = true;
-        option.textContent = option.value + ' (Future)';
+        option.textContent = option.value + disableReason;
         if (option.value === selectedMonth) {
           shouldClearSelectedMonth = true;
         }
