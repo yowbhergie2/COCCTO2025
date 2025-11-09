@@ -41,7 +41,7 @@
         console.error('Error loading employees:', err);
         showAlert('Error loading employees: ' + err.message, 'error');
       })
-      .getEmployeesForDropdown();
+      .getEmployeesForDropdown_V2_Client(); // CACHE FIX: Call V2 Client function
 
     // Add event listeners
     const empSelect = document.getElementById('employeeId');
@@ -1050,7 +1050,7 @@
           select.appendChild(option);
         });
       })
-      .getEmployeesForDropdown();
+      .getEmployeesForDropdown_V2_Client(); // CACHE FIX: Call V2 Client function
 
     // Populate years (2024 to current year)
     const yearSelect = document.getElementById('filterYear');
@@ -1256,7 +1256,7 @@
         }
         showAlert('Error loading employees: ' + err.message, 'error');
       })
-      .getEmployeesForDropdown();
+      .getEmployeesForDropdown_V2_Client(); // CACHE FIX: Call V2 Client function
   }
 
   /**
@@ -1741,7 +1741,7 @@
         }
         showAlert('Error loading employees: ' + err.message, 'error');
       })
-      .getEmployeesForDropdown();
+      .getEmployeesForDropdown_V2_Client(); // CACHE FIX: Call V2 Client function
   }
 
   /**
