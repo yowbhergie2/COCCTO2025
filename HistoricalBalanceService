@@ -476,6 +476,47 @@ function updateHistoricalBalance(batchId, formData) {
 }
 
 /**
+ * Get all historical balance months for an employee
+ * Used to disable month/year combinations in the overtime logging form
+ * @param {number} employeeId - Employee ID
+ * @returns {Array} Array of objects with month and year properties
+ */
+function getHistoricalBalanceMonths(employeeId) {
+  try {
+    // Query CreditBatches for this employee
+    const batches = queryDocuments('creditBatches', 'employeeId', '==', parseInt(employeeId));
+
+    if (!batches || batches.length === 0) {
+      return [];
+    }
+
+    // Extract unique month/year combinations
+    const monthYears = batches.map(batch => ({
+      month: batch.earnedMonth,
+      year: batch.earnedYear
+    }));
+
+    // Remove duplicates (in case there are any)
+    const unique = [];
+    const seen = new Set();
+
+    monthYears.forEach(my => {
+      const key = `${my.month}-${my.year}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(my);
+      }
+    });
+
+    return unique;
+
+  } catch (error) {
+    Logger.log('Error in getHistoricalBalanceMonths: ' + error.toString());
+    return [];
+  }
+}
+
+/**
  * Delete a historical balance record
  * Only allowed if employee has no overtime logs yet
  * @param {number} batchId - Batch ID to delete

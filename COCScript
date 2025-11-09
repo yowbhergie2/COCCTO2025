@@ -6,6 +6,7 @@
   let existingHistoricalMonths = []; // BAGONG DAGDAG: Para sa historical balances
   let duplicateContext = null;
   let pendingDuplicateAction = null;
+  let historicalBalanceMonths = []; // Stores months/years with historical balances
 
   /**
    * Initialize Log Overtime form when page loads
@@ -52,6 +53,7 @@
 
     if (empSelect) {
       empSelect.addEventListener('change', () => {
+        loadHistoricalBalanceMonths();
         loadCOCProgress();
         loadExistingDates();
         loadHistoricalMonths(); // BAGONG DAGDAG: I-load ang historical months
@@ -137,7 +139,11 @@
     const selectedMonth = monthSelect.value;
     let shouldClearSelectedMonth = false;
 
-    // Enable/disable months based on whether it's the current year
+    // Check which months have historical balances for the selected year
+    const historicalMonthsForYear = historicalBalanceMonths.filter(hb => hb.year === selectedYear);
+    const historicalMonthNames = new Set(historicalMonthsForYear.map(hb => hb.month));
+
+    // Enable/disable months based on year and historical balances
     const options = monthSelect.querySelectorAll('option');
     options.forEach(option => {
       if (option.value === '') return; // Skip the placeholder option
@@ -151,6 +157,17 @@
 
       // Check 1: Disable future months
       if (selectedYear === currentYear && monthIndex > currentMonth) {
+        shouldDisable = true;
+        disableReason = ' (Future)';
+      }
+
+      // Check if month has historical balance
+      if (historicalMonthNames.has(option.value)) {
+        shouldDisable = true;
+        disableReason = ' (Has Historical Balance)';
+      }
+
+      if (shouldDisable) {
         option.disabled = true;
         option.textContent = option.value + ' (Future)';
         if (option.value === selectedMonth) {
