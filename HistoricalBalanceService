@@ -249,8 +249,8 @@ function checkEmployeeHasOvertimeLogs(employeeId) {
     // PABILIS-FIX: Use getSheetData_V2
     // --- OPTIMIZATION START: Use queryDocuments for speed ---
     // Imbis na i-load lahat, mag-query lang para sa specific employee
-    // Siguraduhin na ang employeeId ay string kapag nag-query sa Firestore
-    const logs = queryDocuments('overtimeLogs', 'employeeId', '==', String(employeeId)); 
+    // Ensure employeeId is a number to match Firestore data type
+    const logs = queryDocuments('overtimeLogs', 'employeeId', '==', parseInt(employeeId)); 
     
     if (logs && logs.length > 0) {
       // May nahanap na kahit isang log
