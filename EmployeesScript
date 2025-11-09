@@ -715,12 +715,18 @@
       `Are you sure you want to delete the Historical Balance for <strong>${month} ${year}</strong>?<br><br>This action cannot be undone.`,
       'Delete',
       () => {
-        // User confirmed - proceed with deletion
-        // Check if employee has overtime logs first
+        // User confirmed - show loading state immediately
+        const list = document.getElementById('historicalBalanceList');
+        if (list) {
+          list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Deleting...</p></div>';
+        }
+
+        // OPTIMIZATION: Check overtime logs and delete
         google.script.run
           .withSuccessHandler(result => {
             if (result.hasOvertimeLogs) {
               showAlert('Cannot delete Historical Balance: Employee already has overtime logs. Deleting would cause data conflicts.', 'error');
+              displayHistoricalBalances(selectedEmployee.employeeId);
             } else {
               // Proceed with deletion
               google.script.run
@@ -730,16 +736,19 @@
                     displayHistoricalBalances(selectedEmployee.employeeId);
                   } else {
                     showAlert(deleteResult.message, 'error');
+                    displayHistoricalBalances(selectedEmployee.employeeId);
                   }
                 })
                 .withFailureHandler(err => {
                   showAlert('Error deleting record: ' + err.message, 'error');
+                  displayHistoricalBalances(selectedEmployee.employeeId);
                 })
                 .deleteHistoricalBalance(batchId);
             }
           })
           .withFailureHandler(err => {
             showAlert('Error checking overtime logs: ' + err.message, 'error');
+            displayHistoricalBalances(selectedEmployee.employeeId);
           })
           .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
       }

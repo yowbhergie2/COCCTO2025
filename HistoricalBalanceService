@@ -486,60 +486,39 @@ function updateHistoricalBalance(batchId, formData) {
  */
 function deleteHistoricalBalance(batchId) {
   try {
-    // PABILIS-FIX: Use getSheetData_V2
-    const data = getSheetData_V2('CreditBatches');
-    if (!data || data.length === 0) {
-      return {
-        success: false,
-        message: 'No records found'
-      };
-    }
+    Logger.log('deleteHistoricalBalance - Starting deletion for batchId: ' + batchId);
 
-    // Find the document to delete
-    let docToDelete = null;
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      // PABILIS-FIX: Use object properties (camelCase field names)
-      if (row.batchId === batchId) {
-        // --- FIX: Tinanggal ang validation para sa "Historical data migration" note ---
-        // Ito 'yung pumipigil sa pag-delete ng ibang batches.
-        // Ngayon, basta mahanap ang BatchID, ide-delete na niya.
-        // if (!row.Notes || !row.Notes.toString().includes('Historical data migration')) {
-        //   return {
-        //     success: false,
-        //     message: 'This is not a historical balance record and cannot be deleted here'
-        //   };
-        // }
-        docToDelete = row;
-        break;
-      }
-    }
+    // OPTIMIZATION: Query directly for the specific batch instead of getting all
+    const batches = queryDocuments('creditBatches', 'batchId', '==', parseInt(batchId), 1);
 
-    if (!docToDelete) {
+    if (!batches || batches.length === 0) {
+      Logger.log('deleteHistoricalBalance - Batch not found: ' + batchId);
       return {
         success: false,
         message: 'Historical balance record not found'
       };
     }
 
-    // Delete the row from CreditBatches
-    // PABILIS-FIX: Use deleteRowById (which is Firestore-aware)
-    deleteRowById('CreditBatches', batchId, 0);
+    Logger.log('deleteHistoricalBalance - Found batch, proceeding with deletion');
 
-    // Also delete related Ledger entries
-    // PABILIS-FIX: Use getSheetData_V2
-    const ledgerData = getSheetData_V2('Ledger');
-    if (ledgerData && ledgerData.length > 0) {
-      const ledgerDocsToDelete = [];
-      for (let i = 0; i < ledgerData.length; i++) {
-        const row = ledgerData[i];
-        // PABILIS-FIX: Use object properties (camelCase field names)
-        if (row.batchId === batchId) {
-          // PABILIS-FIX: Use deleteRowById
-          deleteRowById('Ledger', row.transactionId, 0);
-        }
+    // Delete the batch from CreditBatches
+    deleteRowById('CreditBatches', batchId, 0);
+    Logger.log('deleteHistoricalBalance - Deleted from CreditBatches');
+
+    // OPTIMIZATION: Query ledger entries by batchId instead of getting all
+    const ledgerEntries = queryDocuments('ledger', 'batchId', '==', parseInt(batchId));
+
+    if (ledgerEntries && ledgerEntries.length > 0) {
+      Logger.log('deleteHistoricalBalance - Deleting ' + ledgerEntries.length + ' related ledger entries');
+      for (let i = 0; i < ledgerEntries.length; i++) {
+        deleteRowById('Ledger', ledgerEntries[i].transactionId, 0);
       }
+      Logger.log('deleteHistoricalBalance - Deleted all ledger entries');
+    } else {
+      Logger.log('deleteHistoricalBalance - No ledger entries found for batchId: ' + batchId);
     }
+
+    Logger.log('deleteHistoricalBalance - Deletion complete for batchId: ' + batchId);
 
     return {
       success: true,
