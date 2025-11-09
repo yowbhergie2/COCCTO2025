@@ -323,47 +323,21 @@ function debugEmployeesSheet() {
 }
 
 /**
- * Helper: Delete all employees and re-migrate
- * This is a convenience function to clean up and re-migrate employees
+ * Helper: Migrate/update employees from Google Sheets to Firestore
+ * This uses UPSERT so it will overwrite existing documents
  */
 function resetEmployeesCollection() {
-  Logger.log('🔄 Resetting employees collection...\n');
+  Logger.log('🔄 Migrating employees from Sheets to Firestore...\n');
+  Logger.log('💡 Using UPSERT mode - will overwrite any existing employees\n');
 
   try {
-    // Step 1: Delete all employees
-    Logger.log('Step 1: Deleting all employees...');
-    const deleted = deleteCollection('employees', 'DELETE_ALL_DATA');
-    Logger.log(`✅ Deleted ${deleted} employees\n`);
-
-    // Step 1.5: Wait and verify deletion
-    Logger.log('⏳ Waiting 5 seconds for Firestore propagation...');
-    Utilities.sleep(5000);
-
-    // Verify deletion
-    const remaining = getAllDocuments('employees');
-    Logger.log(`📊 Verification: ${remaining.length} employees still in Firestore`);
-
-    if (remaining.length > 0) {
-      Logger.log('⚠️ WARNING: Some employees still exist after deletion!');
-      Logger.log('Employee IDs still present: ' + remaining.map(e => e.employeeId || 'unknown').join(', '));
-      Logger.log('\n💡 This might be a Firestore propagation delay. Waiting 5 more seconds...');
-      Utilities.sleep(5000);
-
-      const stillRemaining = getAllDocuments('employees');
-      if (stillRemaining.length > 0) {
-        throw new Error(`Cannot proceed: ${stillRemaining.length} employees still exist after 10 seconds. Manual cleanup required.`);
-      }
-    }
-
-    Logger.log('✅ Collection is empty, ready to migrate\n');
-
-    // Step 2: Re-migrate employees
-    Logger.log('Step 2: Re-migrating employees from Sheets...');
+    // Migrate employees (using UPSERT mode)
+    Logger.log('Step 1: Reading from Google Sheets and upserting to Firestore...');
     const result = migrateEmployees(false);
-    Logger.log(`✅ Migrated ${result.count} employees\n`);
+    Logger.log(`✅ Processed ${result.count} employees\n`);
 
-    // Step 3: Verify
-    Logger.log('Step 3: Verifying migration...');
+    // Verify
+    Logger.log('Step 2: Verifying migration...');
     const employees = getAllDocuments('employees');
     Logger.log(`Total employees in Firestore: ${employees.length}`);
 
@@ -372,8 +346,8 @@ function resetEmployeesCollection() {
       Logger.log(JSON.stringify(employees[0], null, 2));
     }
 
-    Logger.log('\n✅ Reset complete!');
-    return { deleted, migrated: result.count, final: employees.length };
+    Logger.log('\n✅ Migration complete!');
+    return { migrated: result.count, final: employees.length };
 
   } catch (error) {
     Logger.log(`❌ Error: ${error.message}`);
