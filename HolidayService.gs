@@ -3,31 +3,12 @@
 
 /**
  * Get all holidays
+ * OPTIMIZED: Uses Firestore getAllDocuments
  * @returns {Array} Array of holiday objects
  */
 function getAllHolidays() {
   try {
-    const sheet = getDbSheet('Holidays');
-    if (!sheet) {
-      return [];
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const holidays = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      holidays.push({
-        holidayId: row[0],
-        holidayName: row[1],
-        holidayDate: row[2],
-        year: row[3]
-      });
-    }
-
+    const holidays = getAllDocuments('holidays');
     return serializeDates(holidays);
 
   } catch (error) {
@@ -38,16 +19,23 @@ function getAllHolidays() {
 
 /**
  * Get holidays for a specific year
+ * OPTIMIZED: Uses Firestore query instead of loading all holidays
  * @param {number} year - Year (e.g., 2025)
  * @returns {Array} Array of holiday objects for that year
  */
 function getHolidaysByYear(year) {
-  const allHolidays = getAllHolidays();
-  return allHolidays.filter(h => h.year === year);
+  try {
+    const holidays = queryDocuments('holidays', 'year', '==', parseInt(year));
+    return serializeDates(holidays);
+  } catch (error) {
+    Logger.log('Error in getHolidaysByYear: ' + error.toString());
+    return [];
+  }
 }
 
 /**
  * Add a new holiday
+ * OPTIMIZED: Uses Firestore query to check duplicates
  * @param {Object} holidayData - {holidayName, holidayDate, year}
  * @returns {Object} Result with success status
  */
@@ -61,10 +49,13 @@ function addHoliday(holidayData) {
       };
     }
 
-    // Check for duplicate
-    const existingHolidays = getAllHolidays();
-    const dateStr = formatDate(new Date(holidayData.holidayDate));
-    const duplicate = existingHolidays.find(h =>
+    const holidayDate = new Date(holidayData.holidayDate);
+    const year = holidayDate.getFullYear();
+    const dateStr = formatDate(holidayDate);
+
+    // OPTIMIZATION: Query only holidays for this year instead of all holidays
+    const yearHolidays = queryDocuments('holidays', 'year', '==', year);
+    const duplicate = yearHolidays.find(h =>
       formatDate(new Date(h.holidayDate)) === dateStr
     );
 
