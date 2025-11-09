@@ -1190,7 +1190,7 @@ function canLogOvertimeForMonth(employeeId, month, year) {
     if (hasHistoricalBalance) {
       return {
         canLog: false,
-        message: `Cannot log overtime for ${month} ${year}. A historical balance already exists for this period.`
+        message: `A historical balance already exists for ${month} ${year}. Historical balances represent the complete COC data for that month.`
       };
     }
 
@@ -1199,7 +1199,7 @@ function canLogOvertimeForMonth(employeeId, month, year) {
     if (hasCertificate) {
       return {
         canLog: false,
-        message: `Cannot log overtime for ${month} ${year}. A certificate has already been issued for this period. No additional overtime entries can be added.`
+        message: `A certificate has already been issued for ${month} ${year}. No additional overtime entries can be added.`
       };
     }
 

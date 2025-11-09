@@ -38,11 +38,11 @@ function getAllEmployees_V2_Client() {
 
 /**
  * (V2) Get employees for dropdown (ID and full name)
+ * OPTIMIZED: Uses getActiveEmployees which queries only active employees
  */
 function getEmployeesForDropdown_V2_Client() {
-  const employees = getAllEmployees_V2(); // Use V2
+  const employees = getActiveEmployees(); // OPTIMIZATION: Query only active employees
   return employees
-    .filter(emp => emp.status === 'Active')
     .map(emp => {
       const fullName = [emp.firstName, emp.middleInitial, emp.lastName, emp.suffix]
         .filter(x => x).join(' ');
