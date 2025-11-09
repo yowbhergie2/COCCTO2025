@@ -51,6 +51,40 @@ function saveOvertimeBatch(batchData) {
       };
     }
 
+    // OPTIMIZATION: Fetch existing dates ONCE before loop instead of querying for each entry
+    const existingLogs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(batchData.employeeId),
+      month: batchData.month,
+      year: parseInt(batchData.year)
+    });
+
+    // Create a Set of existing dates for O(1) duplicate checking
+    const existingDatesSet = new Set();
+    if (existingLogs && existingLogs.length > 0) {
+      existingLogs.forEach(log => {
+        if (log.dateWorked) {
+          existingDatesSet.add(formatDate(log.dateWorked));
+        }
+      });
+    }
+
+    // OPTIMIZATION: Pre-fetch holidays for the year to avoid repeated queries
+    // All entries in a batch are for the same month, likely same year
+    const yearHolidays = queryDocuments('holidays', 'year', '==', parseInt(batchData.year));
+    const holidayDatesSet = new Set();
+    if (yearHolidays && yearHolidays.length > 0) {
+      yearHolidays.forEach(holiday => {
+        if (holiday.holidayDate) {
+          const holidayDate = holiday.holidayDate instanceof Date ?
+            holiday.holidayDate : new Date(holiday.holidayDate);
+          holidayDatesSet.add(formatDate(holidayDate));
+        }
+      });
+    }
+
+    // OPTIMIZATION: Pre-fetch weekend configuration once instead of querying per entry
+    const weekendDays = getWeekendDays();
+
     // Process each entry and calculate COC
     const processedEntries = [];
     let totalCOC = 0;
@@ -67,22 +101,31 @@ function saveOvertimeBatch(batchData) {
       }
 
       const dateWorked = new Date(entry.dateWorked);
+      const dateStr = formatDate(dateWorked);
 
-      // Check for duplicate (same employee, same date, same month/year)
-      const isDuplicate = checkDuplicateEntry(
-        batchData.employeeId,
-        dateWorked,
-        batchData.month,
-        batchData.year
-      );
-
-      if (isDuplicate) {
-        duplicates.push(formatDate(dateWorked));
+      // OPTIMIZATION: Check duplicate against in-memory Set instead of querying Firestore
+      if (existingDatesSet.has(dateStr)) {
+        duplicates.push(dateStr);
         continue;
       }
 
-      // Determine day type
-      const dayType = getDayType(dateWorked);
+      // Also check for duplicates within this batch
+      if (processedEntries.some(pe => formatDate(pe.dateWorked) === dateStr)) {
+        duplicates.push(dateStr);
+        continue;
+      }
+
+      // OPTIMIZATION: Determine day type using cached holidays and weekend config
+      const dayOfWeek = dateWorked.getDay();
+      let dayType;
+
+      if (holidayDatesSet.has(dateStr)) {
+        dayType = 'Holiday';
+      } else if (weekendDays.includes(dayOfWeek)) {
+        dayType = 'Weekend';
+      } else {
+        dayType = 'Weekday';
+      }
 
       // Calculate COC Earned
       const cocEarned = calculateCOCEarned(
