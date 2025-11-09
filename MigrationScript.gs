@@ -219,6 +219,9 @@ function migrateLibraries(dryRun = true) {
 
 /**
  * Migrate Holidays sheet
+ * NOTE: The Holidays sheet has SWAPPED columns!
+ * - HolidayDate column contains the NAME
+ * - HolidayName column contains the DATE
  */
 function migrateHolidays(dryRun = true) {
   const sheetName = 'Holidays';
@@ -232,8 +235,12 @@ function migrateHolidays(dryRun = true) {
       .map((row, index) => {
         try {
           const holidayId = row[headers.indexOf('HolidayID')] || generateHolidayId(row, headers);
-          const holidayName = row[headers.indexOf('HolidayName')];
-          const holidayDateRaw = row[headers.indexOf('HolidayDate')];
+
+          // IMPORTANT: Columns are swapped in the sheet!
+          // HolidayDate column contains the NAME (string)
+          // HolidayName column contains the DATE (date object)
+          const holidayName = row[headers.indexOf('HolidayDate')];  // Swapped!
+          const holidayDateRaw = row[headers.indexOf('HolidayName')];  // Swapped!
           const year = row[headers.indexOf('Year')];
 
           // Skip empty rows
@@ -495,11 +502,12 @@ function migrateLedger(dryRun = true) {
 
 /**
  * Generate holiday ID if not present
+ * NOTE: Due to column swap in Holidays sheet, the date is in HolidayName column
  */
 function generateHolidayId(row, headers) {
   try {
-    // Try to find date column
-    const dateIndex = headers.indexOf('HolidayDate');
+    // IMPORTANT: In Holidays sheet, the date is in HolidayName column (columns are swapped!)
+    const dateIndex = headers.indexOf('HolidayName');
     const dateValue = dateIndex >= 0 ? row[dateIndex] : row[1];
 
     if (!dateValue) {
@@ -652,6 +660,175 @@ function debugLedgerMigration() {
 
   } catch (error) {
     Logger.log(`❌ Error: ${error.message}`);
+  }
+}
+
+/**
+ * Debug Holidays migration
+ * Check why 40 rows in Sheets but 0 in Firestore
+ */
+function debugHolidaysMigration() {
+  Logger.log('🔍 Debugging Holidays Migration...\n');
+
+  try {
+    // Get data from Sheets
+    const sheetData = getSheetData('Holidays');
+    const headers = getSheetHeaders('Holidays');
+
+    Logger.log(`Found ${sheetData.length} rows in Holidays sheet`);
+    Logger.log(`Headers: ${headers.join(', ')}\n`);
+
+    // Check first 5 rows for sample
+    const sampleSize = Math.min(5, sheetData.length);
+    Logger.log(`Checking first ${sampleSize} rows:\n`);
+
+    for (let i = 0; i < sampleSize; i++) {
+      const row = sheetData[i];
+      Logger.log(`Row ${i + 2}:`);
+      headers.forEach((header, idx) => {
+        const value = row[idx];
+        Logger.log(`  ${header}: ${value} (type: ${typeof value})`);
+      });
+
+      // Check for required fields
+      const holidayId = row[headers.indexOf('HolidayID')];
+      const holidayName = row[headers.indexOf('HolidayName')];
+      const holidayDateRaw = row[headers.indexOf('HolidayDate')];
+
+      if (!holidayName) {
+        Logger.log(`  ❌ ISSUE: Missing HolidayName!`);
+      }
+      if (!holidayDateRaw) {
+        Logger.log(`  ❌ ISSUE: Missing HolidayDate!`);
+      }
+      if (holidayDateRaw) {
+        const date = new Date(holidayDateRaw);
+        if (isNaN(date.getTime())) {
+          Logger.log(`  ❌ ISSUE: Invalid date "${holidayDateRaw}"`);
+        } else {
+          Logger.log(`  ✅ Valid date: ${date}`);
+        }
+      }
+      Logger.log('');
+    }
+
+    // Try a dry run migration to see what would be created
+    Logger.log('\n🧪 Testing dry run migration...');
+    const result = migrateHolidays(true);
+    Logger.log(`Would migrate ${result.count} documents`);
+
+    if (result.count > 0) {
+      Logger.log('\nFirst document:');
+      Logger.log(JSON.stringify(result.documents[0], null, 2));
+    }
+
+    // Check Firestore
+    Logger.log('\n📊 Firestore Holidays Documents:');
+    const firestoreDocs = getAllDocuments('holidays');
+    Logger.log(`Total in Firestore: ${firestoreDocs.length}`);
+
+    if (firestoreDocs.length > 0) {
+      firestoreDocs.slice(0, 3).forEach(doc => {
+        Logger.log(`  - ${doc.holidayId}: ${doc.holidayName} (${doc.year})`);
+      });
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
+
+/**
+ * List all Ledger documents in Firestore
+ * Useful for identifying duplicates or old documents
+ */
+function listLedgerDocuments() {
+  Logger.log('📊 All Ledger Documents in Firestore:\n');
+
+  try {
+    const docs = getAllDocuments('ledger');
+    Logger.log(`Total: ${docs.length} documents\n`);
+
+    docs.forEach((doc, index) => {
+      Logger.log(`${index + 1}. Document ID: ${doc.id || 'N/A'}`);
+      Logger.log(`   Transaction ID: ${doc.transactionId || 'N/A'}`);
+      Logger.log(`   Ledger ID: ${doc.ledgerId || 'N/A'}`);
+      Logger.log(`   Employee ID: ${doc.employeeId || 'N/A'}`);
+      Logger.log(`   Type: ${doc.transactionType || 'N/A'}`);
+      Logger.log(`   Hours: ${doc.hours || 'N/A'}`);
+      Logger.log(`   Notes: ${doc.notes || doc.description || 'N/A'}`);
+      Logger.log(`   Reference ID: ${doc.referenceId || 'N/A'}`);
+      Logger.log('');
+    });
+
+    // Check for the sheet to compare
+    const sheetData = getSheetData('Ledger');
+    Logger.log(`\nSheet has ${sheetData.length} rows`);
+    Logger.log(`Firestore has ${docs.length} documents`);
+
+    if (docs.length > sheetData.length) {
+      Logger.log(`\n⚠️ ${docs.length - sheetData.length} extra document(s) in Firestore`);
+      Logger.log('You may want to delete old/duplicate documents.');
+      Logger.log('Run cleanupInvalidLedgerDocuments() to remove documents with undefined transactionId.');
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+  }
+}
+
+/**
+ * Clean up invalid Ledger documents
+ * Removes documents with undefined or null transactionId
+ */
+function cleanupInvalidLedgerDocuments() {
+  Logger.log('🧹 Cleaning up invalid Ledger documents...\n');
+
+  try {
+    const docs = getAllDocuments('ledger');
+    const invalidDocs = [];
+
+    // Find documents with undefined/null transactionId
+    docs.forEach(doc => {
+      if (!doc.transactionId || doc.transactionId === 'undefined' || doc.transactionId === 'null') {
+        invalidDocs.push({
+          id: doc.id,
+          transactionId: doc.transactionId,
+          notes: doc.notes || doc.description || 'N/A'
+        });
+      }
+    });
+
+    Logger.log(`Found ${invalidDocs.length} invalid document(s):\n`);
+
+    if (invalidDocs.length === 0) {
+      Logger.log('✅ No invalid documents found!');
+      return { deleted: 0 };
+    }
+
+    invalidDocs.forEach((doc, index) => {
+      Logger.log(`${index + 1}. Document ID: ${doc.id}`);
+      Logger.log(`   Transaction ID: ${doc.transactionId || 'undefined'}`);
+      Logger.log(`   Notes: ${doc.notes}`);
+      Logger.log('');
+    });
+
+    // Delete invalid documents
+    Logger.log('Deleting invalid documents...');
+    const deletedCount = batchDeleteDocuments('ledger', invalidDocs.map(doc => doc.id));
+
+    Logger.log(`\n✅ Deleted ${deletedCount} invalid document(s)`);
+
+    // Verify
+    const remainingDocs = getAllDocuments('ledger');
+    Logger.log(`Remaining documents in Firestore: ${remainingDocs.length}`);
+
+    return { deleted: deletedCount };
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    return { error: error.message };
   }
 }
 
