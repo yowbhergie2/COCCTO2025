@@ -131,14 +131,14 @@ function migrateConfiguration(dryRun = true) {
 
   try {
     // Check if sheet exists
-    const sheet = getDbSheet(sheetName);
+    const sheet = getSheetForMigration(sheetName); // FIX: Read from Sheet
     if (!sheet) {
       Logger.log(`⚠️ ${sheetName} sheet not found - skipping`);
       return { count: 0, documents: [], skipped: true };
     }
 
-    const data = getSheetData(sheetName);
-    const headers = getSheetHeaders(sheetName);
+    const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+    const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
     if (data.length === 0) {
       Logger.log(`⚠️ ${sheetName} sheet is empty - skipping`);
@@ -146,8 +146,8 @@ function migrateConfiguration(dryRun = true) {
     }
 
     const documents = data.map(row => {
-      const configKey = row[headers.indexOf('ConfigKey')];
-      const configValue = row[headers.indexOf('ConfigValue')];
+      const configKey = row['ConfigKey']; // Use object key
+      const configValue = row['ConfigValue']; // Use object key
 
       return {
         id: configKey,
@@ -180,15 +180,14 @@ function migrateLibraries(dryRun = true) {
   const collectionName = 'libraries';
 
   // Libraries sheet structure is different - it has multiple columns for different categories
-  const headers = getSheetHeaders(sheetName);
-  const data = getSheetData(sheetName);
+  const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
+  const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
 
   const documents = [];
 
   // Offices
   if (headers.indexOf('Offices') !== -1) {
-    const officeIndex = headers.indexOf('Offices');
-    const offices = data.map(row => row[officeIndex]).filter(x => x);
+    const offices = data.map(row => row['Offices']).filter(x => x); // Use object key
     documents.push({
       id: 'offices',
       data: {
@@ -200,8 +199,7 @@ function migrateLibraries(dryRun = true) {
 
   // Positions
   if (headers.indexOf('Positions') !== -1) {
-    const positionIndex = headers.indexOf('Positions');
-    const positions = data.map(row => row[positionIndex]).filter(x => x);
+    const positions = data.map(row => row['Positions']).filter(x => x); // Use object key
     documents.push({
       id: 'positions',
       data: {
@@ -231,20 +229,20 @@ function migrateHolidays(dryRun = true) {
   const collectionName = 'holidays';
 
   try {
-    const data = getSheetData(sheetName);
-    const headers = getSheetHeaders(sheetName);
+    const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+    const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
     const documents = data
       .map((row, index) => {
         try {
-          const holidayId = row[headers.indexOf('HolidayID')] || generateHolidayId(row, headers);
+          const holidayId = row['HolidayID'] || generateHolidayId(row, headers); // Use object key
 
           // IMPORTANT: Columns are swapped in the sheet!
           // HolidayDate column contains the NAME (string)
           // HolidayName column contains the DATE (date object)
-          const holidayName = row[headers.indexOf('HolidayDate')];  // Swapped!
-          const holidayDateRaw = row[headers.indexOf('HolidayName')];  // Swapped!
-          const year = row[headers.indexOf('Year')];
+          const holidayName = row['HolidayDate'];  // Swapped! Use object key
+          const holidayDateRaw = row['HolidayName'];  // Swapped! Use object key
+          const year = row['Year']; // Use object key
 
           // Skip empty rows
           if (!holidayName || !holidayDateRaw) {
@@ -295,14 +293,17 @@ function migrateHolidays(dryRun = true) {
 function migrateEmployees(dryRun = false) {
   const sheetName = 'Employees';
   const collectionName = 'employees';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
+  
+  // FIX: Call the correct helper functions to read from Google Sheets
+  const data = getSheetDataForMigration(sheetName);
+  const headers = getSheetHeadersForMigration(sheetName);
   
   const documents = [];
   let skippedCount = 0;
 
   data.forEach((row, index) => {
-    const employeeId = row[headers.indexOf('EmployeeID')];
+    // FIX: Read from object key, not array index
+    const employeeId = row['EmployeeID'];
 
     // VALIDATION: Check for valid EmployeeID
     if (!employeeId || String(employeeId).trim() === '' || String(employeeId) === 'undefined' || String(employeeId) === 'null') {
@@ -315,14 +316,15 @@ function migrateEmployees(dryRun = false) {
       id: String(employeeId),
       data: {
         employeeId: String(employeeId),
-        firstName: row[headers.indexOf('FirstName')] || '',
-        lastName: row[headers.indexOf('LastName')] || '',
-        middleInitial: row[headers.indexOf('MiddleInitial')] || '',
-        suffix: row[headers.indexOf('Suffix')] || '',
-        status: row[headers.indexOf('Status')] || 'Active',
-        position: row[headers.indexOf('Position')] || '',
-        office: row[headers.indexOf('Office')] || '',
-        email: row[headers.indexOf('Email')] || ''
+        // FIX: Read from object keys
+        firstName: row['FirstName'] || '',
+        lastName: row['LastName'] || '',
+        middleInitial: row['MiddleInitial'] || '',
+        suffix: row['Suffix'] || '',
+        status: row['Status'] || 'Active',
+        position: row['Position'] || '',
+        office: row['Office'] || '',
+        email: row['Email'] || ''
       }
     });
   });
@@ -350,30 +352,31 @@ function migrateEmployees(dryRun = false) {
 function migrateOvertimeLogs(dryRun = true) {
   const sheetName = 'OvertimeLogs';
   const collectionName = 'overtimeLogs';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
+  const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+  const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
   const documents = data.map(row => {
-    const logId = row[headers.indexOf('LogID')];
+    const logId = row['LogID']; // FIX: Read from object key
 
     return {
       id: String(logId),
       data: {
         logId: String(logId),
-        employeeId: String(row[headers.indexOf('EmployeeID')]),
-        dateWorked: dateToFirestoreTimestamp(new Date(row[headers.indexOf('DateWorked')])),
-        dayType: row[headers.indexOf('DayType')] || 'Weekday',
-        amTimeIn: row[headers.indexOf('AMTimeIn')] || '',
-        amTimeOut: row[headers.indexOf('AMTimeOut')] || '',
-        pmTimeIn: row[headers.indexOf('PMTimeIn')] || '',
-        pmTimeOut: row[headers.indexOf('PMTimeOut')] || '',
-        totalHours: Number(row[headers.indexOf('TotalHours')] || 0),
-        cocEarned: Number(row[headers.indexOf('COCEarned')] || 0),
-        status: row[headers.indexOf('Status')] || 'Pending',
-        remarks: row[headers.indexOf('Remarks')] || '',
-        approvedBy: row[headers.indexOf('ApprovedBy')] || '',
-        approvedAt: row[headers.indexOf('ApprovedAt')] ?
-          dateToFirestoreTimestamp(new Date(row[headers.indexOf('ApprovedAt')])) : null
+        // FIX: Read from object keys
+        employeeId: String(row['EmployeeID']),
+        dateWorked: dateToFirestoreTimestamp(new Date(row['DateWorked'])),
+        dayType: row['DayType'] || 'Weekday',
+        amTimeIn: row['AMTimeIn'] || '',
+        amTimeOut: row['AMTimeOut'] || '',
+        pmTimeIn: row['PMTimeIn'] || '',
+        pmTimeOut: row['PMTimeOut'] || '',
+        totalHours: Number(row['TotalHours'] || 0),
+        cocEarned: Number(row['COCEarned'] || 0),
+        status: row['Status'] || 'Pending',
+        remarks: row['Remarks'] || '',
+        approvedBy: row['ApprovedBy'] || '',
+        approvedAt: row['ApprovedAt'] ?
+          dateToFirestoreTimestamp(new Date(row['ApprovedAt'])) : null
       }
     };
   });
@@ -391,29 +394,30 @@ function migrateOvertimeLogs(dryRun = true) {
 function migrateCertificates(dryRun = true) {
   const sheetName = 'Certificates';
   const collectionName = 'certificates';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
+  const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+  const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
   const documents = data.map(row => {
-    const certId = row[headers.indexOf('CertificateID')];
+    const certId = row['CertificateID']; // FIX: Read from object key
 
     return {
       id: String(certId),
       data: {
         certificateId: String(certId),
-        employeeId: String(row[headers.indexOf('EmployeeID')]),
-        month: Number(row[headers.indexOf('Month')]),
-        year: Number(row[headers.indexOf('Year')]),
-        totalCOCEarned: Number(row[headers.indexOf('TotalCOCEarned')] || 0),
-        totalDaysWorked: Number(row[headers.indexOf('TotalDaysWorked')] || 0),
-        weekdayHours: Number(row[headers.indexOf('WeekdayHours')] || 0),
-        weekendHours: Number(row[headers.indexOf('WeekendHours')] || 0),
-        holidayHours: Number(row[headers.indexOf('HolidayHours')] || 0),
-        generatedAt: row[headers.indexOf('GeneratedAt')] ?
-          dateToFirestoreTimestamp(new Date(row[headers.indexOf('GeneratedAt')])) : getCurrentTimestamp(),
-        generatedBy: row[headers.indexOf('GeneratedBy')] || 'SYSTEM',
-        signatoryName: row[headers.indexOf('SignatoryName')] || '',
-        signatoryPosition: row[headers.indexOf('SignatoryPosition')] || ''
+        // FIX: Read from object keys
+        employeeId: String(row['EmployeeID']),
+        month: Number(row['Month']),
+        year: Number(row['Year']),
+        totalCOCEarned: Number(row['TotalCOCEarned'] || 0),
+        totalDaysWorked: Number(row['TotalDaysWorked'] || 0),
+        weekdayHours: Number(row['WeekdayHours'] || 0),
+        weekendHours: Number(row['WeekendHours'] || 0),
+        holidayHours: Number(row['HolidayHours'] || 0),
+        generatedAt: row['GeneratedAt'] ?
+          dateToFirestoreTimestamp(new Date(row['GeneratedAt'])) : getCurrentTimestamp(),
+        generatedBy: row['GeneratedBy'] || 'SYSTEM',
+        signatoryName: row['SignatoryName'] || '',
+        signatoryPosition: row['SignatoryPosition'] || ''
       }
     };
   });
@@ -431,27 +435,28 @@ function migrateCertificates(dryRun = true) {
 function migrateCreditBatches(dryRun = true) {
   const sheetName = 'CreditBatches';
   const collectionName = 'creditBatches';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
+  const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+  const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
   const documents = data.map(row => {
-    const batchId = row[headers.indexOf('BatchID')];
+    const batchId = row['BatchID']; // FIX: Read from object key
 
     return {
       id: String(batchId),
       data: {
         batchId: String(batchId),
-        employeeId: String(row[headers.indexOf('EmployeeID')]),
-        originalHours: Number(row[headers.indexOf('OriginalHours')] || 0),
-        remainingHours: Number(row[headers.indexOf('RemainingHours')] || 0),
-        usedHours: Number(row[headers.indexOf('UsedHours')] || 0),
-        status: row[headers.indexOf('Status')] || 'Active',
-        earnedDate: row[headers.indexOf('EarnedDate')] ?
-          dateToFirestoreTimestamp(new Date(row[headers.indexOf('EarnedDate')])) : getCurrentTimestamp(),
-        validUntil: row[headers.indexOf('ValidUntil')] ?
-          dateToFirestoreTimestamp(new Date(row[headers.indexOf('ValidUntil')])) : null,
-        sourceType: row[headers.indexOf('SourceType')] || 'Monthly Certificate',
-        sourceCertificateId: row[headers.indexOf('SourceCertificateID')] || ''
+        // FIX: Read from object keys
+        employeeId: String(row['EmployeeID']),
+        originalHours: Number(row['OriginalHours'] || 0),
+        remainingHours: Number(row['RemainingHours'] || 0),
+        usedHours: Number(row['UsedHours'] || 0),
+        status: row['Status'] || 'Active',
+        earnedDate: row['EarnedDate'] ?
+          dateToFirestoreTimestamp(new Date(row['EarnedDate'])) : getCurrentTimestamp(),
+        validUntil: row['ValidUntil'] ?
+          dateToFirestoreTimestamp(new Date(row['ValidUntil'])) : null,
+        sourceType: row['SourceType'] || 'Monthly Certificate',
+        sourceCertificateId: row['SourceCertificateID'] || ''
       }
     };
   });
@@ -471,12 +476,12 @@ function migrateLedger(dryRun = true) {
   const collectionName = 'ledger';
 
   try {
-    const data = getSheetData(sheetName);
-    const headers = getSheetHeaders(sheetName);
+    const data = getSheetDataForMigration(sheetName); // FIX: Read from Sheet
+    const headers = getSheetHeadersForMigration(sheetName); // FIX: Read from Sheet
 
     const documents = data.map(row => {
       // Use TransactionID as the document ID
-      const transactionId = row[headers.indexOf('TransactionID')];
+      const transactionId = row['TransactionID']; // FIX: Read from object key
 
       // Skip empty rows
       if (!transactionId) {
@@ -488,19 +493,20 @@ function migrateLedger(dryRun = true) {
         data: {
           ledgerId: String(transactionId),
           transactionId: String(transactionId),
-          employeeId: String(row[headers.indexOf('EmployeeID')] || ''),
-          transactionType: row[headers.indexOf('TransactionType')] || 'Credit',
-          hours: Number(row[headers.indexOf('Hours')] || 0),
-          batchId: String(row[headers.indexOf('BatchID')] || ''),
-          referenceId: String(row[headers.indexOf('ReferenceID')] || ''),
-          month: row[headers.indexOf('Month')] || '',
-          year: Number(row[headers.indexOf('Year')] || 0),
-          notes: row[headers.indexOf('Notes')] || '',
-          transactionDate: row[headers.indexOf('TransactionDate')] ?
-            dateToFirestoreTimestamp(new Date(row[headers.indexOf('TransactionDate')])) : getCurrentTimestamp(),
-          timestamp: row[headers.indexOf('Timestamp')] ?
-            dateToFirestoreTimestamp(new Date(row[headers.indexOf('Timestamp')])) : getCurrentTimestamp(),
-          performedBy: row[headers.indexOf('PerformedBy')] || 'SYSTEM'
+          // FIX: Read from object keys
+          employeeId: String(row['EmployeeID'] || ''),
+          transactionType: row['TransactionType'] || 'Credit',
+          hours: Number(row['Hours'] || 0),
+          batchId: String(row['BatchID'] || ''),
+          referenceId: String(row['ReferenceID'] || ''),
+          month: row['Month'] || '',
+          year: Number(row['Year'] || 0),
+          notes: row['Notes'] || '',
+          transactionDate: row['TransactionDate'] ?
+            dateToFirestoreTimestamp(new Date(row['TransactionDate'])) : getCurrentTimestamp(),
+          timestamp: row['Timestamp'] ?
+            dateToFirestoreTimestamp(new Date(row['Timestamp'])) : getCurrentTimestamp(),
+          performedBy: row['PerformedBy'] || 'SYSTEM'
         }
       };
     }).filter(doc => doc !== null); // Remove null entries
@@ -531,8 +537,7 @@ function migrateLedger(dryRun = true) {
 function generateHolidayId(row, headers) {
   try {
     // IMPORTANT: In Holidays sheet, the date is in HolidayName column (columns are swapped!)
-    const dateIndex = headers.indexOf('HolidayName');
-    const dateValue = dateIndex >= 0 ? row[dateIndex] : row[1];
+    const dateValue = row['HolidayName']; // FIX: Read from object key
 
     if (!dateValue) {
       return 'HOL' + Date.now(); // Fallback to timestamp
@@ -589,7 +594,8 @@ function verifyMigration() {
 
   collections.forEach(item => {
     try {
-      const sheetCount = getSheetData(item.sheet).length;
+      // FIX: Read from Sheet for comparison
+      const sheetCount = getSheetDataForMigration(item.sheet).length;
       const firestoreCount = countDocuments(item.collection);
 
       // Libraries is special - 9 rows become 2 category documents
@@ -650,8 +656,8 @@ function debugLedgerMigration() {
 
   try {
     // Get data from Sheets
-    const sheetData = getSheetData('Ledger');
-    const headers = getSheetHeaders('Ledger');
+    const sheetData = getSheetDataForMigration('Ledger'); // FIX: Read from Sheet
+    const headers = getSheetHeadersForMigration('Ledger'); // FIX: Read from Sheet
 
     Logger.log(`Found ${sheetData.length} rows in Ledger sheet`);
     Logger.log(`Headers: ${headers.join(', ')}\n`);
@@ -660,11 +666,11 @@ function debugLedgerMigration() {
     sheetData.forEach((row, index) => {
       Logger.log(`Row ${index + 2}:`);
       headers.forEach((header, i) => {
-        Logger.log(`  ${header}: ${row[i]}`);
+        Logger.log(`  ${header}: ${row[header]}`); // FIX: Read from object key
       });
 
       // Check for TransactionID
-      const transactionId = row[headers.indexOf('TransactionID')];
+      const transactionId = row['TransactionID']; // FIX: Read from object key
       if (!transactionId) {
         Logger.log(`  ❌ ISSUE: Missing TransactionID!`);
       } else {
@@ -696,8 +702,8 @@ function debugHolidaysMigration() {
 
   try {
     // Get data from Sheets
-    const sheetData = getSheetData('Holidays');
-    const headers = getSheetHeaders('Holidays');
+    const sheetData = getSheetDataForMigration('Holidays'); // FIX: Read from Sheet
+    const headers = getSheetHeadersForMigration('Holidays'); // FIX: Read from Sheet
 
     Logger.log(`Found ${sheetData.length} rows in Holidays sheet`);
     Logger.log(`Headers: ${headers.join(', ')}\n`);
@@ -710,14 +716,14 @@ function debugHolidaysMigration() {
       const row = sheetData[i];
       Logger.log(`Row ${i + 2}:`);
       headers.forEach((header, idx) => {
-        const value = row[idx];
+        const value = row[header]; // FIX: Read from object key
         Logger.log(`  ${header}: ${value} (type: ${typeof value})`);
       });
 
       // Check for required fields
-      const holidayId = row[headers.indexOf('HolidayID')];
-      const holidayName = row[headers.indexOf('HolidayName')];
-      const holidayDateRaw = row[headers.indexOf('HolidayDate')];
+      const holidayId = row['HolidayID']; // FIX: Read from object key
+      const holidayName = row['HolidayName']; // FIX: Read from object key
+      const holidayDateRaw = row['HolidayDate']; // FIX: Read from object key
 
       if (!holidayName) {
         Logger.log(`  ❌ ISSUE: Missing HolidayName!`);
@@ -787,7 +793,7 @@ function listLedgerDocuments() {
     });
 
     // Check for the sheet to compare
-    const sheetData = getSheetData('Ledger');
+    const sheetData = getSheetDataForMigration('Ledger'); // FIX: Read from Sheet
     Logger.log(`\nSheet has ${sheetData.length} rows`);
     Logger.log(`Firestore has ${docs.length} documents`);
 
