@@ -4,18 +4,19 @@
 
 /**
  * Debug: Check what employees data looks like
+ * CACHE FIX: Updated to call V2 functions
  */
 function debugEmployees() {
-  Logger.log('🔍 Debugging Employees...\n');
+  Logger.log('🔍 Debugging Employees (V2)...\n');
 
   try {
-    const employees = getAllEmployees();
+    const employees = getAllEmployees_V2(); // Use V2
 
     Logger.log(`Total employees: ${employees.length}\n`);
 
     if (employees.length === 0) {
       Logger.log('❌ NO EMPLOYEES FOUND!');
-      Logger.log('You need to run: migrateAllData(false)');
+      Logger.log('You need to run: superNuclearFixEmployees()');
       return;
     }
 
@@ -34,8 +35,8 @@ function debugEmployees() {
       Logger.log('');
     });
 
-    Logger.log('\n📋 Dropdown format:');
-    const dropdown = getEmployeesForDropdown();
+    Logger.log('\n📋 Dropdown format (V2):');
+    const dropdown = getEmployeesForDropdown_V2_Client(); // Use V2 Client
     Logger.log(JSON.stringify(dropdown, null, 2));
 
   } catch (error) {
@@ -60,7 +61,7 @@ function debugFirestoreConnection() {
       Logger.log(JSON.stringify(employees, null, 2));
     } else {
       Logger.log('⚠️ No employee with ID 1 found.');
-      Logger.log('Try running: migrateAllData(false)');
+      Logger.log('Try running: superNuclearFixEmployees()');
     }
 
     // Check libraries
@@ -325,14 +326,15 @@ function debugEmployeesSheet() {
 /**
  * VERIFICATION: Test if employees are loading correctly after fix
  * This should show proper employee data, not undefined values
+ * CACHE FIX: Renamed to _V2 and calls V2 functions.
  */
-function verifyEmployeesFix() {
-  Logger.log('✅ Verifying Employee Data After Fix\n');
+function verifyEmployeesFix_V2() {
+  Logger.log('✅ Verifying Employee Data After Fix (V2)...\n');
 
   try {
     // Test 1: Get all employees
-    Logger.log('1️⃣ Testing getAllEmployees()...');
-    const employees = getAllEmployees();
+    Logger.log('1️⃣ Testing getAllEmployees_V2()...');
+    const employees = getAllEmployees_V2(); // Use V2
     Logger.log(`Total employees: ${employees.length}`);
 
     if (employees.length === 0) {
@@ -359,14 +361,14 @@ function verifyEmployeesFix() {
 
     if (hasUndefined) {
       Logger.log('❌ FAILED: Still have undefined values!');
-      Logger.log('   Make sure you copied the updated EmployeeService file to Apps Script.');
+      Logger.log('   This should not be possible if V2 functions are running.');
     } else {
       Logger.log('✅ SUCCESS: All values are defined!');
     }
 
     // Test 4: Check dropdown format
-    Logger.log('\n4️⃣ Testing dropdown format...');
-    const dropdown = getEmployeesForDropdown();
+    Logger.log('\n4️⃣ Testing dropdown format (V2)...');
+    const dropdown = getEmployeesForDropdown_V2_Client(); // Use V2 Client
     Logger.log('Dropdown data:');
     Logger.log(JSON.stringify(dropdown, null, 2));
 
