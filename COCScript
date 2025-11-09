@@ -97,8 +97,15 @@
     }
 
     google.script.run
-      .withSuccessHandler(months => {
-        historicalBalanceMonths = months || [];
+      .withSuccessHandler(monthStrings => {
+        // Parse strings like "October|2024" into objects {month: "October", year: 2024}
+        historicalBalanceMonths = (monthStrings || []).map(str => {
+          const parts = str.split('|');
+          return {
+            month: parts[0],
+            year: parseInt(parts[1])
+          };
+        });
         console.log('Loaded historical balance months:', historicalBalanceMonths);
         updateMonthOptionsForYear();
       })
