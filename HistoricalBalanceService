@@ -262,24 +262,26 @@ function getHistoricalBalanceByBatchId(batchId) {
     Logger.log('dateOfIssuance type: ' + typeof batch.dateOfIssuance + ', value: ' + batch.dateOfIssuance);
     Logger.log('validUntil type: ' + typeof batch.validUntil + ', value: ' + batch.validUntil);
 
-    // Convert dates to ISO string format for proper serialization
-    // Handle both Date objects and ISO strings from Firestore
+    // Convert dates to YYYY-MM-DD format using Asia/Manila timezone
+    // This ensures dates match what the user sees in the list
     let dateOfIssuance;
     if (batch.dateOfIssuance instanceof Date) {
-      dateOfIssuance = batch.dateOfIssuance.toISOString().split('T')[0];
+      // Use Utilities.formatDate with Asia/Manila timezone to avoid UTC conversion issues
+      dateOfIssuance = Utilities.formatDate(batch.dateOfIssuance, 'Asia/Manila', 'yyyy-MM-dd');
     } else if (typeof batch.dateOfIssuance === 'string') {
-      // Already a string, just ensure it's in YYYY-MM-DD format
-      dateOfIssuance = batch.dateOfIssuance.split('T')[0];
+      // Convert string to Date first, then format in Asia/Manila timezone
+      const dateObj = new Date(batch.dateOfIssuance);
+      dateOfIssuance = Utilities.formatDate(dateObj, 'Asia/Manila', 'yyyy-MM-dd');
     } else {
       dateOfIssuance = batch.dateOfIssuance;
     }
 
     let validUntil;
     if (batch.validUntil instanceof Date) {
-      validUntil = batch.validUntil.toISOString().split('T')[0];
+      validUntil = Utilities.formatDate(batch.validUntil, 'Asia/Manila', 'yyyy-MM-dd');
     } else if (typeof batch.validUntil === 'string') {
-      // Already a string, just ensure it's in YYYY-MM-DD format
-      validUntil = batch.validUntil.split('T')[0];
+      const dateObj = new Date(batch.validUntil);
+      validUntil = Utilities.formatDate(dateObj, 'Asia/Manila', 'yyyy-MM-dd');
     } else {
       validUntil = batch.validUntil;
     }
@@ -441,7 +443,12 @@ function updateHistoricalBalance(batchId, formData) {
       originalHours: cocEarned,
       remainingHours: remaining,
       status: status,
-      updatedAt: getCurrentTimestamp()
+      updatedAt: getCurrentTimestamp(),
+      // PRESERVE important fields from original batch
+      certifiedBy: existingBatch.certifiedBy,
+      certifiedDate: existingBatch.certifiedDate,
+      createdAt: existingBatch.createdAt,
+      notes: existingBatch.notes || 'Historical data migration'
     };
 
     Logger.log('updateHistoricalBalance - Updating batch ' + batchId + ' with data:');
