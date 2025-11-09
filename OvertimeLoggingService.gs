@@ -211,32 +211,21 @@ function saveOvertimeBatch(batchData) {
  */
 function checkDuplicateEntry(employeeId, dateWorked, month, year) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // Get all overtime logs from Firestore
+    const logs = getSheetData('OvertimeLogs');
+    if (!logs || logs.length === 0) {
       return false;
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return false;
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
 
     const dateStr = formatDate(dateWorked);
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
+    // Check for duplicate using object properties
+    for (const log of logs) {
+      if (log.employeeId === employeeId &&
+          log.month === month &&
+          log.year === year) {
 
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year) {
-
-        const existingDateStr = formatDate(row[dateWorkedIndex]);
+        const existingDateStr = formatDate(log.dateWorked);
         if (existingDateStr === dateStr) {
           return true;
         }
@@ -258,41 +247,16 @@ function checkDuplicateEntry(employeeId, dateWorked, month, year) {
  */
 function getEmployeeOvertimeLogs(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // Get all overtime logs from Firestore
+    const allLogs = getSheetData('OvertimeLogs');
+    if (!allLogs || allLogs.length === 0) {
       return [];
     }
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const headers = data[0];
-    const logs = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[0] && row[1] === employeeId) { // LogID exists and EmployeeID matches
-        logs.push({
-          logId: row[0],
-          employeeId: row[1],
-          month: row[2],
-          year: row[3],
-          dateWorked: row[4],
-          dayType: row[5],
-          amIn: row[6],
-          amOut: row[7],
-          pmIn: row[8],
-          pmOut: row[9],
-          cocEarned: row[10],
-          status: row[11],
-          loggedBy: row[12],
-          loggedDate: row[13]
-        });
-      }
-    }
+    // Filter by employee ID
+    const logs = allLogs.filter(log =>
+      log.logId && log.employeeId === employeeId
+    );
 
     return serializeDates(logs);
 
@@ -382,25 +346,11 @@ function deleteOvertimeLog(logId) {
  * @returns {Object|null} Overtime log object or null
  */
 function getOvertimeLogById(logId) {
-  const row = getRowById('OvertimeLogs', logId, 0);
-  if (!row) return null;
+  const log = getRowById('OvertimeLogs', logId, 0);
+  if (!log) return null;
 
-  return serializeDates({
-    logId: row[0],
-    employeeId: row[1],
-    month: row[2],
-    year: row[3],
-    dateWorked: row[4],
-    dayType: row[5],
-    amIn: row[6],
-    amOut: row[7],
-    pmIn: row[8],
-    pmOut: row[9],
-    cocEarned: row[10],
-    status: row[11],
-    loggedBy: row[12],
-    loggedDate: row[13]
-  });
+  // Document is already an object from Firestore
+  return serializeDates(log);
 }
 
 /**
@@ -409,35 +359,26 @@ function getOvertimeLogById(logId) {
  */
 function getAllUncertifiedLogs() {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // Get all overtime logs from Firestore
+    const allLogs = getSheetData('OvertimeLogs');
+    if (!allLogs || allLogs.length === 0) {
       return [];
     }
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const logs = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[11] === 'Uncertified') { // Status column
-        logs.push({
-          logId: row[0],
-          employeeId: row[1],
-          month: row[2],
-          year: row[3],
-          dateWorked: row[4],
-          dayType: row[5],
-          cocEarned: row[10],
-          loggedBy: row[12],
-          loggedDate: row[13]
-        });
-      }
-    }
+    // Filter uncertified logs
+    const logs = allLogs
+      .filter(log => log.status === 'Uncertified')
+      .map(log => ({
+        logId: log.logId,
+        employeeId: log.employeeId,
+        month: log.month,
+        year: log.year,
+        dateWorked: log.dateWorked,
+        dayType: log.dayType,
+        cocEarned: log.cocEarned,
+        loggedBy: log.loggedBy,
+        loggedDate: log.loggedDate
+      }));
 
     return serializeDates(logs);
 
@@ -456,34 +397,21 @@ function getAllUncertifiedLogs() {
  */
 function getExistingOvertimeDates(employeeId, month, year) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // Get all overtime logs from Firestore
+    const allLogs = getSheetData('OvertimeLogs');
+    if (!allLogs || allLogs.length === 0) {
       return [];
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
 
     const existingDates = [];
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
+    // Filter matching logs and extract dates
+    for (const log of allLogs) {
+      if (log.employeeId === employeeId &&
+          log.month === month &&
+          log.year === year) {
 
-      // Match employee, month, and year
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year) {
-
-        // Get the date and format as YYYY-MM-DD
-        const dateWorked = row[dateWorkedIndex];
+        const dateWorked = log.dateWorked;
         if (dateWorked) {
           const dateStr = formatDateForInput(dateWorked);
           if (dateStr && !existingDates.includes(dateStr)) {
@@ -533,36 +461,21 @@ function formatDateForInput(date) {
  */
 function getUncertifiedHours(employeeId, month, year) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // Get all overtime logs from Firestore
+    const allLogs = getSheetData('OvertimeLogs');
+    if (!allLogs || allLogs.length === 0) {
       return { hours: 0 };
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return { hours: 0 };
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    // *** FIX: Use 'Status' column ***
-    const statusIndex = headers.indexOf('Status');
 
     let totalHours = 0;
 
     // Sum up uncertified COC for this employee, month, and year
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year &&
-          // *** FIX: Check for 'Uncertified' status ***
-          row[statusIndex] === 'Uncertified') {
-        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
+    for (const log of allLogs) {
+      if (log.employeeId === employeeId &&
+          log.month === month &&
+          log.year === year &&
+          log.status === 'Uncertified') {
+        totalHours += parseFloat(log.cocEarned) || 0;
       }
     }
 
@@ -610,40 +523,26 @@ function generateCOCCertificate(certificateData) {
       };
     }
 
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
-      return {
-        success: false,
-        message: 'Database error: OvertimeLogs sheet not found'
-      };
-    }
-
     // Check if certificate already exists for this employee/month/year
     const existingCert = checkExistingCertificate(certificateData.employeeId, certificateData.month, certificateData.year);
     if (existingCert) {
+      // Build employee full name
+      const employeeFullName = [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
+        .filter(x => x).join(' ');
+
       return {
         success: false,
-        message: `Certificate already exists for ${employee.FullName} - ${certificateData.month} ${certificateData.year}. Cannot create duplicate.`
+        message: `Certificate already exists for ${employeeFullName} - ${certificateData.month} ${certificateData.year}. Cannot create duplicate.`
       };
     }
 
-    // Find all uncertified credits for this employee/month/year
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    // *** FIX: Use 'Status' column ***
-    const statusIndex = headers.indexOf('Status');
-    // *** FIX: Use 'ValidUntil' column ***
-    const validUntilIndex = headers.indexOf('ValidUntil');
-
-    // *** FIX: Add check for missing columns ***
-    if (statusIndex === -1) {
-      throw new Error("Missing 'Status' column in OvertimeLogs sheet.");
-    }
-    if (validUntilIndex === -1) {
-      throw new Error("Missing 'ValidUntil' column in OvertimeLogs sheet. Please add it (e.g., in column O).");
+    // Get all overtime logs from Firestore
+    const allLogs = getSheetData('OvertimeLogs');
+    if (!allLogs || allLogs.length === 0) {
+      return {
+        success: false,
+        message: 'No overtime logs found'
+      };
     }
 
     // Calculate Valid Until date: (Date of Issuance + 1 Year - 1 Day)
@@ -653,24 +552,23 @@ function generateCOCCertificate(certificateData) {
 
     let updatedCount = 0;
     let totalHours = 0;
-    const cocEarnedIndex = headers.indexOf('COCEarned');
 
-    // Update all matching uncertified entries
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
+    // Find and update all matching uncertified entries
+    for (const log of allLogs) {
+      if (log.employeeId === certificateData.employeeId &&
+          log.month === certificateData.month &&
+          log.year === certificateData.year &&
+          log.status === 'Uncertified') {
 
-      if (row[employeeIdIndex] === certificateData.employeeId &&
-          row[monthIndex] === certificateData.month &&
-          row[yearIndex] === certificateData.year &&
-          // *** FIX: Check for 'Uncertified' status ***
-          row[statusIndex] === 'Uncertified') {
+        // Update status to 'Active' and set validUntil date
+        updateRowById('OvertimeLogs', log.logId, {
+          ...log,
+          status: 'Active',
+          validUntil: validUntilDate
+        });
 
-        // Update Certified and ValidUntil columns
-        // *** FIX: Set status to 'Active' ***
-        sheet.getRange(i + 1, statusIndex + 1).setValue('Active');
-        sheet.getRange(i + 1, validUntilIndex + 1).setValue(validUntilDate);
         updatedCount++;
-        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
+        totalHours += parseFloat(log.cocEarned) || 0;
       }
     }
 
@@ -867,29 +765,17 @@ function convertSheetToPDF(spreadsheet, sheet) {
  */
 function checkExistingCertificate(employeeId, month, year) {
   try {
-    // *** FIX: Use 'Certificates' sheet name ***
-    const sheet = getDbSheet('Certificates');
-    if (!sheet) {
+    // Get all certificates from Firestore
+    const certificates = getSheetData('Certificates');
+    if (!certificates || certificates.length === 0) {
       return false;
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return false;
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
 
     // Check if certificate already exists
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year) {
+    for (const cert of certificates) {
+      if (cert.employeeId === employeeId &&
+          cert.month === month &&
+          cert.year === year) {
         return true;
       }
     }
@@ -1410,31 +1296,19 @@ function getEmployeeCOCProgress(employeeId, month, year) {
  */
 function checkHistoricalBalanceExists(employeeId, month, year) {
   try {
-    const sheet = getDbSheet('CreditBatches');
-    if (!sheet) {
+    // Get all credit batches from Firestore
+    const batches = getSheetData('CreditBatches');
+    if (!batches || batches.length === 0) {
       return false;
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return false;
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('EarnedMonth');
-    const yearIndex = headers.indexOf('EarnedYear');
-    const notesIndex = headers.indexOf('Notes');
 
     // Check if historical balance exists for this employee/month/year
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-
-      if (row[employeeIdIndex] === employeeId &&
-          row[monthIndex] === month &&
-          row[yearIndex] === year &&
-          row[notesIndex] &&
-          row[notesIndex].toString().includes('Historical data migration')) {
+    for (const batch of batches) {
+      if (batch.employeeId === employeeId &&
+          batch.earnedMonth === month &&
+          batch.earnedYear === year &&
+          batch.notes &&
+          batch.notes.toString().includes('Historical data migration')) {
         return true;
       }
     }
