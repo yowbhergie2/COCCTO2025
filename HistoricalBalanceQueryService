@@ -9,13 +9,18 @@
  */
 function getEmployeeHistoricalBalances(employeeId) {
   try {
+    Logger.log('getEmployeeHistoricalBalances called for employeeId: ' + employeeId);
+
     // --- PABILIS-FIX: Use queryDocuments ---
     // Imbis na i-load lahat, kunin lang ang batches para sa employeeId na ito.
     // Ensure employeeId is a number to match Firestore data type
     const data = queryDocuments('creditBatches', 'employeeId', '==', parseInt(employeeId));
     // --- END FIX ---
 
+    Logger.log('Query returned ' + (data ? data.length : 0) + ' batches');
+
     if (!data || data.length === 0) {
+      Logger.log('No batches found for employeeId: ' + employeeId);
       return [];
     }
 
@@ -34,6 +39,7 @@ function getEmployeeHistoricalBalances(employeeId) {
       
       // Check kung valid 'yung data (may originalHours)
       if (doc.originalHours !== undefined && typeof doc.originalHours === 'number') {
+        Logger.log('Processing batch ' + doc.batchId + ': originalHours=' + doc.originalHours + ', remainingHours=' + doc.remainingHours);
 
         // Calculate COC Used based on Original - Remaining
         const cocEarned = parseFloat(doc.originalHours) || 0;
@@ -93,7 +99,8 @@ function getEmployeeHistoricalBalances(employeeId) {
       };
       return monthOrder[b.month] - monthOrder[a.month];
     });
-    
+
+    Logger.log('Returning ' + records.length + ' records for employeeId ' + employeeId);
     return records;
     
   } catch (error) {
