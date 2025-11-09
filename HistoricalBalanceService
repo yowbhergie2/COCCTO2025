@@ -247,12 +247,10 @@ function getHistoricalBalanceByBatchId(batchId) {
   try {
     Logger.log('getHistoricalBalanceByBatchId called with batchId: ' + batchId + ' (type: ' + typeof batchId + ')');
 
-    // Use queryDocuments for optimized query
-    const batches = queryDocuments('creditBatches', 'batchId', '==', parseInt(batchId), 1);
+    // FIX: Try getting the batch directly by ID first (more reliable)
+    const batch = getRowById('CreditBatches', batchId, 0);
 
-    Logger.log('Query returned ' + (batches ? batches.length : 0) + ' results');
-
-    if (!batches || batches.length === 0) {
+    if (!batch) {
       Logger.log('No batch found with batchId: ' + batchId);
       return {
         success: false,
@@ -260,7 +258,6 @@ function getHistoricalBalanceByBatchId(batchId) {
       };
     }
 
-    const batch = batches[0];
     Logger.log('Found batch: ' + JSON.stringify(batch));
     Logger.log('dateOfIssuance type: ' + typeof batch.dateOfIssuance + ', value: ' + batch.dateOfIssuance);
     Logger.log('validUntil type: ' + typeof batch.validUntil + ', value: ' + batch.validUntil);
@@ -488,10 +485,10 @@ function deleteHistoricalBalance(batchId) {
   try {
     Logger.log('deleteHistoricalBalance - Starting deletion for batchId: ' + batchId);
 
-    // OPTIMIZATION: Query directly for the specific batch instead of getting all
-    const batches = queryDocuments('creditBatches', 'batchId', '==', parseInt(batchId), 1);
+    // FIX: Use getRowById instead of queryDocuments for more reliable retrieval
+    const batch = getRowById('CreditBatches', batchId, 0);
 
-    if (!batches || batches.length === 0) {
+    if (!batch) {
       Logger.log('deleteHistoricalBalance - Batch not found: ' + batchId);
       return {
         success: false,
@@ -505,8 +502,14 @@ function deleteHistoricalBalance(batchId) {
     deleteRowById('CreditBatches', batchId, 0);
     Logger.log('deleteHistoricalBalance - Deleted from CreditBatches');
 
-    // OPTIMIZATION: Query ledger entries by batchId instead of getting all
-    const ledgerEntries = queryDocuments('ledger', 'batchId', '==', parseInt(batchId));
+    // OPTIMIZATION: Query ledger entries by batchId
+    // Try both number and string versions to ensure we find all entries
+    let ledgerEntries = queryDocuments('ledger', 'batchId', '==', parseInt(batchId));
+
+    // If no results with number, try with string
+    if (!ledgerEntries || ledgerEntries.length === 0) {
+      ledgerEntries = queryDocuments('ledger', 'batchId', '==', String(batchId));
+    }
 
     if (ledgerEntries && ledgerEntries.length > 0) {
       Logger.log('deleteHistoricalBalance - Deleting ' + ledgerEntries.length + ' related ledger entries');
