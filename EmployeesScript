@@ -545,6 +545,7 @@
 
   /**
    * Edit a historical balance record
+   * OPTIMIZED: Show loading immediately, fetch data and check logs in parallel
    */
   function editHistoricalBalance(batchId) {
     if (!selectedEmployee) {
@@ -552,24 +553,135 @@
       return;
     }
 
-    // Check if employee has overtime logs
+    // OPTIMIZATION: Show loading overlay immediately
+    let overlay = document.getElementById('modalOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'modalOverlay';
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 100;
+        display: flex; align-items: flex-start; justify-content: center;
+        overflow-y: auto; padding-top: 5vh; padding-bottom: 5vh;
+      `;
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = '<div style="color: white; font-size: 1.5rem;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    // OPTIMIZATION: Load form, batch data, and check logs in parallel
+    let formHtml = null;
+    let batchData = null;
+    let hasLogs = null;
+    let formComplete = false;
+    let dataComplete = false;
+    let checkComplete = false;
+
+    // Start all operations in parallel
     google.script.run
       .withSuccessHandler(result => {
-        if (result.hasOvertimeLogs) {
-          showAlert('Cannot edit Historical Balance: Employee already has overtime logs. Editing would cause data conflicts.', 'error');
-        } else {
-          // TODO: Implement edit functionality - show form with pre-filled data
-          showAlert('Edit functionality coming soon', 'info');
-        }
+        hasLogs = result.hasOvertimeLogs;
+        checkComplete = true;
+        if (formComplete && dataComplete) processResults();
       })
       .withFailureHandler(err => {
+        hideOverlay();
         showAlert('Error checking overtime logs: ' + err.message, 'error');
       })
       .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
+
+    google.script.run
+      .withSuccessHandler(result => {
+        batchData = result;
+        dataComplete = true;
+        if (formComplete && checkComplete) processResults();
+      })
+      .withFailureHandler(err => {
+        hideOverlay();
+        showAlert('Error loading batch data: ' + err.message, 'error');
+      })
+      .getHistoricalBalanceByBatchId(batchId);
+
+    google.script.run
+      .withSuccessHandler(html => {
+        formHtml = html;
+        formComplete = true;
+        if (dataComplete && checkComplete) processResults();
+      })
+      .withFailureHandler(err => {
+        hideOverlay();
+        showAlert('Error loading form: ' + err.message, 'error');
+      })
+      .include('HistoryForm');
+
+    function processResults() {
+      if (hasLogs) {
+        hideOverlay();
+        showAlert('Cannot edit Historical Balance: Employee already has overtime logs. Editing would cause data conflicts.', 'error');
+        return;
+      }
+
+      if (!batchData.success) {
+        hideOverlay();
+        showAlert('Error: ' + batchData.message, 'error');
+        return;
+      }
+
+      // Display the form with pre-filled data
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = formHtml;
+
+      const scripts = tempDiv.querySelectorAll('script');
+      const scriptContents = [];
+      scripts.forEach(script => {
+        scriptContents.push(script.textContent);
+        script.remove();
+      });
+
+      overlay.innerHTML = tempDiv.innerHTML;
+
+      scriptContents.forEach(content => {
+        const scriptElement = document.createElement('script');
+        scriptElement.textContent = content;
+        overlay.appendChild(scriptElement);
+      });
+
+      // Update form title and button
+      const formTitle = overlay.querySelector('h2');
+      if (formTitle) {
+        formTitle.textContent = 'Edit Historical Balance';
+      }
+
+      const saveBtn = overlay.querySelector('#saveBtn');
+      if (saveBtn) {
+        saveBtn.textContent = 'Update Historical Balance';
+      }
+
+      // Pre-fill form fields
+      const data = batchData.data;
+      overlay.querySelector('#batchId').value = data.batchId;
+      overlay.querySelector('#employeeId').value = data.employeeId;
+      overlay.querySelector('#month').value = data.month;
+      overlay.querySelector('#year').value = data.year;
+      overlay.querySelector('#cocEarned').value = data.cocEarned;
+      overlay.querySelector('#cocUsed').value = data.cocUsed;
+
+      // Format date for input (YYYY-MM-DD)
+      const dateObj = new Date(data.dateOfIssuance);
+      const dateStr = dateObj.getFullYear() + '-' +
+                      String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
+                      String(dateObj.getDate()).padStart(2, '0');
+      overlay.querySelector('#dateOfIssuance').value = dateStr;
+
+      // Trigger updates
+      overlay.querySelector('#cocEarned').dispatchEvent(new Event('input'));
+      overlay.querySelector('#month').dispatchEvent(new Event('change'));
+      overlay.querySelector('#dateOfIssuance').dispatchEvent(new Event('change'));
+    }
   }
 
   /**
    * Delete a historical balance record
+   * OPTIMIZED: Modal confirmation instead of browser confirm
    */
   function deleteHistoricalBalance(batchId, month, year) {
     if (!selectedEmployee) {
@@ -577,34 +689,94 @@
       return;
     }
 
-    // Check if employee has overtime logs
-    google.script.run
-      .withSuccessHandler(result => {
-        if (result.hasOvertimeLogs) {
-          showAlert('Cannot delete Historical Balance: Employee already has overtime logs. Deleting would cause data conflicts.', 'error');
-        } else {
-          // Confirm deletion
-          if (confirm(`Are you sure you want to delete the Historical Balance for ${month} ${year}?\n\nThis action cannot be undone.`)) {
-            google.script.run
-              .withSuccessHandler(deleteResult => {
-                if (deleteResult.success) {
-                  showAlert(deleteResult.message, 'success');
-                  displayHistoricalBalances(selectedEmployee.employeeId);
-                } else {
-                  showAlert(deleteResult.message, 'error');
-                }
-              })
-              .withFailureHandler(err => {
-                showAlert('Error deleting record: ' + err.message, 'error');
-              })
-              .deleteHistoricalBalance(batchId);
-          }
-        }
-      })
-      .withFailureHandler(err => {
-        showAlert('Error checking overtime logs: ' + err.message, 'error');
-      })
-      .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
+    // Show confirmation modal
+    showConfirmModal(
+      'Delete Historical Balance',
+      `Are you sure you want to delete the Historical Balance for <strong>${month} ${year}</strong>?<br><br>This action cannot be undone.`,
+      'Delete',
+      () => {
+        // User confirmed - proceed with deletion
+        // Check if employee has overtime logs first
+        google.script.run
+          .withSuccessHandler(result => {
+            if (result.hasOvertimeLogs) {
+              showAlert('Cannot delete Historical Balance: Employee already has overtime logs. Deleting would cause data conflicts.', 'error');
+            } else {
+              // Proceed with deletion
+              google.script.run
+                .withSuccessHandler(deleteResult => {
+                  if (deleteResult.success) {
+                    showAlert(deleteResult.message, 'success');
+                    displayHistoricalBalances(selectedEmployee.employeeId);
+                  } else {
+                    showAlert(deleteResult.message, 'error');
+                  }
+                })
+                .withFailureHandler(err => {
+                  showAlert('Error deleting record: ' + err.message, 'error');
+                })
+                .deleteHistoricalBalance(batchId);
+            }
+          })
+          .withFailureHandler(err => {
+            showAlert('Error checking overtime logs: ' + err.message, 'error');
+          })
+          .checkEmployeeHasOvertimeLogs(selectedEmployee.employeeId);
+      }
+    );
+  }
+
+  /**
+   * Show confirmation modal
+   * @param {string} title - Modal title
+   * @param {string} message - Modal message (can include HTML)
+   * @param {string} confirmText - Text for confirm button
+   * @param {function} onConfirm - Callback when confirmed
+   */
+  function showConfirmModal(title, message, confirmText, onConfirm) {
+    // Create modal overlay
+    let modal = document.getElementById('confirmModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'confirmModal';
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5); z-index: 200;
+        display: flex; align-items: center; justify-content: center;
+        padding: 1rem;
+      `;
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div style="
+        background: white; padding: 2rem; border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 90%; max-width: 450px; text-align: center;
+      ">
+        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: #1a1f36; margin-bottom: 0.5rem;">${title}</h3>
+        <p style="color: #697386; font-size: 0.9375rem; margin-bottom: 1.5rem;">${message}</p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+          <button id="confirmModalCancel" class="btn btn-secondary">Cancel</button>
+          <button id="confirmModalConfirm" class="btn btn-primary" style="background: #ef4444;">${confirmText}</button>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = 'flex';
+
+    // Add event listeners
+    document.getElementById('confirmModalCancel').onclick = () => {
+      modal.style.display = 'none';
+      modal.remove();
+    };
+
+    document.getElementById('confirmModalConfirm').onclick = () => {
+      modal.style.display = 'none';
+      modal.remove();
+      onConfirm();
+    };
   }
 
   /**
