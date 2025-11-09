@@ -3,6 +3,7 @@
 
   let rowCounter = 0;
   let existingDatabaseDates = [];
+  let existingHistoricalMonths = []; // BAGONG DAGDAG: Para sa historical balances
   let duplicateContext = null;
   let pendingDuplicateAction = null;
 
@@ -14,8 +15,9 @@
     const yearSelect = document.getElementById('year');
     if (yearSelect) {
       const currentYear = new Date().getFullYear();
-      for (let i = 0; i <= 2; i++) {
+      for (let i = 0; i <= 2; i++) { // Palawigin natin para umabot sa 2024 kung kailangan
         const year = currentYear - i;
+        if (year < 2024) break; // Siguraduhin na hindi bababa sa 2024
         const option = document.createElement('option');
         option.value = year;
         option.textContent = year;
@@ -52,7 +54,9 @@
       empSelect.addEventListener('change', () => {
         loadCOCProgress();
         loadExistingDates();
+        loadHistoricalMonths(); // BAGONG DAGDAG: I-load ang historical months
         checkAddDayButtonState();
+        // TANDAAN: Ang updateMonthOptionsForYear() ay tatawagin sa loob ng loadHistoricalMonths() success
       });
     }
     if (monthSelect) {
@@ -65,7 +69,7 @@
     }
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
-        updateMonthOptionsForYear();
+        updateMonthOptionsForYear(); // I-call ulit para mag-apply ang filter para sa bagong taon
         loadCOCProgress();
         loadExistingDates();
         updateDateInputConstraints();
@@ -83,8 +87,36 @@
   }
 
   /**
+   * BAGONG DAGDAG: Load historical balance months for the selected employee
+   */
+  function loadHistoricalMonths() {
+    const employeeId = document.getElementById('employeeId')?.value;
+    
+    if (!employeeId) {
+      existingHistoricalMonths = [];
+      updateMonthOptionsForYear(); // I-update pa rin ang options (para alisin ang old disabled)
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(months => {
+        existingHistoricalMonths = months || [];
+        console.log('Loaded historical months:', existingHistoricalMonths);
+        updateMonthOptionsForYear(); // I-update ang month options pagkatapos makuha ang data
+      })
+      .withFailureHandler(err => {
+        console.error('Error loading historical months:', err);
+        existingHistoricalMonths = [];
+        updateMonthOptionsForYear(); // I-update pa rin para i-reset
+      })
+      .getHistoricalBalanceMonths(parseInt(employeeId));
+  }
+
+
+  /**
    * Update month dropdown options based on selected year
    * Disable future months for current year
+   * BAGONG UPDATE: Disable months with historical balance
    */
   function updateMonthOptionsForYear() {
     const yearSelect = document.getElementById('year');
@@ -103,6 +135,7 @@
                         'July', 'August', 'September', 'October', 'November', 'December'];
 
     const selectedMonth = monthSelect.value;
+    let shouldClearSelectedMonth = false;
 
     // Enable/disable months based on whether it's the current year
     const options = monthSelect.querySelectorAll('option');
@@ -112,20 +145,34 @@
       const monthIndex = monthNames.indexOf(option.value);
       if (monthIndex === -1) return;
 
-      // If current year, disable future months
+      // Reset first
+      option.disabled = false;
+      option.textContent = option.value;
+
+      // Check 1: Disable future months
       if (selectedYear === currentYear && monthIndex > currentMonth) {
         option.disabled = true;
         option.textContent = option.value + ' (Future)';
-
-        // If currently selected month is now disabled, clear selection
         if (option.value === selectedMonth) {
-          monthSelect.value = '';
+          shouldClearSelectedMonth = true;
         }
-      } else {
-        option.disabled = false;
-        option.textContent = option.value;
+      }
+
+      // Check 2: Disable months with historical balance
+      const monthYearKey = `${option.value}-${selectedYear}`;
+      if (existingHistoricalMonths.includes(monthYearKey)) {
+        option.disabled = true;
+        option.textContent = option.value + ' (Logged)';
+        if (option.value === selectedMonth) {
+          shouldClearSelectedMonth = true;
+        }
       }
     });
+
+    // If currently selected month is now disabled, clear selection
+    if (shouldClearSelectedMonth) {
+      monthSelect.value = '';
+    }
   }
 
   /**
@@ -969,6 +1016,7 @@
 
     rowCounter = 0;
     existingDatabaseDates = [];
+    existingHistoricalMonths = []; // BAGONG DAGDAG: I-reset din ito
     duplicateContext = null;
 
     // Reset button and overlay state
