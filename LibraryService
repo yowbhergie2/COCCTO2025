@@ -1,33 +1,43 @@
-// LibraryService.gs - Master Data Management
+// LibraryService.gs - Master Data Management (Firestore Version)
 
 /**
- * Get all offices from Libraries sheet (Column A)
+ * Get all offices from Firestore libraries collection
  */
 function getAllOffices() {
-  const sheet = getDbSheet('Libraries');
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return [];
-  
-  const offices = sheet.getRange(2, 1, lastRow - 1, 1).getValues()
-    .map(row => row[0])
-    .filter(office => office !== '');
-  
-  return offices;
+  try {
+    // Get the offices document from libraries collection
+    const officesDoc = getDocument('libraries', 'offices');
+
+    if (!officesDoc || !officesDoc.items) {
+      return [];
+    }
+
+    return officesDoc.items || [];
+
+  } catch (error) {
+    Logger.log('Error in getAllOffices: ' + error.toString());
+    return [];
+  }
 }
 
 /**
- * Get all positions from Libraries sheet (Column B)
+ * Get all positions from Firestore libraries collection
  */
 function getAllPositions() {
-  const sheet = getDbSheet('Libraries');
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return [];
-  
-  const positions = sheet.getRange(2, 2, lastRow - 1, 1).getValues()
-    .map(row => row[0])
-    .filter(position => position !== '');
-  
-  return positions;
+  try {
+    // Get the positions document from libraries collection
+    const positionsDoc = getDocument('libraries', 'positions');
+
+    if (!positionsDoc || !positionsDoc.items) {
+      return [];
+    }
+
+    return positionsDoc.items || [];
+
+  } catch (error) {
+    Logger.log('Error in getAllPositions: ' + error.toString());
+    return [];
+  }
 }
 
 /**
@@ -41,7 +51,7 @@ function addOffice(officeName) {
         message: 'Office name is required'
       };
     }
-    
+
     const offices = getAllOffices();
     if (offices.includes(officeName)) {
       return {
@@ -49,11 +59,16 @@ function addOffice(officeName) {
         message: 'Office already exists'
       };
     }
-    
-    const sheet = getDbSheet('Libraries');
-    const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1).setValue(officeName);
-    
+
+    // Add to offices array
+    offices.push(officeName);
+
+    // Update Firestore document
+    updateDocument('libraries', 'offices', {
+      category: 'offices',
+      items: offices
+    });
+
     return {
       success: true,
       message: 'Office added successfully'
@@ -77,7 +92,7 @@ function addPosition(positionName) {
         message: 'Position name is required'
       };
     }
-    
+
     const positions = getAllPositions();
     if (positions.includes(positionName)) {
       return {
@@ -85,11 +100,16 @@ function addPosition(positionName) {
         message: 'Position already exists'
       };
     }
-    
-    const sheet = getDbSheet('Libraries');
-    const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 2).setValue(positionName);
-    
+
+    // Add to positions array
+    positions.push(positionName);
+
+    // Update Firestore document
+    updateDocument('libraries', 'positions', {
+      category: 'positions',
+      items: positions
+    });
+
     return {
       success: true,
       message: 'Position added successfully'
@@ -113,23 +133,29 @@ function updateOffice(oldName, newName) {
         message: 'Office name is required'
       };
     }
-    
-    const sheet = getDbSheet('Libraries');
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === oldName) {
-        sheet.getRange(i + 1, 1).setValue(newName);
-        return {
-          success: true,
-          message: 'Office updated successfully'
-        };
-      }
+
+    const offices = getAllOffices();
+    const index = offices.indexOf(oldName);
+
+    if (index === -1) {
+      return {
+        success: false,
+        message: 'Office not found'
+      };
     }
-    
+
+    // Update the office name
+    offices[index] = newName;
+
+    // Update Firestore document
+    updateDocument('libraries', 'offices', {
+      category: 'offices',
+      items: offices
+    });
+
     return {
-      success: false,
-      message: 'Office not found'
+      success: true,
+      message: 'Office updated successfully'
     };
   } catch (error) {
     return {
@@ -150,23 +176,29 @@ function updatePosition(oldName, newName) {
         message: 'Position name is required'
       };
     }
-    
-    const sheet = getDbSheet('Libraries');
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][1] === oldName) {
-        sheet.getRange(i + 1, 2).setValue(newName);
-        return {
-          success: true,
-          message: 'Position updated successfully'
-        };
-      }
+
+    const positions = getAllPositions();
+    const index = positions.indexOf(oldName);
+
+    if (index === -1) {
+      return {
+        success: false,
+        message: 'Position not found'
+      };
     }
-    
+
+    // Update the position name
+    positions[index] = newName;
+
+    // Update Firestore document
+    updateDocument('libraries', 'positions', {
+      category: 'positions',
+      items: positions
+    });
+
     return {
-      success: false,
-      message: 'Position not found'
+      success: true,
+      message: 'Position updated successfully'
     };
   } catch (error) {
     return {
@@ -181,22 +213,28 @@ function updatePosition(oldName, newName) {
  */
 function deleteOffice(officeName) {
   try {
-    const sheet = getDbSheet('Libraries');
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === officeName) {
-        sheet.getRange(i + 1, 1).clearContent();
-        return {
-          success: true,
-          message: 'Office deleted successfully'
-        };
-      }
+    const offices = getAllOffices();
+    const index = offices.indexOf(officeName);
+
+    if (index === -1) {
+      return {
+        success: false,
+        message: 'Office not found'
+      };
     }
-    
+
+    // Remove from array
+    offices.splice(index, 1);
+
+    // Update Firestore document
+    updateDocument('libraries', 'offices', {
+      category: 'offices',
+      items: offices
+    });
+
     return {
-      success: false,
-      message: 'Office not found'
+      success: true,
+      message: 'Office deleted successfully'
     };
   } catch (error) {
     return {
@@ -211,22 +249,28 @@ function deleteOffice(officeName) {
  */
 function deletePosition(positionName) {
   try {
-    const sheet = getDbSheet('Libraries');
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][1] === positionName) {
-        sheet.getRange(i + 1, 2).clearContent();
-        return {
-          success: true,
-          message: 'Position deleted successfully'
-        };
-      }
+    const positions = getAllPositions();
+    const index = positions.indexOf(positionName);
+
+    if (index === -1) {
+      return {
+        success: false,
+        message: 'Position not found'
+      };
     }
-    
+
+    // Remove from array
+    positions.splice(index, 1);
+
+    // Update Firestore document
+    updateDocument('libraries', 'positions', {
+      category: 'positions',
+      items: positions
+    });
+
     return {
-      success: false,
-      message: 'Position not found'
+      success: true,
+      message: 'Position deleted successfully'
     };
   } catch (error) {
     return {
@@ -237,20 +281,23 @@ function deletePosition(positionName) {
 }
 
 /**
- * Get signatory configuration from Libraries sheet
- * Signatory info is stored in columns D (Name) and E (Position)
+ * Get signatory configuration from Firestore
  */
 function getSignatoryConfig() {
   try {
-    const sheet = getDbSheet('Libraries');
+    // Get the signatory document from libraries collection
+    const signatoryDoc = getDocument('libraries', 'signatory');
 
-    // Get signatory from row 2, columns D and E
-    const name = sheet.getRange(2, 4).getValue() || '';
-    const position = sheet.getRange(2, 5).getValue() || '';
+    if (!signatoryDoc) {
+      return {
+        name: '',
+        position: ''
+      };
+    }
 
     return {
-      name: name,
-      position: position
+      name: signatoryDoc.name || '',
+      position: signatoryDoc.position || ''
     };
   } catch (error) {
     Logger.log('Error getting signatory config: ' + error.message);
@@ -262,7 +309,7 @@ function getSignatoryConfig() {
 }
 
 /**
- * Set signatory configuration in Libraries sheet
+ * Set signatory configuration in Firestore
  * @param {Object} signatory - Object with name and position properties
  */
 function setSignatoryConfig(signatory) {
@@ -274,11 +321,12 @@ function setSignatoryConfig(signatory) {
       };
     }
 
-    const sheet = getDbSheet('Libraries');
-
-    // Set signatory in row 2, columns D and E
-    sheet.getRange(2, 4).setValue(signatory.name);
-    sheet.getRange(2, 5).setValue(signatory.position);
+    // Update or create signatory document
+    upsertDocument('libraries', 'signatory', {
+      category: 'signatory',
+      name: signatory.name,
+      position: signatory.position
+    });
 
     return {
       success: true,
