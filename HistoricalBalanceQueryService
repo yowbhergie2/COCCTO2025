@@ -9,8 +9,11 @@
  */
 function getEmployeeHistoricalBalances(employeeId) {
   try {
-    // Get all CreditBatches documents from Firestore
-    const data = getSheetData_V2('CreditBatches');
+    // --- PABILIS-FIX: Use queryDocuments ---
+    // Imbis na i-load lahat, kunin lang ang batches para sa employeeId na ito.
+    // Siguraduhin na ang employeeId ay string para sa query
+    const data = queryDocuments('creditBatches', 'employeeId', '==', String(employeeId));
+    // --- END FIX ---
 
     if (!data || data.length === 0) {
       return [];
@@ -26,11 +29,11 @@ function getEmployeeHistoricalBalances(employeeId) {
     for (let i = 0; i < data.length; i++) {
       const doc = data[i];
 
-      // Check if this batch belongs to this employee
-      // Show all batches, not just historical migration ones
-      if (doc.employeeId == employeeId &&
-          doc.originalHours !== undefined &&
-          typeof doc.originalHours === 'number') {
+      // --- PABILIS-FIX: Tinanggal ang "if (doc.employeeId == employeeId)" ---
+      // Hindi na ito kailangan dahil 'yung query na ang gumawa nito.
+      
+      // Check kung valid 'yung data (may originalHours)
+      if (doc.originalHours !== undefined && typeof doc.originalHours === 'number') {
 
         // Calculate COC Used based on Original - Remaining
         const cocEarned = parseFloat(doc.originalHours) || 0;
@@ -57,8 +60,8 @@ function getEmployeeHistoricalBalances(employeeId) {
           month = monthNames[earnedDate.getMonth()];
           year = earnedDate.getFullYear();
         } else {
-          // Skip if we can't determine month/year
-          return;
+          // Kung walang month/year, 'wag isama sa list
+          continue; 
         }
 
         // Handle dateOfIssuance - use earnedDate if dateOfIssuance is not present
