@@ -37,7 +37,7 @@
  * @param {boolean} dryRun - If true, only simulates migration without writing
  * @returns {Object} Migration summary
  */
-function migrateAllData(dryRun = true) {
+function migrateAllData(dryRun = false) {
   const startTime = new Date();
   const summary = {
     started: startTime.toISOString(),
@@ -71,6 +71,9 @@ function migrateAllData(dryRun = true) {
         summary.collections[migration.name] = result;
         summary.totalDocuments += result.count;
         Logger.log(`✅ ${migration.name}: ${result.count} documents ${dryRun ? 'would be migrated' : 'migrated'}`);
+        if (result.skipped) {
+          Logger.log(`⚠️ ${migration.name}: Skipped ${result.skipped} invalid rows`);
+        }
       } catch (error) {
         Logger.log(`❌ ERROR migrating ${migration.name}: ${error.message}`);
         summary.errors.push({
@@ -287,47 +290,54 @@ function migrateHolidays(dryRun = true) {
 
 /**
  * Migrate Employees sheet
+ * *** UPDATED with validation to skip invalid rows ***
  */
-function migrateEmployees(dryRun = true) {
+function migrateEmployees(dryRun = false) {
   const sheetName = 'Employees';
   const collectionName = 'employees';
   const data = getSheetData(sheetName);
   const headers = getSheetHeaders(sheetName);
+  
+  const documents = [];
+  let skippedCount = 0;
 
-  const documents = data
-    .map(row => {
-      const employeeId = row[headers.indexOf('EmployeeID')];
+  data.forEach((row, index) => {
+    const employeeId = row[headers.indexOf('EmployeeID')];
 
-      return {
-        id: String(employeeId),
-        data: {
-          employeeId: String(employeeId),
-          firstName: row[headers.indexOf('FirstName')] || '',
-          lastName: row[headers.indexOf('LastName')] || '',
-          middleInitial: row[headers.indexOf('MiddleInitial')] || '',
-          suffix: row[headers.indexOf('Suffix')] || '',
-          status: row[headers.indexOf('Status')] || 'Active',
-          position: row[headers.indexOf('Position')] || '',
-          office: row[headers.indexOf('Office')] || '',
-          email: row[headers.indexOf('Email')] || ''
-        }
-      };
-    })
-    .filter(doc => {
-      // Skip rows with invalid employee IDs
-      const isValid = doc.id && doc.id !== 'undefined' && doc.id !== 'null' && doc.id !== '';
-      if (!isValid) {
-        Logger.log(`⚠️ Skipping employee with invalid ID: ${doc.id}`);
+    // VALIDATION: Check for valid EmployeeID
+    if (!employeeId || String(employeeId).trim() === '' || String(employeeId) === 'undefined' || String(employeeId) === 'null') {
+      Logger.log(`⚠️ Row ${index + 2}: Invalid or missing EmployeeID - skipping`);
+      skippedCount++;
+      return; // Skip this row
+    }
+
+    documents.push({
+      id: String(employeeId),
+      data: {
+        employeeId: String(employeeId),
+        firstName: row[headers.indexOf('FirstName')] || '',
+        lastName: row[headers.indexOf('LastName')] || '',
+        middleInitial: row[headers.indexOf('MiddleInitial')] || '',
+        suffix: row[headers.indexOf('Suffix')] || '',
+        status: row[headers.indexOf('Status')] || 'Active',
+        position: row[headers.indexOf('Position')] || '',
+        office: row[headers.indexOf('Office')] || '',
+        email: row[headers.indexOf('Email')] || ''
       }
-      return isValid;
     });
+  });
 
   if (!dryRun && documents.length > 0) {
     batchCreateDocuments(collectionName, documents);
   }
 
-  return { count: documents.length, documents: dryRun ? documents : [] };
+  return { 
+    count: documents.length, 
+    documents: dryRun ? documents : [], 
+    skipped: skippedCount 
+  };
 }
+
 
 /**
  * Migrate OvertimeLogs sheet
