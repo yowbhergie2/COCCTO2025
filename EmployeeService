@@ -194,9 +194,15 @@ function searchEmployees(searchTerm) {
 
 /**
  * Get active employees only
- * CACHE FIX: Updated to call getAllEmployees_V2.
+ * OPTIMIZED: Query only active employees from Firestore instead of loading all
  */
 function getActiveEmployees() {
-  const allEmployees = getAllEmployees_V2(); // Use V2
-  return allEmployees.filter(emp => emp.status === 'Active');
+  try {
+    // OPTIMIZATION: Query only active employees
+    const activeEmployees = queryDocuments('employees', 'status', '==', 'Active');
+    return serializeDates(activeEmployees || []);
+  } catch (error) {
+    Logger.log('Error in getActiveEmployees: ' + error.toString());
+    return [];
+  }
 }

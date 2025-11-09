@@ -50,7 +50,6 @@
 
     if (empSelect) {
       empSelect.addEventListener('change', () => {
-        checkIfCanLogOvertime();
         loadCOCProgress();
         loadExistingDates();
         checkAddDayButtonState();
@@ -58,7 +57,6 @@
     }
     if (monthSelect) {
       monthSelect.addEventListener('change', () => {
-        checkIfCanLogOvertime();
         loadCOCProgress();
         loadExistingDates();
         updateDateInputConstraints();
@@ -68,7 +66,6 @@
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
         updateMonthOptionsForYear();
-        checkIfCanLogOvertime();
         loadCOCProgress();
         loadExistingDates();
         updateDateInputConstraints();
@@ -148,15 +145,15 @@
     const hasYear = yearSelect && yearSelect.value !== '';
 
     if (hasEmployee && hasMonth && hasYear) {
-      // Check for historical balance before enabling
+      // Check if can log overtime (checks both historical balance and certificate)
       const employeeId = parseInt(empSelect.value);
       const month = monthSelect.value;
       const year = parseInt(yearSelect.value);
 
       google.script.run
-        .withSuccessHandler(function(exists) {
-          if (exists) {
-            // Historical balance exists - show error and keep disabled
+        .withSuccessHandler(function(result) {
+          if (!result.canLog) {
+            // Cannot log - show error and keep disabled
             if (addDayBtn) addDayBtn.disabled = true;
             if (saveBtn) saveBtn.disabled = true;
             if (overlay) {
@@ -165,12 +162,12 @@
                 <div style="text-align: center; color: #ef4444; max-width: 500px;">
                   <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
                   <p style="font-size: 1rem; font-weight: 600; margin: 0.5rem 0;">Cannot log overtime for this period</p>
-                  <p style="font-size: 0.875rem; margin: 0;">A historical balance already exists for ${month} ${year}. Historical balances represent the complete COC data for that month.</p>
+                  <p style="font-size: 0.875rem; margin: 0;">${result.message}</p>
                 </div>
               `;
             }
           } else {
-            // No historical balance - enable everything
+            // Can log - enable everything
             if (addDayBtn) addDayBtn.disabled = false;
             if (saveBtn) saveBtn.disabled = false;
             if (overlay) overlay.style.display = 'none';
@@ -182,7 +179,7 @@
           }
         })
         .withFailureHandler(function(err) {
-          console.error('Error checking historical balance:', err);
+          console.error('Error checking if can log overtime:', err);
           // On error, allow proceed (fail open)
           if (addDayBtn) addDayBtn.disabled = false;
           if (saveBtn) saveBtn.disabled = false;
@@ -191,7 +188,7 @@
             addOvertimeRow();
           }
         })
-        .checkHistoricalBalanceExists(employeeId, month, year);
+        .canLogOvertimeForMonth(employeeId, month, year);
     } else {
       // Disable buttons and show default overlay
       if (addDayBtn) addDayBtn.disabled = true;
