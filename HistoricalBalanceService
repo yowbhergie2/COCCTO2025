@@ -80,7 +80,19 @@ function saveHistoricalBalance(formData) {
       };
     }
 
-    // --- BAGONG-DAGDAG: Validation 5: Check if Date of Issuance year matches Earned Year ---
+    // --- BAGONG-DAGDAG: Validation 5: Check if Date of Issuance is within allowed range ---
+    // Max date: Last day of the month AFTER the earned month
+    const maxIssuanceDate = new Date(year, getMonthNumber(month) + 2, 0);
+    maxIssuanceDate.setHours(0, 0, 0, 0);
+
+    if (dateOfIssuance > maxIssuanceDate) {
+      return {
+        success: false,
+        message: `Date of Issuance must be on or before ${formatDate(maxIssuanceDate)} (last day of month after earned month).`
+      };
+    }
+
+    // Also check if Date of Issuance year matches Earned Year
     if (dateOfIssuance.getFullYear() !== year) {
       return {
         success: false,

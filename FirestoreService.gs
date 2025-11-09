@@ -191,29 +191,50 @@ function getDocument(collectionName, documentId) {
  * Get all documents from a collection
  * @param {string} collectionName - Collection name
  * @param {number} limit - Maximum number of documents (default: 1000)
+ * @param {string} orderBy - Field to order by (optional)
  * @returns {Array<Object>} Array of documents
  *
  * Example:
- * const allEmployees = getAllDocuments('employees');
+ * const allEmployees = getAllDocuments('employees', 100, 'createdAt');
  * allEmployees.forEach(emp => Logger.log(emp.firstName));
  */
-function getAllDocuments(collectionName, limit = 1000) {
+function getAllDocuments(collectionName, limit = 1000, orderBy = null) {
   try {
     const db = getDb();
-    const documents = db.getDocuments(collectionName);
+
+    // OPTIMIZATION: Use Firestore query with limit instead of loading all docs
+    let query = db.query(collectionName);
+
+    if (orderBy) {
+      query = query.orderBy(orderBy);
+    }
+
+    if (limit && limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const documents = query.execute();
 
     if (!documents || documents.length === 0) {
       return [];
     }
 
-    // Convert to plain objects and limit
-    return documents
-      .map(doc => firestoreFieldsToObject(doc.fields))
-      .slice(0, limit);
+    // Convert to plain objects
+    return documents.map(doc => firestoreFieldsToObject(doc.fields));
 
   } catch (error) {
-    Logger.log(`ERROR getting all documents from ${collectionName}: ${error.message}`);
-    throw error;
+    Logger.log(`ERROR getting documents from ${collectionName}: ${error.message}`);
+    // Fallback to old method if query fails
+    try {
+      const documents = db.getDocuments(collectionName);
+      if (!documents || documents.length === 0) return [];
+      return documents
+        .map(doc => firestoreFieldsToObject(doc.fields))
+        .slice(0, limit);
+    } catch (fallbackError) {
+      Logger.log(`ERROR in fallback method: ${fallbackError.message}`);
+      throw error;
+    }
   }
 }
 
@@ -223,20 +244,26 @@ function getAllDocuments(collectionName, limit = 1000) {
  * @param {string} fieldName - Field to query
  * @param {string} operator - Comparison operator (==, !=, <, <=, >, >=)
  * @param {*} value - Value to compare
+ * @param {number} limit - Maximum number of documents (default: 1000)
  * @returns {Array<Object>} Matching documents
  *
  * Example:
- * const activeEmployees = queryDocuments('employees', 'status', '==', 'Active');
+ * const activeEmployees = queryDocuments('employees', 'status', '==', 'Active', 100);
  */
-function queryDocuments(collectionName, fieldName, operator, value) {
+function queryDocuments(collectionName, fieldName, operator, value, limit = 1000) {
   try {
     const db = getDb();
 
     // Build query path
     const queryPath = collectionName;
 
-    // Use Firestore query with operator
-    const query = db.query(queryPath).where(fieldName, operator, value);
+    // Use Firestore query with operator and limit
+    let query = db.query(queryPath).where(fieldName, operator, value);
+
+    if (limit && limit > 0) {
+      query = query.limit(limit);
+    }
+
     const results = query.execute();
 
     if (!results || results.length === 0) {
@@ -250,7 +277,7 @@ function queryDocuments(collectionName, fieldName, operator, value) {
 
     // Fallback: Get all and filter manually
     Logger.log('Falling back to manual filtering...');
-    const allDocs = getAllDocuments(collectionName);
+    const allDocs = getAllDocuments(collectionName, limit);
 
     return allDocs.filter(doc => {
       const docValue = doc[fieldName];
@@ -263,7 +290,7 @@ function queryDocuments(collectionName, fieldName, operator, value) {
         case '>=': return docValue >= value;
         default: return false;
       }
-    });
+    }).slice(0, limit);
   }
 }
 
@@ -271,6 +298,7 @@ function queryDocuments(collectionName, fieldName, operator, value) {
  * Find documents by multiple criteria (equivalent to findRows)
  * @param {string} collectionName - Collection name
  * @param {Object} criteria - Key-value pairs to match
+ * @param {number} limit - Maximum number of documents (default: 1000)
  * @returns {Array<Object>} Matching documents
  *
  * Example:
@@ -279,17 +307,51 @@ function queryDocuments(collectionName, fieldName, operator, value) {
  * office: 'Main Office'
  * });
  */
-function findDocuments(collectionName, criteria) {
+function findDocuments(collectionName, criteria, limit = 1000) {
   try {
-    // Get all documents and filter manually
-    // (Compound queries require indexes in Firestore)
-    const allDocs = getAllDocuments(collectionName);
+    const db = getDb();
+    const criteriaKeys = Object.keys(criteria);
 
-    return allDocs.filter(doc => {
-      return Object.keys(criteria).every(key => {
-        return doc[key] === criteria[key];
+    // OPTIMIZATION: For single criterion, use queryDocuments for better performance
+    if (criteriaKeys.length === 1) {
+      const key = criteriaKeys[0];
+      return queryDocuments(collectionName, key, '==', criteria[key], limit);
+    }
+
+    // OPTIMIZATION: For multiple criteria, try compound query first
+    // If it fails (due to missing index), fall back to client-side filtering
+    try {
+      let query = db.query(collectionName);
+
+      // Add where clauses for each criterion
+      criteriaKeys.forEach(key => {
+        query = query.where(key, '==', criteria[key]);
       });
-    });
+
+      if (limit && limit > 0) {
+        query = query.limit(limit);
+      }
+
+      const results = query.execute();
+
+      if (!results || results.length === 0) {
+        return [];
+      }
+
+      return results.map(doc => firestoreFieldsToObject(doc.fields));
+
+    } catch (queryError) {
+      // Compound query failed (likely missing index)
+      Logger.log(`Compound query failed (missing index?): ${queryError.message}`);
+      Logger.log(`Falling back to client-side filtering for ${JSON.stringify(criteria)}`);
+
+      // Fallback: Get all documents and filter manually
+      const allDocs = getAllDocuments(collectionName, limit);
+
+      return allDocs.filter(doc => {
+        return criteriaKeys.every(key => doc[key] === criteria[key]);
+      });
+    }
 
   } catch (error) {
     Logger.log(`ERROR finding documents in ${collectionName}: ${error.message}`);
@@ -356,6 +418,49 @@ function upsertDocument(collectionName, documentId, data) {
 
   } catch (error) {
     Logger.log(`ERROR upserting document ${collectionName}/${documentId}: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Batch update multiple documents
+ * OPTIMIZATION: Use this instead of individual updateDocument calls in loops
+ * @param {string} collectionName - Collection name
+ * @param {Array<Object>} updates - Array of {id: string, data: Object}
+ * @returns {number} Number of documents updated
+ *
+ * Example:
+ * batchUpdateDocuments('creditBatches', [
+ *   { id: 'BATCH001', data: { status: 'Used', remainingHours: 0 } },
+ *   { id: 'BATCH002', data: { status: 'Used', remainingHours: 0 } }
+ * ]);
+ */
+function batchUpdateDocuments(collectionName, updates) {
+  try {
+    const db = getDb();
+    let count = 0;
+    const timestamp = getCurrentTimestamp();
+
+    updates.forEach(update => {
+      const updateData = {
+        ...update.data,
+        updatedAt: timestamp
+      };
+
+      db.updateDocument(`${collectionName}/${update.id}`, updateData);
+      count++;
+
+      // Log progress every 50 documents
+      if (count % 50 === 0) {
+        Logger.log(`Updated ${count}/${updates.length} documents...`);
+      }
+    });
+
+    Logger.log(`✅ Batch updated ${count} documents in ${collectionName}`);
+    return count;
+
+  } catch (error) {
+    Logger.log(`ERROR in batch update for ${collectionName}: ${error.message}`);
     throw error;
   }
 }
