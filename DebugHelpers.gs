@@ -335,10 +335,27 @@ function resetEmployeesCollection() {
     const deleted = deleteCollection('employees', 'DELETE_ALL_DATA');
     Logger.log(`✅ Deleted ${deleted} employees\n`);
 
-    // Step 1.5: Wait for Firestore to propagate the deletions
-    Logger.log('⏳ Waiting 3 seconds for Firestore propagation...');
-    Utilities.sleep(3000);
-    Logger.log('✅ Ready to migrate\n');
+    // Step 1.5: Wait and verify deletion
+    Logger.log('⏳ Waiting 5 seconds for Firestore propagation...');
+    Utilities.sleep(5000);
+
+    // Verify deletion
+    const remaining = getAllDocuments('employees');
+    Logger.log(`📊 Verification: ${remaining.length} employees still in Firestore`);
+
+    if (remaining.length > 0) {
+      Logger.log('⚠️ WARNING: Some employees still exist after deletion!');
+      Logger.log('Employee IDs still present: ' + remaining.map(e => e.employeeId || 'unknown').join(', '));
+      Logger.log('\n💡 This might be a Firestore propagation delay. Waiting 5 more seconds...');
+      Utilities.sleep(5000);
+
+      const stillRemaining = getAllDocuments('employees');
+      if (stillRemaining.length > 0) {
+        throw new Error(`Cannot proceed: ${stillRemaining.length} employees still exist after 10 seconds. Manual cleanup required.`);
+      }
+    }
+
+    Logger.log('✅ Collection is empty, ready to migrate\n');
 
     // Step 2: Re-migrate employees
     Logger.log('Step 2: Re-migrating employees from Sheets...');
