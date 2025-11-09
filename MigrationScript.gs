@@ -328,7 +328,12 @@ function migrateEmployees(dryRun = false) {
   });
 
   if (!dryRun && documents.length > 0) {
-    batchCreateDocuments(collectionName, documents);
+    // Use UPSERT instead of CREATE to overwrite existing documents
+    Logger.log('Using UPSERT mode to overwrite any existing employees...');
+    documents.forEach(doc => {
+      upsertDocument(collectionName, doc.id, doc.data);
+    });
+    Logger.log(`✅ Upserted ${documents.length} employees`);
   }
 
   return { 
