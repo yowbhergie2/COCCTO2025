@@ -485,45 +485,46 @@ function getHistoricalBalanceMonths(employeeId) {
   try {
     Logger.log('getHistoricalBalanceMonths called for employeeId: ' + employeeId);
 
-    // Query CreditBatches for this employee
-    const batches = queryDocuments('creditBatches', 'employeeId', '==', parseInt(employeeId));
-    Logger.log('Found batches: ' + (batches ? batches.length : 0));
+    // Query CreditBatches for this employee - use getAllDocuments for reliability
+    const allBatches = getAllDocuments('creditBatches');
+    Logger.log('Total batches in collection: ' + (allBatches ? allBatches.length : 0));
 
-    if (!batches || batches.length === 0) {
+    if (!allBatches || allBatches.length === 0) {
       Logger.log('No batches found, returning empty array');
       return [];
     }
 
-    // Extract unique month/year combinations as simple array of objects
-    const monthYearMap = {};
+    // Filter for this employee
+    const employeeBatches = allBatches.filter(batch => batch.employeeId === parseInt(employeeId));
+    Logger.log('Found ' + employeeBatches.length + ' batches for employee ' + employeeId);
 
-    batches.forEach(batch => {
-      const month = batch.earnedMonth;
-      const year = batch.earnedYear;
-      const key = month + '-' + year;
+    if (employeeBatches.length === 0) {
+      return [];
+    }
 
-      if (!monthYearMap[key]) {
-        monthYearMap[key] = {
-          month: month,
-          year: year
-        };
-        Logger.log('Added: month=' + month + ', year=' + year);
+    // Extract unique month/year combinations as STRINGS (for reliable serialization)
+    const uniqueSet = {};
+
+    employeeBatches.forEach(batch => {
+      const month = String(batch.earnedMonth);
+      const year = Number(batch.earnedYear);
+      const key = month + '|' + year; // Use pipe separator
+
+      if (!uniqueSet[key]) {
+        uniqueSet[key] = true;
+        Logger.log('Found unique: ' + key);
       }
     });
 
-    // Convert map to array
-    const result = [];
-    for (const key in monthYearMap) {
-      result.push(monthYearMap[key]);
-    }
-
-    Logger.log('Returning ' + result.length + ' unique months');
-    Logger.log('Result JSON: ' + JSON.stringify(result));
+    // Convert to array of strings
+    const result = Object.keys(uniqueSet);
+    Logger.log('Returning ' + result.length + ' unique month-year combinations: ' + result.join(', '));
 
     return result;
 
   } catch (error) {
     Logger.log('Error in getHistoricalBalanceMonths: ' + error.toString());
+    Logger.log('Stack trace: ' + error.stack);
     return [];
   }
 }
