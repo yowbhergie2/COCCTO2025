@@ -291,36 +291,44 @@ function migrateHolidays(dryRun = true) {
 function migrateEmployees(dryRun = true) {
   const sheetName = 'Employees';
   const collectionName = 'employees';
-  const data = getSheetData(sheetName);
-  const headers = getSheetHeaders(sheetName);
+
+  // Read DIRECTLY from Google Sheets (not Firestore!)
+  const data = getSheetDataForMigration(sheetName);
+
+  if (data.length === 0) {
+    Logger.log(`⚠️ No data found in ${sheetName} sheet`);
+    return { count: 0, documents: [] };
+  }
 
   const documents = data
     .map(row => {
-      const employeeId = row[headers.indexOf('EmployeeID')];
+      const employeeId = row.EmployeeID;
+      const rowNumber = row._rowNumber;
+
+      // Validate employee ID
+      if (!employeeId || employeeId === '' || String(employeeId) === 'undefined' || String(employeeId) === 'null') {
+        Logger.log(`⚠️ Row ${rowNumber}: Invalid or missing EmployeeID - skipping`);
+        return null;
+      }
 
       return {
         id: String(employeeId),
         data: {
           employeeId: String(employeeId),
-          firstName: row[headers.indexOf('FirstName')] || '',
-          lastName: row[headers.indexOf('LastName')] || '',
-          middleInitial: row[headers.indexOf('MiddleInitial')] || '',
-          suffix: row[headers.indexOf('Suffix')] || '',
-          status: row[headers.indexOf('Status')] || 'Active',
-          position: row[headers.indexOf('Position')] || '',
-          office: row[headers.indexOf('Office')] || '',
-          email: row[headers.indexOf('Email')] || ''
+          firstName: row.FirstName || '',
+          lastName: row.LastName || '',
+          middleInitial: row.MiddleInitial || '',
+          suffix: row.Suffix || '',
+          status: row.Status || 'Active',
+          position: row.Position || '',
+          office: row.Office || '',
+          email: row.Email || ''
         }
       };
     })
-    .filter(doc => {
-      // Skip rows with invalid employee IDs
-      const isValid = doc.id && doc.id !== 'undefined' && doc.id !== 'null' && doc.id !== '';
-      if (!isValid) {
-        Logger.log(`⚠️ Skipping employee with invalid ID: ${doc.id}`);
-      }
-      return isValid;
-    });
+    .filter(doc => doc !== null); // Remove invalid rows
+
+  Logger.log(`✅ Found ${documents.length} valid employees to migrate`);
 
   if (!dryRun && documents.length > 0) {
     batchCreateDocuments(collectionName, documents);
@@ -970,4 +978,93 @@ function testSingleCollectionMigration() {
   Logger.log(JSON.stringify(sample, null, 2));
 
   Logger.log('\n✅ Test complete!');
+}
+
+/**
+ * ========================================
+ * HELPER FUNCTIONS FOR READING GOOGLE SHEETS
+ * (Used only for migration - bypasses Firestore)
+ * ========================================
+ */
+
+/**
+ * Get sheet object from the database spreadsheet
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Sheet|null} Sheet object or null if not found
+ */
+function getSheetForMigration(sheetName) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    return sheet;
+  } catch (error) {
+    Logger.log(`Error getting sheet ${sheetName}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Get data from a Google Sheet as objects
+ * This function reads DIRECTLY from Google Sheets (not Firestore)
+ * Used only for migration purposes
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Array<Object>} Array of row objects
+ */
+function getSheetDataForMigration(sheetName) {
+  try {
+    const sheet = getSheetForMigration(sheetName);
+    if (!sheet) {
+      Logger.log(`⚠️ Sheet ${sheetName} not found`);
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length === 0) {
+      Logger.log(`⚠️ Sheet ${sheetName} is empty`);
+      return [];
+    }
+
+    // First row is headers
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Convert to objects
+    return rows.map((row, index) => {
+      const obj = {};
+      headers.forEach((header, i) => {
+        obj[header] = row[i];
+      });
+      obj._rowNumber = index + 2; // +2 because: +1 for header row, +1 for 1-indexed
+      return obj;
+    });
+
+  } catch (error) {
+    Logger.log(`Error reading sheet ${sheetName}: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Get headers from a Google Sheet
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Array<string>} Array of header names
+ */
+function getSheetHeadersForMigration(sheetName) {
+  try {
+    const sheet = getSheetForMigration(sheetName);
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length === 0) {
+      return [];
+    }
+
+    return data[0]; // First row is headers
+
+  } catch (error) {
+    Logger.log(`Error reading headers from ${sheetName}: ${error.message}`);
+    return [];
+  }
 }
