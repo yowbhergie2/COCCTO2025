@@ -864,7 +864,9 @@ function cleanupInvalidLedgerDocuments() {
 
 /**
  * Clean up invalid CreditBatches documents
- * Removes documents with undefined or null batchId or employeeId
+ * Removes documents with:
+ * - undefined or null batchId or employeeId
+ * - corrupted field mappings (wrong data types)
  */
 function cleanupInvalidCreditBatchesDocuments() {
   Logger.log('🧹 Cleaning up invalid CreditBatches documents...\n');
@@ -873,15 +875,46 @@ function cleanupInvalidCreditBatchesDocuments() {
     const docs = getAllDocuments('creditBatches');
     const invalidDocs = [];
 
-    // Find documents with undefined/null batchId or employeeId
+    // Find documents with undefined/null batchId or employeeId OR corrupted field mappings
     docs.forEach(doc => {
+      let isInvalid = false;
+      let reason = '';
+
+      // Check for undefined/null IDs
       if (!doc.batchId || doc.batchId === 'undefined' || doc.batchId === 'null' ||
           !doc.employeeId || doc.employeeId === 'undefined' || doc.employeeId === 'null') {
+        isInvalid = true;
+        reason = 'Invalid ID';
+      }
+
+      // Check for corrupted field mappings (wrong data types)
+      // originalHours and remainingHours should be numbers, not timestamps
+      else if (doc.originalHours && typeof doc.originalHours === 'object') {
+        isInvalid = true;
+        reason = 'Corrupted field mapping (originalHours is timestamp)';
+      }
+      else if (doc.remainingHours && typeof doc.remainingHours === 'object') {
+        isInvalid = true;
+        reason = 'Corrupted field mapping (remainingHours is timestamp)';
+      }
+      // status should be a string like "Active", not a number
+      else if (doc.status && typeof doc.status === 'number') {
+        isInvalid = true;
+        reason = 'Corrupted field mapping (status is number)';
+      }
+      // validUntil should be a timestamp/date, not a string like "Active"
+      else if (doc.validUntil && typeof doc.validUntil === 'string' && doc.validUntil === 'Active') {
+        isInvalid = true;
+        reason = 'Corrupted field mapping (validUntil is "Active")';
+      }
+
+      if (isInvalid) {
         invalidDocs.push({
           id: doc.id,
           batchId: doc.batchId,
           employeeId: doc.employeeId,
-          notes: doc.notes || 'N/A'
+          notes: doc.notes || 'N/A',
+          reason: reason
         });
       }
     });
@@ -897,6 +930,7 @@ function cleanupInvalidCreditBatchesDocuments() {
       Logger.log(`${index + 1}. Document ID: ${doc.id}`);
       Logger.log(`   Batch ID: ${doc.batchId || 'undefined'}`);
       Logger.log(`   Employee ID: ${doc.employeeId || 'undefined'}`);
+      Logger.log(`   Reason: ${doc.reason}`);
       Logger.log(`   Notes: ${doc.notes}`);
       Logger.log('');
     });
