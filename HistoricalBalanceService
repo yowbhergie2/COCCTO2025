@@ -437,15 +437,27 @@ function updateHistoricalBalance(batchId, formData) {
     const batchData = {
       earnedMonth: month,
       earnedYear: year,
-      dateOfIssuance: dateOfIssuance,
-      validUntil: validUntil,
+      dateOfIssuance: dateOfIssuance,  // Keep as Date object for Firestore
+      validUntil: validUntil,           // Keep as Date object for Firestore
       originalHours: cocEarned,
       remainingHours: remaining,
       status: status,
       updatedAt: getCurrentTimestamp()
     };
 
+    Logger.log('updateHistoricalBalance - Updating batch ' + batchId + ' with data:');
+    Logger.log('  earnedMonth: ' + month);
+    Logger.log('  earnedYear: ' + year);
+    Logger.log('  dateOfIssuance: ' + dateOfIssuance + ' (type: ' + typeof dateOfIssuance + ')');
+    Logger.log('  validUntil: ' + validUntil + ' (type: ' + typeof validUntil + ')');
+    Logger.log('  originalHours: ' + cocEarned);
+    Logger.log('  remainingHours: ' + remaining);
+    Logger.log('  status: ' + status);
+    Logger.log('  existingBatch.employeeId: ' + existingBatch.employeeId);
+
     updateRowById('CreditBatches', batchId, batchData, 0);
+
+    Logger.log('updateHistoricalBalance - Update complete for batch ' + batchId);
 
     // Note: Ledger entries are not updated as they represent historical transactions
 
