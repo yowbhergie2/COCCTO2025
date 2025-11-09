@@ -863,6 +863,72 @@ function cleanupInvalidLedgerDocuments() {
 }
 
 /**
+ * Clean up invalid CreditBatches documents
+ * Removes documents with undefined or null batchId or employeeId
+ */
+function cleanupInvalidCreditBatchesDocuments() {
+  Logger.log('🧹 Cleaning up invalid CreditBatches documents...\n');
+
+  try {
+    const docs = getAllDocuments('creditBatches');
+    const invalidDocs = [];
+
+    // Find documents with undefined/null batchId or employeeId
+    docs.forEach(doc => {
+      if (!doc.batchId || doc.batchId === 'undefined' || doc.batchId === 'null' ||
+          !doc.employeeId || doc.employeeId === 'undefined' || doc.employeeId === 'null') {
+        invalidDocs.push({
+          id: doc.id,
+          batchId: doc.batchId,
+          employeeId: doc.employeeId,
+          notes: doc.notes || 'N/A'
+        });
+      }
+    });
+
+    Logger.log(`Found ${invalidDocs.length} invalid document(s):\n`);
+
+    if (invalidDocs.length === 0) {
+      Logger.log('✅ No invalid documents found!');
+      return { deleted: 0 };
+    }
+
+    invalidDocs.forEach((doc, index) => {
+      Logger.log(`${index + 1}. Document ID: ${doc.id}`);
+      Logger.log(`   Batch ID: ${doc.batchId || 'undefined'}`);
+      Logger.log(`   Employee ID: ${doc.employeeId || 'undefined'}`);
+      Logger.log(`   Notes: ${doc.notes}`);
+      Logger.log('');
+    });
+
+    // Delete invalid documents
+    Logger.log('Deleting invalid documents...');
+    const deletedCount = batchDeleteDocuments('creditBatches', invalidDocs.map(doc => doc.id));
+
+    Logger.log(`\n✅ Deleted ${deletedCount} invalid document(s)`);
+
+    // Verify
+    const remainingDocs = getAllDocuments('creditBatches');
+    const stillInvalid = remainingDocs.filter(doc =>
+      !doc.batchId || doc.batchId === 'undefined' || doc.batchId === 'null' ||
+      !doc.employeeId || doc.employeeId === 'undefined' || doc.employeeId === 'null'
+    );
+
+    if (stillInvalid.length > 0) {
+      Logger.log(`\n⚠️ Warning: ${stillInvalid.length} invalid document(s) still remain`);
+    } else {
+      Logger.log('\n✅ All invalid documents removed successfully!');
+    }
+
+    return { deleted: deletedCount };
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    return { deleted: 0, error: error.message };
+  }
+}
+
+/**
  * ========================================
  * DATA CLEANUP FUNCTIONS
  * ========================================
