@@ -23,11 +23,48 @@ function showMainModal() {
   SpreadsheetApp.getUi().showModalDialog(html, 'CompTime Tracker');
 }
 
+// =============================================================
+// CACHE FIX: V2 FUNCTIONS FOR THE CLIENT (UI)
+// These functions call the _V2 versions of our logic
+// to bypass the Apps Script cache.
+// =============================================================
+
+/**
+ * (V2) Get all employees for the UI
+ */
+function getAllEmployees_V2_Client() {
+  return getAllEmployees_V2();
+}
+
+/**
+ * (V2) Get employees for dropdown (ID and full name)
+ */
+function getEmployeesForDropdown_V2_Client() {
+  const employees = getAllEmployees_V2(); // Use V2
+  return employees
+    .filter(emp => emp.status === 'Active')
+    .map(emp => {
+      const fullName = [emp.firstName, emp.middleInitial, emp.lastName, emp.suffix]
+        .filter(x => x).join(' ');
+      return {
+        id: emp.employeeId,
+        name: fullName
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+
+// =============================================================
+// ORIGINAL FUNCTIONS - Kept for cache, but V2 is used by UI
+// =============================================================
+
 /**
  * Get employees for dropdown (ID and full name)
+ * This is the OLD, CACHED function.
  */
 function getEmployeesForDropdown() {
-  const employees = getAllEmployees();
+  const employees = getAllEmployees(); // Calls old, cached getAllEmployees
   return employees
     .filter(emp => emp.status === 'Active')
     .map(emp => {
