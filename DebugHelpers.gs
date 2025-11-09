@@ -335,6 +335,11 @@ function resetEmployeesCollection() {
     const deleted = deleteCollection('employees', 'DELETE_ALL_DATA');
     Logger.log(`✅ Deleted ${deleted} employees\n`);
 
+    // Step 1.5: Wait for Firestore to propagate the deletions
+    Logger.log('⏳ Waiting 3 seconds for Firestore propagation...');
+    Utilities.sleep(3000);
+    Logger.log('✅ Ready to migrate\n');
+
     // Step 2: Re-migrate employees
     Logger.log('Step 2: Re-migrating employees from Sheets...');
     const result = migrateEmployees(false);
