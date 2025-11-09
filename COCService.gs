@@ -2,37 +2,27 @@
 
 /**
  * Get uncertified stats for Log Overtime page
+ * OPTIMIZED: Uses Firestore query instead of loading all logs
  * @returns {Object} {totalHours, totalEntries, employeeCount}
  */
 function getUncertifiedStats() {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Query only uncertified logs
+    const uncertifiedLogs = queryDocuments('overtimeLogs', 'status', '==', 'Uncertified');
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return { totalHours: 0, totalEntries: 0, employeeCount: 0 };
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return { totalHours: 0, totalEntries: 0, employeeCount: 0 };
-    }
-
-    const headers = data[0];
-    const statusIndex = headers.indexOf('Status');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const employeeIdIndex = headers.indexOf('EmployeeID');
 
     let totalHours = 0;
     let totalEntries = 0;
     const uniqueEmployees = {};
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[statusIndex] === 'Uncertified') {
-        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
-        totalEntries++;
-        uniqueEmployees[row[employeeIdIndex]] = true;
-      }
-    }
+    uncertifiedLogs.forEach(log => {
+      totalHours += parseFloat(log.cocEarned) || 0;
+      totalEntries++;
+      uniqueEmployees[log.employeeId] = true;
+    });
 
     return {
       totalHours: totalHours,
@@ -48,47 +38,36 @@ function getUncertifiedStats() {
 
 /**
  * Get uncertified report stats
+ * OPTIMIZED: Uses Firestore query instead of loading all logs
  * @returns {Object} {totalHours, totalEntries, employeeCount, oldestDate}
  */
 function getUncertifiedReportStats() {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Query only uncertified logs
+    const uncertifiedLogs = queryDocuments('overtimeLogs', 'status', '==', 'Uncertified');
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return { totalHours: 0, totalEntries: 0, employeeCount: 0, oldestDate: null };
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return { totalHours: 0, totalEntries: 0, employeeCount: 0, oldestDate: null };
-    }
-
-    const headers = data[0];
-    const statusIndex = headers.indexOf('Status');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
 
     let totalHours = 0;
     let totalEntries = 0;
     const uniqueEmployees = {};
     let oldestDate = null;
 
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[statusIndex] === 'Uncertified') {
-        totalHours += parseFloat(row[cocEarnedIndex]) || 0;
-        totalEntries++;
-        uniqueEmployees[row[employeeIdIndex]] = true;
+    uncertifiedLogs.forEach(log => {
+      totalHours += parseFloat(log.cocEarned) || 0;
+      totalEntries++;
+      uniqueEmployees[log.employeeId] = true;
 
-        const dateWorked = row[dateWorkedIndex];
-        if (dateWorked) {
-          const dateObj = dateWorked instanceof Date ? dateWorked : new Date(dateWorked);
-          if (!oldestDate || dateObj < oldestDate) {
-            oldestDate = dateObj;
-          }
+      const dateWorked = log.dateWorked;
+      if (dateWorked) {
+        const dateObj = dateWorked instanceof Date ? dateWorked : new Date(dateWorked);
+        if (!oldestDate || dateObj < oldestDate) {
+          oldestDate = dateObj;
         }
       }
-    }
+    });
 
     return {
       totalHours: totalHours,
@@ -105,62 +84,41 @@ function getUncertifiedReportStats() {
 
 /**
  * Get all uncertified logs with employee names
+ * OPTIMIZED: Uses Firestore query instead of loading all logs
  * @returns {Array} Array of uncertified log objects
  */
 function getAllUncertifiedLogs() {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Query only uncertified logs
+    const uncertifiedLogs = queryDocuments('overtimeLogs', 'status', '==', 'Uncertified');
+
+    if (!uncertifiedLogs || uncertifiedLogs.length === 0) {
       return [];
     }
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
+    const logs = uncertifiedLogs.map(log => {
+      const employeeId = log.employeeId;
+      const employee = getEmployeeById_V2(employeeId);
+      const employeeName = employee ?
+        [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
+          .filter(x => x).join(' ') :
+        'Unknown Employee';
 
-    const headers = data[0];
-    const logIdIndex = headers.indexOf('LogID');
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
-    const dayTypeIndex = headers.indexOf('DayType');
-    const amInIndex = headers.indexOf('AMIn');
-    const amOutIndex = headers.indexOf('AMOut');
-    const pmInIndex = headers.indexOf('PMIn');
-    const pmOutIndex = headers.indexOf('PMOut');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const statusIndex = headers.indexOf('Status');
-
-    const logs = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[statusIndex] === 'Uncertified') {
-        const employeeId = row[employeeIdIndex];
-        const employee = getEmployeeById_V2(employeeId);
-        const employeeName = employee ?
-          [employee.firstName, employee.middleInitial, employee.lastName, employee.suffix]
-            .filter(x => x).join(' ') :
-          'Unknown Employee';
-
-        logs.push({
-          logId: row[logIdIndex],
-          employeeId: employeeId,
-          employeeName: employeeName,
-          month: row[monthIndex],
-          year: row[yearIndex],
-          dateWorked: formatDate(row[dateWorkedIndex]),
-          dayType: row[dayTypeIndex],
-          amIn: row[amInIndex],
-          amOut: row[amOutIndex],
-          pmIn: row[pmInIndex],
-          pmOut: row[pmOutIndex],
-          cocEarned: parseFloat(row[cocEarnedIndex]) || 0
-        });
-      }
-    }
+      return {
+        logId: log.logId,
+        employeeId: employeeId,
+        employeeName: employeeName,
+        month: log.month,
+        year: log.year,
+        dateWorked: formatDate(log.dateWorked),
+        dayType: log.dayType,
+        amIn: log.amIn,
+        amOut: log.amOut,
+        pmIn: log.pmIn,
+        pmOut: log.pmOut,
+        cocEarned: parseFloat(log.cocEarned) || 0
+      };
+    });
 
     return serializeDates(logs);
 
@@ -172,38 +130,30 @@ function getAllUncertifiedLogs() {
 
 /**
  * Get certified months for a specific employee and year
+ * OPTIMIZED: Uses Firestore compound query
  * @param {number} employeeId - Employee ID
  * @param {number} year - Year to check
  * @returns {Array} Array of month names that are already certified
  */
 function getCertifiedMonths(employeeId, year) {
   try {
-    const sheet = getDbSheet('Certificates');
-    if (!sheet) {
+    // OPTIMIZATION: Use findDocuments with compound query
+    const certificates = findDocuments('certificates', {
+      employeeId: parseInt(employeeId),
+      year: parseInt(year)
+    });
+
+    if (!certificates || certificates.length === 0) {
       return [];
     }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
 
     const certifiedMonths = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === employeeId && row[yearIndex] === year) {
-        const month = row[monthIndex];
-        if (month && !certifiedMonths.includes(month)) {
-          certifiedMonths.push(month);
-        }
+    certificates.forEach(cert => {
+      const month = cert.month;
+      if (month && !certifiedMonths.includes(month)) {
+        certifiedMonths.push(month);
       }
-    }
+    });
 
     return certifiedMonths;
 
@@ -215,57 +165,37 @@ function getCertifiedMonths(employeeId, year) {
 
 /**
  * Get uncertified logs for a specific employee, grouped by month/year
+ * OPTIMIZED: Uses Firestore compound query
  * @param {number} employeeId - Employee ID
  * @returns {Array} Array of month groups with logs
  */
 function getUncertifiedLogsByEmployee(employeeId) {
   try {
-    const sheet = getDbSheet('OvertimeLogs');
-    if (!sheet) {
+    // OPTIMIZATION: Use findDocuments with compound query for employeeId + status
+    const logs = findDocuments('overtimeLogs', {
+      employeeId: parseInt(employeeId),
+      status: 'Uncertified'
+    });
+
+    if (!logs || logs.length === 0) {
       return [];
     }
 
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      return [];
-    }
-
-    const headers = data[0];
-    const employeeIdIndex = headers.indexOf('EmployeeID');
-    const monthIndex = headers.indexOf('Month');
-    const yearIndex = headers.indexOf('Year');
-    const dateWorkedIndex = headers.indexOf('DateWorked');
-    const dayTypeIndex = headers.indexOf('DayType');
-    const amInIndex = headers.indexOf('AMIn');
-    const amOutIndex = headers.indexOf('AMOut');
-    const pmInIndex = headers.indexOf('PMIn');
-    const pmOutIndex = headers.indexOf('PMOut');
-    const cocEarnedIndex = headers.indexOf('COCEarned');
-    const statusIndex = headers.indexOf('Status');
-
-    // Collect all uncertified logs for this employee
-    const logs = [];
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (row[employeeIdIndex] === employeeId && row[statusIndex] === 'Uncertified') {
-        logs.push({
-          month: row[monthIndex],
-          year: row[yearIndex],
-          dateWorked: formatDate(row[dateWorkedIndex]),
-          dayType: row[dayTypeIndex],
-          amIn: formatTime(row[amInIndex]),
-          amOut: formatTime(row[amOutIndex]),
-          pmIn: formatTime(row[pmInIndex]),
-          pmOut: formatTime(row[pmOutIndex]),
-          cocEarned: parseFloat(row[cocEarnedIndex]) || 0
-        });
-      }
-    }
+    const formattedLogs = logs.map(log => ({
+      month: log.month,
+      year: log.year,
+      dateWorked: formatDate(log.dateWorked),
+      dayType: log.dayType,
+      amIn: formatTime(log.amIn),
+      amOut: formatTime(log.amOut),
+      pmIn: formatTime(log.pmIn),
+      pmOut: formatTime(log.pmOut),
+      cocEarned: parseFloat(log.cocEarned) || 0
+    }));
 
     // Group by month/year
     const monthGroups = {};
-    logs.forEach(log => {
+    formattedLogs.forEach(log => {
       const key = `${log.month}-${log.year}`;
       if (!monthGroups[key]) {
         monthGroups[key] = {
