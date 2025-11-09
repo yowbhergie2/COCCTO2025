@@ -5,6 +5,7 @@
  * @param {number} employeeId - The employee ID
  * @returns {Array} Array of historical balance records
  * UPDATED: Now uses Firestore instead of Sheets
+ * Shows all CreditBatches for the employee (not just historical migration ones)
  */
 function getEmployeeHistoricalBalances(employeeId) {
   try {
@@ -25,10 +26,11 @@ function getEmployeeHistoricalBalances(employeeId) {
     for (let i = 0; i < data.length; i++) {
       const doc = data[i];
 
-      // Check if this is a historical balance entry for this employee
+      // Check if this batch belongs to this employee
+      // Show all batches, not just historical migration ones
       if (doc.employeeId == employeeId &&
-          doc.notes &&
-          doc.notes.toString().includes('Historical data migration')) {
+          doc.originalHours !== undefined &&
+          typeof doc.originalHours === 'number') {
 
         // Calculate COC Used based on Original - Remaining
         const cocEarned = parseFloat(doc.originalHours) || 0;
@@ -43,15 +45,34 @@ function getEmployeeHistoricalBalances(employeeId) {
           currentStatus = 'Expired';
         }
 
+        // Handle month/year - some batches have earnedMonth/earnedYear, others have earnedDate
+        let month, year;
+        if (doc.earnedMonth && doc.earnedYear) {
+          month = doc.earnedMonth;
+          year = doc.earnedYear;
+        } else if (doc.earnedDate) {
+          const earnedDate = new Date(doc.earnedDate);
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                             'July', 'August', 'September', 'October', 'November', 'December'];
+          month = monthNames[earnedDate.getMonth()];
+          year = earnedDate.getFullYear();
+        } else {
+          // Skip if we can't determine month/year
+          return;
+        }
+
+        // Handle dateOfIssuance - use earnedDate if dateOfIssuance is not present
+        const dateOfIssuance = doc.dateOfIssuance || doc.earnedDate;
+
         records.push({
           batchId: doc.batchId,
-          month: doc.earnedMonth,
-          year: doc.earnedYear,
+          month: month,
+          year: year,
           cocEarned: cocEarned.toFixed(1),
           cocUsed: cocUsed.toFixed(1),
           remaining: remaining.toFixed(1),
-          dateOfIssuance: formatDate(doc.dateOfIssuance),
-          validUntil: formatDate(doc.validUntil),
+          dateOfIssuance: formatDate(dateOfIssuance),
+          validUntil: formatDate(validUntil),
           status: currentStatus
         });
       }
