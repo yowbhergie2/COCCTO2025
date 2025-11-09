@@ -656,6 +656,120 @@ function debugLedgerMigration() {
 }
 
 /**
+ * Debug Holidays migration
+ * Check why 40 rows in Sheets but 0 in Firestore
+ */
+function debugHolidaysMigration() {
+  Logger.log('🔍 Debugging Holidays Migration...\n');
+
+  try {
+    // Get data from Sheets
+    const sheetData = getSheetData('Holidays');
+    const headers = getSheetHeaders('Holidays');
+
+    Logger.log(`Found ${sheetData.length} rows in Holidays sheet`);
+    Logger.log(`Headers: ${headers.join(', ')}\n`);
+
+    // Check first 5 rows for sample
+    const sampleSize = Math.min(5, sheetData.length);
+    Logger.log(`Checking first ${sampleSize} rows:\n`);
+
+    for (let i = 0; i < sampleSize; i++) {
+      const row = sheetData[i];
+      Logger.log(`Row ${i + 2}:`);
+      headers.forEach((header, idx) => {
+        const value = row[idx];
+        Logger.log(`  ${header}: ${value} (type: ${typeof value})`);
+      });
+
+      // Check for required fields
+      const holidayId = row[headers.indexOf('HolidayID')];
+      const holidayName = row[headers.indexOf('HolidayName')];
+      const holidayDateRaw = row[headers.indexOf('HolidayDate')];
+
+      if (!holidayName) {
+        Logger.log(`  ❌ ISSUE: Missing HolidayName!`);
+      }
+      if (!holidayDateRaw) {
+        Logger.log(`  ❌ ISSUE: Missing HolidayDate!`);
+      }
+      if (holidayDateRaw) {
+        const date = new Date(holidayDateRaw);
+        if (isNaN(date.getTime())) {
+          Logger.log(`  ❌ ISSUE: Invalid date "${holidayDateRaw}"`);
+        } else {
+          Logger.log(`  ✅ Valid date: ${date}`);
+        }
+      }
+      Logger.log('');
+    }
+
+    // Try a dry run migration to see what would be created
+    Logger.log('\n🧪 Testing dry run migration...');
+    const result = migrateHolidays(true);
+    Logger.log(`Would migrate ${result.count} documents`);
+
+    if (result.count > 0) {
+      Logger.log('\nFirst document:');
+      Logger.log(JSON.stringify(result.documents[0], null, 2));
+    }
+
+    // Check Firestore
+    Logger.log('\n📊 Firestore Holidays Documents:');
+    const firestoreDocs = getAllDocuments('holidays');
+    Logger.log(`Total in Firestore: ${firestoreDocs.length}`);
+
+    if (firestoreDocs.length > 0) {
+      firestoreDocs.slice(0, 3).forEach(doc => {
+        Logger.log(`  - ${doc.holidayId}: ${doc.holidayName} (${doc.year})`);
+      });
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
+
+/**
+ * List all Ledger documents in Firestore
+ * Useful for identifying duplicates or old documents
+ */
+function listLedgerDocuments() {
+  Logger.log('📊 All Ledger Documents in Firestore:\n');
+
+  try {
+    const docs = getAllDocuments('ledger');
+    Logger.log(`Total: ${docs.length} documents\n`);
+
+    docs.forEach((doc, index) => {
+      Logger.log(`${index + 1}. Document ID: ${doc.id || 'N/A'}`);
+      Logger.log(`   Transaction ID: ${doc.transactionId || 'N/A'}`);
+      Logger.log(`   Ledger ID: ${doc.ledgerId || 'N/A'}`);
+      Logger.log(`   Employee ID: ${doc.employeeId || 'N/A'}`);
+      Logger.log(`   Type: ${doc.transactionType || 'N/A'}`);
+      Logger.log(`   Hours: ${doc.hours || 'N/A'}`);
+      Logger.log(`   Notes: ${doc.notes || doc.description || 'N/A'}`);
+      Logger.log(`   Reference ID: ${doc.referenceId || 'N/A'}`);
+      Logger.log('');
+    });
+
+    // Check for the sheet to compare
+    const sheetData = getSheetData('Ledger');
+    Logger.log(`\nSheet has ${sheetData.length} rows`);
+    Logger.log(`Firestore has ${docs.length} documents`);
+
+    if (docs.length > sheetData.length) {
+      Logger.log(`\n⚠️ ${docs.length - sheetData.length} extra document(s) in Firestore`);
+      Logger.log('You may want to delete old/duplicate documents.');
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+  }
+}
+
+/**
  * ========================================
  * ROLLBACK FUNCTIONS (USE WITH CAUTION!)
  * ========================================
