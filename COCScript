@@ -133,7 +133,13 @@
     const selectedMonth = monthSelect.value;
 
     // Check which months have historical balances for the selected year
-    const historicalMonthsForYear = historicalBalanceMonths.filter(hb => hb.year === selectedYear);
+    console.log('DEBUG: historicalBalanceMonths =', historicalBalanceMonths);
+    console.log('DEBUG: selectedYear =', selectedYear, '(type:', typeof selectedYear, ')');
+    const historicalMonthsForYear = historicalBalanceMonths.filter(hb => {
+      console.log('  Comparing hb.year:', hb.year, '(type:', typeof hb.year, ') with selectedYear:', selectedYear);
+      return hb.year == selectedYear; // Changed from === to == for loose comparison
+    });
+    console.log('DEBUG: historicalMonthsForYear =', historicalMonthsForYear);
     const historicalMonthNames = new Set(historicalMonthsForYear.map(hb => hb.month));
 
     // Enable/disable months based on year and historical balances
