@@ -110,11 +110,12 @@
     <div id="messageContainer" style="margin-bottom: 1.5rem; display: none;"></div>
 
     <form id="historyForm" onsubmit="return handleFormSubmit(event)">
-      <!-- 
+      <!--
         TINANGGAL: Employee Selection Dropdown.
         PINALITAN: Hidden input. Ang value nito ay ise-set ng 'EmployeesScript'
       -->
       <input type="hidden" name="employeeId" id="employeeId" value="">
+      <input type="hidden" name="batchId" id="batchId" value="">
 
       <!-- Month and Year -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
@@ -196,7 +197,7 @@
 
       <!-- Action Buttons -->
       <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #e8ebed;">
-        <button type="button" onclick="hideOverlay()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="hideOverlay(false)" class="btn btn-secondary">Cancel</button>
         <button type="submit" id="saveBtn" class="btn btn-primary">Save Historical Balance</button>
       </div>
     </form>
@@ -418,6 +419,8 @@
 
       // Kunin ang employeeId mula sa hidden input
       data.employeeId = document.getElementById('employeeId').value;
+      const batchId = document.getElementById('batchId').value;
+      const isEditMode = batchId && batchId !== '';
 
       if (!data.employeeId) {
         showErrorModal('Error: Employee ID is missing. Please close and reopen the form.');
@@ -426,7 +429,11 @@
 
       const saveBtn = document.getElementById('saveBtn');
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
+      saveBtn.textContent = isEditMode ? 'Updating...' : 'Saving...';
+
+      // Call the appropriate function based on mode
+      const serverFunction = isEditMode ? 'updateHistoricalBalance' : 'saveHistoricalBalance';
+      const args = isEditMode ? [parseInt(batchId), data] : [data];
 
       google.script.run
         .withSuccessHandler(result => {
@@ -454,15 +461,15 @@
           } else {
             showErrorModal(result.message);
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Historical Balance';
+            saveBtn.textContent = isEditMode ? 'Update Historical Balance' : 'Save Historical Balance';
           }
         })
         .withFailureHandler(err => {
           showErrorModal('Error: ' + err.message);
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Historical Balance';
+          saveBtn.textContent = isEditMode ? 'Update Historical Balance' : 'Save Historical Balance';
         })
-        .saveHistoricalBalance(data);
+        [serverFunction](...args);
     }
 
     // Note: hideOverlay() function is provided by the parent scope (EmployeesScript)

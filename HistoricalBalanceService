@@ -239,6 +239,49 @@ function getEmployeeCurrentBalance(employeeId) {
 }
 
 /**
+ * Get a single historical balance record by batch ID
+ * @param {number} batchId - Batch ID to retrieve
+ * @returns {Object} Result with success status and batch data
+ */
+function getHistoricalBalanceByBatchId(batchId) {
+  try {
+    // Use queryDocuments for optimized query
+    const batches = queryDocuments('creditBatches', 'batchId', '==', parseInt(batchId), 1);
+
+    if (!batches || batches.length === 0) {
+      return {
+        success: false,
+        message: 'Historical balance record not found'
+      };
+    }
+
+    const batch = batches[0];
+
+    return {
+      success: true,
+      data: {
+        batchId: batch.batchId,
+        employeeId: batch.employeeId,
+        month: batch.earnedMonth,
+        year: batch.earnedYear,
+        cocEarned: batch.originalHours,
+        cocUsed: batch.originalHours - batch.remainingHours,
+        dateOfIssuance: batch.dateOfIssuance,
+        validUntil: batch.validUntil,
+        status: batch.status
+      }
+    };
+
+  } catch (error) {
+    Logger.log('Error in getHistoricalBalanceByBatchId: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error retrieving historical balance: ' + error.message
+    };
+  }
+}
+
+/**
  * Check if an employee has any overtime logs
  * Used to prevent editing/deleting historical balances after overtime has been logged
  * @param {number} employeeId - Employee ID to check
@@ -264,6 +307,125 @@ function checkEmployeeHasOvertimeLogs(employeeId) {
   } catch (error) {
     Logger.log('Error in checkEmployeeHasOvertimeLogs: ' + error.toString());
     return { hasOvertimeLogs: false }; // Fail safe
+  }
+}
+
+/**
+ * Update a historical balance record
+ * @param {number} batchId - Batch ID to update
+ * @param {Object} formData - Contains month, year, earned, used, dateOfIssuance
+ * @returns {Object} Result with success status and message
+ */
+function updateHistoricalBalance(batchId, formData) {
+  try {
+    // Get the existing batch
+    const batchResult = getHistoricalBalanceByBatchId(batchId);
+    if (!batchResult.success) {
+      return batchResult;
+    }
+
+    const existingBatch = batchResult.data;
+
+    // Parse input
+    const month = formData.month;
+    const year = parseInt(formData.year);
+    const cocEarned = parseFloat(formData.cocEarned);
+    const cocUsed = parseFloat(formData.cocUsed);
+    const dateOfIssuanceStr = formData.dateOfIssuance;
+
+    // Run the same validations as saveHistoricalBalance
+    if (cocEarned > 40) {
+      return {
+        success: false,
+        message: 'COC Earned cannot exceed 40 hours per month (monthly accrual cap)'
+      };
+    }
+
+    if (cocUsed > cocEarned) {
+      return {
+        success: false,
+        message: 'COC Used cannot exceed COC Earned'
+      };
+    }
+
+    const lastDayOfMonth = new Date(year, getMonthNumber(month) + 1, 0);
+    lastDayOfMonth.setHours(0, 0, 0, 0);
+
+    const dateOfIssuance = new Date(dateOfIssuanceStr + 'T00:00:00');
+    dateOfIssuance.setHours(0, 0, 0, 0);
+
+    if (dateOfIssuance < lastDayOfMonth) {
+      return {
+        success: false,
+        message: 'Date of Issuance must be on or after ' + formatDate(lastDayOfMonth)
+      };
+    }
+
+    const maxIssuanceDate = new Date(year, getMonthNumber(month) + 2, 0);
+    maxIssuanceDate.setHours(0, 0, 0, 0);
+
+    if (dateOfIssuance > maxIssuanceDate) {
+      return {
+        success: false,
+        message: `Date of Issuance must be on or before ${formatDate(maxIssuanceDate)} (last day of month after earned month).`
+      };
+    }
+
+    if (dateOfIssuance.getFullYear() !== year) {
+      return {
+        success: false,
+        message: `Date of Issuance (${dateOfIssuance.getFullYear()}) must be in the same year as Earned Year (${year}).`
+      };
+    }
+
+    // Calculate new values
+    const remaining = cocEarned - cocUsed;
+    const status = remaining > 0 ? 'Active' : 'Used';
+
+    // Calculate Valid Until date
+    const validUntil = new Date(dateOfIssuance);
+    validUntil.setFullYear(validUntil.getFullYear() + 1);
+    validUntil.setDate(validUntil.getDate() - 1);
+
+    // Check total balance cap (excluding current batch's old remaining)
+    const currentTotalBalance = getEmployeeCurrentBalance(existingBatch.employeeId);
+    const oldRemaining = parseFloat(existingBatch.cocEarned) - parseFloat(existingBatch.cocUsed);
+    const newTotalBalance = currentTotalBalance - oldRemaining + remaining;
+
+    if (newTotalBalance > 120) {
+      return {
+        success: false,
+        message: `Updating to ${remaining} hours would exceed the 120-hour total balance cap. Current total: ${currentTotalBalance} hours.`
+      };
+    }
+
+    // Update CreditBatches
+    const batchData = {
+      earnedMonth: month,
+      earnedYear: year,
+      dateOfIssuance: dateOfIssuance,
+      validUntil: validUntil,
+      originalHours: cocEarned,
+      remainingHours: remaining,
+      status: status,
+      updatedAt: getCurrentTimestamp()
+    };
+
+    updateRowById('CreditBatches', batchId, batchData, 0);
+
+    // Note: Ledger entries are not updated as they represent historical transactions
+
+    return {
+      success: true,
+      message: `Historical balance updated successfully. New remaining balance: ${remaining} hours, Valid Until: ${formatDate(validUntil)}`
+    };
+
+  } catch (error) {
+    Logger.log('Error in updateHistoricalBalance: ' + error.toString());
+    return {
+      success: false,
+      message: 'Error updating historical balance: ' + error.message
+    };
   }
 }
 
