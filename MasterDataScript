@@ -1,4 +1,33 @@
 <script>
+  /**
+   * Format holiday date as "December 31, 2025"
+   */
+  function formatHolidayDate(dateValue) {
+    try {
+      // Handle various date formats
+      let date;
+      if (dateValue instanceof Date) {
+        date = dateValue;
+      } else if (typeof dateValue === 'string') {
+        date = new Date(dateValue);
+      } else {
+        return dateValue; // Return as-is if unknown format
+      }
+
+      // Check if valid date
+      if (isNaN(date.getTime())) {
+        return dateValue;
+      }
+
+      // Format as "December 31, 2025"
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateValue;
+    }
+  }
+
   // Tab Management
   function showConfigTab(tabName) {
     // Update tab buttons
@@ -14,8 +43,6 @@
       refreshMasterData();
     } else if (tabName === 'holidays') {
       refreshHolidays();
-    } else if (tabName === 'weekend') {
-      refreshWeekendConfig();
     } else if (tabName === 'signatory') {
       refreshSignatoryConfig();
     }
@@ -190,9 +217,12 @@
         html += '</tr></thead><tbody>';
 
         holidays.forEach(holiday => {
+          // Format date as "December 31, 2025"
+          const formattedDate = formatHolidayDate(holiday.holidayDate);
+
           html += '<tr>';
           html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${holiday.holidayName}</td>`;
-          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${holiday.holidayDate}</td>`;
+          html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${formattedDate}</td>`;
           html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5;">${holiday.year}</td>`;
           html += `<td style="padding: 0.75rem; border-bottom: 1px solid #f0f2f5; text-align: center;">`;
           html += `<button onclick="editHoliday(${holiday.holidayId})" style="color: #3b82f6; cursor: pointer; background: none; border: none; font-size: 0.875rem; margin-right: 0.5rem;"><i class="fas fa-pencil-alt"></i></button>`;
@@ -243,64 +273,6 @@
         })
         .deleteHoliday(holidayId);
     }
-  }
-
-  // ========== WEEKEND CONFIGURATION ==========
-
-  /**
-   * Refresh weekend configuration
-   */
-  function refreshWeekendConfig() {
-    google.script.run
-      .withSuccessHandler(weekendDays => {
-        // Update checkboxes
-        document.querySelectorAll('.weekend-checkbox').forEach(cb => {
-          cb.checked = weekendDays.includes(parseInt(cb.value));
-        });
-
-        // Update current display
-        google.script.run
-          .withSuccessHandler(dayNames => {
-            const display = document.getElementById('currentWeekendDays');
-            if (display) {
-              display.textContent = dayNames.join(', ');
-            }
-          })
-          .getWeekendDayNames();
-      })
-      .withFailureHandler(err => {
-        showAlert('Error loading weekend config: ' + err.message, 'error');
-      })
-      .getWeekendDays();
-  }
-
-  /**
-   * Save weekend configuration
-   */
-  function saveWeekendConfig() {
-    const selectedDays = [];
-    document.querySelectorAll('.weekend-checkbox:checked').forEach(cb => {
-      selectedDays.push(parseInt(cb.value));
-    });
-
-    if (selectedDays.length === 0) {
-      showAlert('Please select at least one weekend day', 'error');
-      return;
-    }
-
-    google.script.run
-      .withSuccessHandler(result => {
-        if (result.success) {
-          showAlert(result.message, 'success');
-          refreshWeekendConfig();
-        } else {
-          showAlert(result.message, 'error');
-        }
-      })
-      .withFailureHandler(err => {
-        showAlert('Error: ' + err.message, 'error');
-      })
-      .setWeekendDays(selectedDays);
   }
 
   // ========== SIGNATORY CONFIGURATION ==========
