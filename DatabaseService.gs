@@ -393,25 +393,4 @@ function serializeDates(obj) {
   return obj;
 }
 
-/**
- * ========================================
- * EMPLOYEE-SPECIFIC FUNCTIONS
- * ========================================
- */
 
-/**
- * Get all employees
- * @returns {Array<Object>} Array of employee objects
- */
-function getAllEmployees() {
-  return getSheetData('Employees');
-}
-
-/**
- * Get employee by ID
- * @param {number|string} employeeId - Employee ID
- * @returns {Object|null} Employee data or null
- */
-function getEmployeeById(employeeId) {
-  return getRowById('Employees', employeeId);
-}
