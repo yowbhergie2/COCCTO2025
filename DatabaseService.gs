@@ -267,6 +267,20 @@ function getFieldMapping(sheetName) {
       'dateOfIssuance',  // 7
       'validUntil',      // 8
       'notes'            // 9
+    ],
+    'Ledger': [
+      'transactionId',   // 0
+      'employeeId',      // 1
+      'transactionDate', // 2
+      'transactionType', // 3
+      'hours',           // 4
+      'batchId',         // 5
+      'referenceId',     // 6
+      'month',           // 7
+      'year',            // 8
+      'performedBy',     // 9
+      'notes',           // 10
+      'timestamp'        // 11
     ]
   };
 
