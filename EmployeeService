@@ -3,9 +3,10 @@
 /**
  * Get all employees
  * UPDATED: Now uses Firestore objects instead of array-based rows
+ * CACHE FIX: Renamed to _V2 and calls getSheetData_V2.
  */
-function getAllEmployees() {
-  const data = getSheetData('Employees');
+function getAllEmployees_V2() {
+  const data = getSheetData_V2('Employees'); // Use V2
 
   // Data is already in object format from Firestore
   // No need to map - just return as-is
@@ -15,9 +16,11 @@ function getAllEmployees() {
 /**
  * Get employee by ID
  * UPDATED: Now uses Firestore objects instead of array-based rows
+ * CACHE FIX: Renamed to _V2.
  */
-function getEmployeeById(employeeId) {
-  const employee = getRowById('Employees', employeeId, 0);
+function getEmployeeById_V2(employeeId) {
+  // Ensure ID is a string for Firestore document path
+  const employee = getRowById('Employees', String(employeeId), 0);
   if (!employee) return null;
 
   // Data is already in object format from Firestore
@@ -28,6 +31,7 @@ function getEmployeeById(employeeId) {
  * Search employee by ID or Name
  * @param {string} searchValue - Employee ID (number) or name (string)
  * @returns {Object|null} Employee object or null if not found
+ * CACHE FIX: Updated to call getEmployeeById_V2 and getSheetData_V2.
  */
 function searchEmployeeByIdOrName(searchValue) {
   try {
@@ -35,15 +39,12 @@ function searchEmployeeByIdOrName(searchValue) {
 
     const searchStr = searchValue.toString().trim().toLowerCase();
 
-    // Try to search by ID first (if numeric)
-    const numericId = parseInt(searchStr);
-    if (!isNaN(numericId)) {
-      const employee = getEmployeeById(numericId);
-      if (employee) return employee;
-    }
-
+    // Try to search by ID first
+    const employee = getEmployeeById_V2(searchStr); // Use V2
+    if (employee) return employee;
+    
     // If not found by ID, search by name
-    const data = getSheetData('Employees');
+    const data = getSheetData_V2('Employees'); // Use V2
 
     for (let i = 0; i < data.length; i++) {
       const employee = data[i];
@@ -111,10 +112,14 @@ function createEmployee(employeeData) {
 /**
  * Update employee
  * UPDATED: Now uses Firestore objects instead of arrays
+ * CACHE FIX: Updated to call getEmployeeById_V2.
  */
 function updateEmployee(employeeId, employeeData) {
   try {
-    const existing = getEmployeeById(employeeId);
+    // Ensure ID is a string
+    const idStr = String(employeeId);
+    
+    const existing = getEmployeeById_V2(idStr); // Use V2
     if (!existing) {
       return {
         success: false,
@@ -123,7 +128,7 @@ function updateEmployee(employeeId, employeeData) {
     }
 
     const updatedEmployee = {
-      employeeId: String(employeeId),
+      employeeId: idStr,
       lastName: employeeData.lastName || existing.lastName,
       firstName: employeeData.firstName || existing.firstName,
       middleInitial: employeeData.middleInitial || existing.middleInitial,
@@ -134,7 +139,7 @@ function updateEmployee(employeeId, employeeData) {
       email: employeeData.email || existing.email
     };
 
-    updateRowById('Employees', employeeId, updatedEmployee, 0);
+    updateRowById('Employees', idStr, updatedEmployee, 0);
 
     return {
       success: true,
@@ -150,10 +155,11 @@ function updateEmployee(employeeId, employeeData) {
 
 /**
  * Delete employee (soft delete - set status to Inactive)
+ * CACHE FIX: Updated to call getEmployeeById_V2.
  */
 function deleteEmployee(employeeId) {
   try {
-    const existing = getEmployeeById(employeeId);
+    const existing = getEmployeeById_V2(employeeId); // Use V2
     if (!existing) {
       return {
         success: false,
@@ -173,22 +179,24 @@ function deleteEmployee(employeeId) {
 
 /**
  * Search employees by name
+ * CACHE FIX: Updated to call getAllEmployees_V2.
  */
 function searchEmployees(searchTerm) {
-  const allEmployees = getAllEmployees();
+  const allEmployees = getAllEmployees_V2(); // Use V2
   const term = searchTerm.toLowerCase();
   
   return allEmployees.filter(emp => 
-    emp.lastName.toLowerCase().includes(term) ||
-    emp.firstName.toLowerCase().includes(term) ||
-    (emp.lastName + ' ' + emp.firstName).toLowerCase().includes(term)
+    (emp.lastName || '').toLowerCase().includes(term) ||
+    (emp.firstName || '').toLowerCase().includes(term) ||
+    ((emp.lastName || '') + ' ' + (emp.firstName || '')).toLowerCase().includes(term)
   );
 }
 
 /**
  * Get active employees only
+ * CACHE FIX: Updated to call getAllEmployees_V2.
  */
 function getActiveEmployees() {
-  const allEmployees = getAllEmployees();
+  const allEmployees = getAllEmployees_V2(); // Use V2
   return allEmployees.filter(emp => emp.status === 'Active');
 }
