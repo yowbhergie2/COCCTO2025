@@ -111,15 +111,16 @@ function fixPrivateKeyFormat(key) {
     key = key.slice(1, -1);
   }
 
-  // Ensure \n is treated as newline character, not literal \n
-  // (Some copy-paste methods might escape the backslash)
-  key = key.replace(/\\\\n/g, '\\n');
+  // CRITICAL FIX: Convert literal \n strings to actual newline characters
+  // The RSA library needs actual newlines, not the string "\n"
+  key = key.replace(/\\n/g, '\n');
 
   // Log the key format for debugging (first/last 50 chars only for security)
-  const keyStart = key.substring(0, 50);
-  const keyEnd = key.substring(key.length - 50);
+  const keyStart = key.substring(0, 50).replace(/\n/g, '\\n');
+  const keyEnd = key.substring(key.length - 50).replace(/\n/g, '\\n');
   Logger.log('Private key starts with: ' + keyStart);
   Logger.log('Private key ends with: ' + keyEnd);
+  Logger.log('Note: Literal \\n converted to actual newlines');
 
   return key;
 }
