@@ -101,3 +101,59 @@ function checkMigrationStatus() {
   Logger.log('\n💡 If most collections show 0 documents, run:');
   Logger.log('   migrateAllData(false)');
 }
+
+/**
+ * Debug: Show RAW Firestore response before conversion
+ * This will help us see the actual structure of Firestore fields
+ */
+function debugRawFirestoreData() {
+  Logger.log('🔍 Debugging RAW Firestore Response...\n');
+
+  try {
+    const db = getFirestore();
+
+    // Get raw document
+    const rawDoc = db.getDocument('employees/1');
+
+    Logger.log('📦 RAW DOCUMENT STRUCTURE:');
+    Logger.log(JSON.stringify(rawDoc, null, 2));
+    Logger.log('\n---\n');
+
+    // Check if fields exist
+    if (rawDoc.fields) {
+      Logger.log('✅ doc.fields exists');
+      Logger.log('Fields keys: ' + Object.keys(rawDoc.fields).join(', '));
+      Logger.log('\n---\n');
+
+      // Show first field in detail
+      const firstKey = Object.keys(rawDoc.fields)[0];
+      Logger.log(`📋 First field (${firstKey}) structure:`);
+      Logger.log(JSON.stringify(rawDoc.fields[firstKey], null, 2));
+      Logger.log('\n---\n');
+
+      // Try manual conversion
+      Logger.log('🔧 Manual conversion test:');
+      const field = rawDoc.fields[firstKey];
+      Logger.log(`Field object keys: ${Object.keys(field).join(', ')}`);
+
+      // Check what value type it is
+      if (field.stringValue !== undefined) {
+        Logger.log(`✅ Has stringValue: "${field.stringValue}"`);
+      }
+      if (field.integerValue !== undefined) {
+        Logger.log(`✅ Has integerValue: ${field.integerValue}`);
+      }
+      if (field.doubleValue !== undefined) {
+        Logger.log(`✅ Has doubleValue: ${field.doubleValue}`);
+      }
+
+    } else {
+      Logger.log('❌ doc.fields is missing!');
+      Logger.log('Document keys: ' + Object.keys(rawDoc).join(', '));
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+  }
+}
