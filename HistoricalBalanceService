@@ -433,8 +433,10 @@ function updateHistoricalBalance(batchId, formData) {
       };
     }
 
-    // Update CreditBatches
+    // Update CreditBatches - CRITICAL: Include batchId and employeeId!
     const batchData = {
+      batchId: parseInt(batchId),      // CRITICAL: Preserve batchId field
+      employeeId: parseInt(existingBatch.employeeId), // CRITICAL: Preserve employeeId field
       earnedMonth: month,
       earnedYear: year,
       dateOfIssuance: dateOfIssuance,  // Keep as Date object for Firestore
@@ -446,6 +448,8 @@ function updateHistoricalBalance(batchId, formData) {
     };
 
     Logger.log('updateHistoricalBalance - Updating batch ' + batchId + ' with data:');
+    Logger.log('  batchId: ' + batchId + ' (PRESERVED)');
+    Logger.log('  employeeId: ' + existingBatch.employeeId + ' (PRESERVED)');
     Logger.log('  earnedMonth: ' + month);
     Logger.log('  earnedYear: ' + year);
     Logger.log('  dateOfIssuance: ' + dateOfIssuance + ' (type: ' + typeof dateOfIssuance + ')');
@@ -453,7 +457,6 @@ function updateHistoricalBalance(batchId, formData) {
     Logger.log('  originalHours: ' + cocEarned);
     Logger.log('  remainingHours: ' + remaining);
     Logger.log('  status: ' + status);
-    Logger.log('  existingBatch.employeeId: ' + existingBatch.employeeId);
 
     updateRowById('CreditBatches', batchId, batchData, 0);
 
@@ -496,8 +499,8 @@ function deleteHistoricalBalance(batchId) {
     let docToDelete = null;
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      // PABILIS-FIX: Use object properties
-      if (row.BatchID === batchId) {
+      // PABILIS-FIX: Use object properties (camelCase field names)
+      if (row.batchId === batchId) {
         // --- FIX: Tinanggal ang validation para sa "Historical data migration" note ---
         // Ito 'yung pumipigil sa pag-delete ng ibang batches.
         // Ngayon, basta mahanap ang BatchID, ide-delete na niya.
@@ -530,10 +533,10 @@ function deleteHistoricalBalance(batchId) {
       const ledgerDocsToDelete = [];
       for (let i = 0; i < ledgerData.length; i++) {
         const row = ledgerData[i];
-        // PABILIS-FIX: Use object properties
-        if (row.BatchID === batchId) {
+        // PABILIS-FIX: Use object properties (camelCase field names)
+        if (row.batchId === batchId) {
           // PABILIS-FIX: Use deleteRowById
-          deleteRowById('Ledger', row.TransactionID, 0);
+          deleteRowById('Ledger', row.transactionId, 0);
         }
       }
     }
