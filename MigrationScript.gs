@@ -981,3 +981,92 @@ function testSingleCollectionMigration() {
 
   Logger.log('\n✅ Test complete!');
 }
+
+/**
+ * ========================================
+ * HELPER FUNCTIONS FOR READING GOOGLE SHEETS
+ * (Used only for migration - bypasses Firestore)
+ * ========================================
+ */
+
+/**
+ * Get sheet object from the database spreadsheet
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Sheet|null} Sheet object or null if not found
+ */
+function getSheetForMigration(sheetName) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    return sheet;
+  } catch (error) {
+    Logger.log(`Error getting sheet ${sheetName}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Get data from a Google Sheet as objects
+ * This function reads DIRECTLY from Google Sheets (not Firestore)
+ * Used only for migration purposes
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Array<Object>} Array of row objects
+ */
+function getSheetDataForMigration(sheetName) {
+  try {
+    const sheet = getSheetForMigration(sheetName);
+    if (!sheet) {
+      Logger.log(`⚠️ Sheet ${sheetName} not found`);
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length === 0) {
+      Logger.log(`⚠️ Sheet ${sheetName} is empty`);
+      return [];
+    }
+
+    // First row is headers
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Convert to objects
+    return rows.map((row, index) => {
+      const obj = {};
+      headers.forEach((header, i) => {
+        obj[header] = row[i];
+      });
+      obj._rowNumber = index + 2; // +2 because: +1 for header row, +1 for 1-indexed
+      return obj;
+    });
+
+  } catch (error) {
+    Logger.log(`Error reading sheet ${sheetName}: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Get headers from a Google Sheet
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Array<string>} Array of header names
+ */
+function getSheetHeadersForMigration(sheetName) {
+  try {
+    const sheet = getSheetForMigration(sheetName);
+    if (!sheet) {
+      return [];
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length === 0) {
+      return [];
+    }
+
+    return data[0]; // First row is headers
+
+  } catch (error) {
+    Logger.log(`Error reading headers from ${sheetName}: ${error.message}`);
+    return [];
+  }
+}
