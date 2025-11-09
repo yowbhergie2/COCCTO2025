@@ -225,3 +225,41 @@ function debugGetAllDocuments() {
     Logger.log(error.stack);
   }
 }
+
+/**
+ * Helper: Delete all employees and re-migrate
+ * This is a convenience function to clean up and re-migrate employees
+ */
+function resetEmployeesCollection() {
+  Logger.log('🔄 Resetting employees collection...\n');
+
+  try {
+    // Step 1: Delete all employees
+    Logger.log('Step 1: Deleting all employees...');
+    const deleted = deleteCollection('employees', 'DELETE_ALL_DATA');
+    Logger.log(`✅ Deleted ${deleted} employees\n`);
+
+    // Step 2: Re-migrate employees
+    Logger.log('Step 2: Re-migrating employees from Sheets...');
+    const result = migrateEmployees(false);
+    Logger.log(`✅ Migrated ${result.count} employees\n`);
+
+    // Step 3: Verify
+    Logger.log('Step 3: Verifying migration...');
+    const employees = getAllDocuments('employees');
+    Logger.log(`Total employees in Firestore: ${employees.length}`);
+
+    if (employees.length > 0) {
+      Logger.log('\nFirst employee:');
+      Logger.log(JSON.stringify(employees[0], null, 2));
+    }
+
+    Logger.log('\n✅ Reset complete!');
+    return { deleted, migrated: result.count, final: employees.length };
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    Logger.log(error.stack);
+    return { error: error.message };
+  }
+}
