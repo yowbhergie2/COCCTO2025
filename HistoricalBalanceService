@@ -504,16 +504,21 @@ function getHistoricalBalanceMonths(employeeId) {
 
       if (!seen.has(key)) {
         seen.add(key);
-        const monthYearObj = {
-          month: month,
-          year: year
-        };
-        Logger.log('Adding to unique: ' + JSON.stringify(monthYearObj));
-        unique.push(monthYearObj);
+        // Create object with explicit property assignment
+        unique.push({
+          month: String(month),
+          year: Number(year)
+        });
       }
     });
 
     Logger.log('Returning unique months: ' + JSON.stringify(unique));
+
+    // Extra debugging: log the actual structure
+    if (unique.length > 0) {
+      Logger.log('First item structure - month: ' + unique[0].month + ' (type: ' + typeof unique[0].month + '), year: ' + unique[0].year + ' (type: ' + typeof unique[0].year + ')');
+    }
+
     return unique;
 
   } catch (error) {
