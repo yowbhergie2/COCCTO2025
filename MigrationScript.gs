@@ -834,6 +834,66 @@ function cleanupInvalidLedgerDocuments() {
 
 /**
  * ========================================
+ * DATA CLEANUP FUNCTIONS
+ * ========================================
+ */
+
+/**
+ * Clean up old employee data that was migrated with incorrect structure
+ * This removes employees that have createdDate/modifiedDate instead of createdAt/updatedAt
+ */
+function cleanupOldEmployeeData() {
+  Logger.log('🧹 Cleaning up old employee data with incorrect structure...\n');
+
+  try {
+    const db = getFirestore();
+    const rawDocs = db.getDocuments('employees');
+
+    Logger.log(`Total employees in Firestore: ${rawDocs.length}\n`);
+
+    const oldEmployees = [];
+    const newEmployees = [];
+
+    // Categorize employees
+    rawDocs.forEach(doc => {
+      const fields = doc.fields;
+
+      // Check if it has the old structure (createdDate) or new structure (createdAt)
+      if (fields && fields.createdDate) {
+        // Old structure
+        const pathParts = doc.name.split('/');
+        const docId = pathParts[pathParts.length - 1];
+        oldEmployees.push(docId);
+      } else if (fields && fields.createdAt) {
+        // New structure
+        newEmployees.push(doc.name);
+      }
+    });
+
+    Logger.log(`✅ New format employees (keep): ${newEmployees.length}`);
+    Logger.log(`❌ Old format employees (delete): ${oldEmployees.length}\n`);
+
+    if (oldEmployees.length === 0) {
+      Logger.log('✅ No old employees to clean up!');
+      return { deleted: 0 };
+    }
+
+    Logger.log('Deleting old employees...');
+    const deletedCount = batchDeleteDocuments('employees', oldEmployees);
+
+    Logger.log(`\n✅ Deleted ${deletedCount} old employee(s)`);
+    Logger.log(`Remaining employees: ${newEmployees.length}`);
+
+    return { deleted: deletedCount, remaining: newEmployees.length };
+
+  } catch (error) {
+    Logger.log(`❌ Error: ${error.message}`);
+    return { error: error.message };
+  }
+}
+
+/**
+ * ========================================
  * ROLLBACK FUNCTIONS (USE WITH CAUTION!)
  * ========================================
  */
