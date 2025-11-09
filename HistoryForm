@@ -276,8 +276,8 @@
         const minDate = new Date(year, monthIndex + 1, 0); // Day 0 of next month = last day of current month
         minDate.setHours(0, 0, 0, 0);
 
-        // Calculate max date (December 31 of earned year)
-        const maxDate = new Date(year, 11, 31); // 11 = December
+        // Calculate max date (last day of the month AFTER the earned month)
+        const maxDate = new Date(year, monthIndex + 2, 0); // Day 0 of month after next = last day of next month
         maxDate.setHours(0, 0, 0, 0);
 
         const minDateStr = formatDateForInput(minDate);
