@@ -39,11 +39,11 @@ function getDb() {
  * @returns {string} Generated document ID
  *
  * Example:
- *   const employeeId = createDocument('employees', {
- *     firstName: 'John',
- *     lastName: 'Doe',
- *     status: 'Active'
- *   });
+ * const employeeId = createDocument('employees', {
+ * firstName: 'John',
+ * lastName: 'Doe',
+ * status: 'Active'
+ * });
  */
 function createDocument(collectionName, data) {
   try {
@@ -76,11 +76,11 @@ function createDocument(collectionName, data) {
  * @returns {boolean} Success status
  *
  * Example:
- *   createDocumentWithId('employees', 'EMP001', {
- *     employeeId: 'EMP001',
- *     firstName: 'John',
- *     lastName: 'Doe'
- *   });
+ * createDocumentWithId('employees', 'EMP001', {
+ * employeeId: 'EMP001',
+ * firstName: 'John',
+ * lastName: 'Doe'
+ * });
  */
 function createDocumentWithId(collectionName, documentId, data) {
   try {
@@ -112,10 +112,10 @@ function createDocumentWithId(collectionName, documentId, data) {
  * @returns {number} Number of documents created
  *
  * Example:
- *   batchCreateDocuments('employees', [
- *     { id: 'EMP001', data: { firstName: 'John', lastName: 'Doe' } },
- *     { id: 'EMP002', data: { firstName: 'Jane', lastName: 'Smith' } }
- *   ]);
+ * batchCreateDocuments('employees', [
+ * { id: 'EMP001', data: { firstName: 'John', lastName: 'Doe' } },
+ * { id: 'EMP002', data: { firstName: 'Jane', lastName: 'Smith' } }
+ * ]);
  */
 function batchCreateDocuments(collectionName, documents) {
   try {
@@ -160,10 +160,10 @@ function batchCreateDocuments(collectionName, documents) {
  * @returns {Object|null} Document data or null if not found
  *
  * Example:
- *   const employee = getDocument('employees', 'EMP001');
- *   if (employee) {
- *     Logger.log(employee.firstName); // "John"
- *   }
+ * const employee = getDocument('employees', 'EMP001');
+ * if (employee) {
+ * Logger.log(employee.firstName); // "John"
+ * }
  */
 function getDocument(collectionName, documentId) {
   try {
@@ -194,8 +194,8 @@ function getDocument(collectionName, documentId) {
  * @returns {Array<Object>} Array of documents
  *
  * Example:
- *   const allEmployees = getAllDocuments('employees');
- *   allEmployees.forEach(emp => Logger.log(emp.firstName));
+ * const allEmployees = getAllDocuments('employees');
+ * allEmployees.forEach(emp => Logger.log(emp.firstName));
  */
 function getAllDocuments(collectionName, limit = 1000) {
   try {
@@ -226,7 +226,7 @@ function getAllDocuments(collectionName, limit = 1000) {
  * @returns {Array<Object>} Matching documents
  *
  * Example:
- *   const activeEmployees = queryDocuments('employees', 'status', '==', 'Active');
+ * const activeEmployees = queryDocuments('employees', 'status', '==', 'Active');
  */
 function queryDocuments(collectionName, fieldName, operator, value) {
   try {
@@ -274,10 +274,10 @@ function queryDocuments(collectionName, fieldName, operator, value) {
  * @returns {Array<Object>} Matching documents
  *
  * Example:
- *   const results = findDocuments('employees', {
- *     status: 'Active',
- *     office: 'Main Office'
- *   });
+ * const results = findDocuments('employees', {
+ * status: 'Active',
+ * office: 'Main Office'
+ * });
  */
 function findDocuments(collectionName, criteria) {
   try {
@@ -311,10 +311,10 @@ function findDocuments(collectionName, criteria) {
  * @returns {boolean} Success status
  *
  * Example:
- *   updateDocument('employees', 'EMP001', {
- *     status: 'Inactive',
- *     updatedAt: getCurrentTimestamp()
- *   });
+ * updateDocument('employees', 'EMP001', {
+ * status: 'Inactive',
+ * updatedAt: getCurrentTimestamp()
+ * });
  */
 function updateDocument(collectionName, documentId, updates) {
   try {
@@ -373,7 +373,7 @@ function upsertDocument(collectionName, documentId, data) {
  * @returns {boolean} Success status
  *
  * Example:
- *   deleteDocument('employees', 'EMP001');
+ * deleteDocument('employees', 'EMP001');
  */
 function deleteDocument(collectionName, documentId) {
   try {
