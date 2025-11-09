@@ -36,6 +36,12 @@
       border-color: #4f46e5;
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
+    /* Add style for disabled input */
+    .form-input:disabled {
+      background-color: #f8f9fa; /* Lighter gray */
+      color: #697386;
+      cursor: not-allowed;
+    }
     .btn {
       padding: 0.75rem 1.5rem;
       border-radius: 8px;
@@ -114,7 +120,8 @@
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
         <div>
           <label class="form-label">Earned Month <span style="color: #ef4444;">*</span></label>
-          <select name="month" id="month" required class="form-input">
+          <!-- BAGONG-DAGDAG: onchange event -->
+          <select name="month" id="month" required class="form-input" onchange="updateIssuanceDateConstraints()">
             <option value="">-- Select Month --</option>
             <option value="January">January</option>
             <option value="February">February</option>
@@ -133,7 +140,8 @@
         <div>
           <label class="form-label">Earned Year <span style="color: #ef4444;">*</span></label>
           <!-- SERVER-SIDE POPULATED YEARS -->
-          <select name="year" id="year" required class="form-input">
+          <!-- BAGONG-DAGDAG: onchange event -->
+          <select name="year" id="year" required class="form-input" onchange="updateIssuanceDateConstraints()">
             <?!= typeof yearOptions !== 'undefined' ? yearOptions : '<option value="">-- Select Year --</option><option value="2025">2025</option><option value="2024">2024</option>' ?>
           </select>
         </div>
@@ -168,9 +176,13 @@
       <!-- Date of Issuance -->
       <div style="margin-bottom: 1rem;">
         <label class="form-label">Date of Issuance (Certificate Date) <span style="color: #ef4444;">*</span></label>
+        <!-- BAGONG-DAGDAG: disabled by default, onchange event -->
         <input type="date" name="dateOfIssuance" id="dateOfIssuance" required class="form-input"
-               onchange="calculateValidUntil()">
-        <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;">Must be on or after the last day of the earned month</p>
+               onchange="calculateValidUntil()" disabled>
+        <!-- BAGONG-DAGDAG: Updated help text -->
+        <p style="font-size: 0.8125rem; color: #697386; margin-top: 0.25rem;" id="dateIssuanceHelpText">
+          Please select Earned Month and Year first. Date must be in the selected year.
+        </p>
       </div>
 
       <!-- Valid Until (calculated) -->
@@ -227,6 +239,76 @@
   <script>
     // Years are now populated server-side, no need for client-side population!
 
+    // --- BAGONG-DAGDAG: Function to get month number ---
+    function getMonthNumber(monthName) {
+      const months = {
+        'January': 0, 'February': 1, 'March': 2, 'April': 3,
+        'May': 4, 'June': 5, 'July': 6, 'August': 7,
+        'September': 8, 'October': 9, 'November': 10, 'December': 11
+      };
+      return months[monthName];
+    }
+
+    // --- BAGONG-DAGDAG: Function to format date as YYYY-MM-DD ---
+    function formatDateForInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // --- BAGONG-DAGDAG: Function to update Date of Issuance constraints ---
+    function updateIssuanceDateConstraints() {
+      const monthSelect = document.getElementById('month');
+      const yearSelect = document.getElementById('year');
+      const dateInput = document.getElementById('dateOfIssuance');
+      const helpText = document.getElementById('dateIssuanceHelpText');
+
+      const month = monthSelect.value;
+      const year = yearSelect.value;
+
+      if (month && year) {
+        // Enable the date input
+        dateInput.disabled = false;
+
+        // Calculate min date (last day of earned month)
+        const monthIndex = getMonthNumber(month);
+        const minDate = new Date(year, monthIndex + 1, 0); // Day 0 of next month = last day of current month
+        minDate.setHours(0, 0, 0, 0);
+
+        // Calculate max date (December 31 of earned year)
+        const maxDate = new Date(year, 11, 31); // 11 = December
+        maxDate.setHours(0, 0, 0, 0);
+
+        const minDateStr = formatDateForInput(minDate);
+        const maxDateStr = formatDateForInput(maxDate);
+
+        // Set attributes
+        dateInput.min = minDateStr;
+        dateInput.max = maxDateStr;
+
+        // Update help text
+        helpText.textContent = `Date must be between ${minDateStr} and ${maxDateStr}.`;
+
+        // Check if existing value is now invalid
+        if (dateInput.value) {
+          const currentDate = new Date(dateInput.value + 'T00:00:00');
+          if (currentDate < minDate || currentDate > maxDate) {
+            dateInput.value = ''; // Clear invalid date
+            calculateValidUntil(); // Clear valid until display
+          }
+        }
+      } else {
+        // Disable if month or year is missing
+        dateInput.disabled = true;
+        dateInput.value = '';
+        dateInput.min = '';
+        dateInput.max = '';
+        helpText.textContent = 'Please select Earned Month and Year first. Date must be in the selected year.';
+        calculateValidUntil(); // Clear valid until display
+      }
+    }
+
     function calculateRemaining() {
       const earned = parseFloat(document.getElementById('cocEarned').value) || 0;
       const used = parseFloat(document.getElementById('cocUsed').value) || 0;
@@ -256,13 +338,19 @@
 
     function calculateValidUntil() {
       const dateInput = document.getElementById('dateOfIssuance').value;
+      
+      // --- BAGONG-DAGDAG: Call constraint checker ---
+      // This re-validates the date just in case it was typed manually
+      updateIssuanceDateConstraints();
+
       if (!dateInput) {
         document.getElementById('validUntilContainer').style.display = 'none';
         return;
       }
 
       // Calculate Valid Until: (Date of Issuance + 1 Year) - 1 Day
-      const dateOfIssuance = new Date(dateInput + 'T00:00:00');
+      // Add T00:00:00 to avoid timezone issues
+      const dateOfIssuance = new Date(dateInput + 'T00:00:00'); 
       const validUntil = new Date(dateOfIssuance);
       validUntil.setFullYear(validUntil.getFullYear() + 1);
       validUntil.setDate(validUntil.getDate() - 1);
@@ -304,6 +392,24 @@
         earnedInput.focus();
         return false;
       }
+      
+      // --- BAGONG-DAGDAG: Validate Date of Issuance again ---
+      const dateInput = document.getElementById('dateOfIssuance');
+      if (dateInput.disabled || !dateInput.value) {
+          showErrorModal('Error: Please select a valid Date of Issuance.');
+          dateInput.focus();
+          return false;
+      }
+      // Re-check min/max constraints one last time
+      const currentDate = new Date(dateInput.value + 'T00:00:00');
+      const minDate = new Date(dateInput.min + 'T00:00:00');
+      const maxDate = new Date(dateInput.max + 'T00:00:00');
+      if (currentDate < minDate || currentDate > maxDate) {
+          showErrorModal('Error: Date of Issuance is outside the allowed range (' + dateInput.min + ' to ' + dateInput.max + ').');
+          dateInput.focus();
+          return false;
+      }
+      // --- END ---
 
       console.log('[HistoryForm] Validation PASSED, submitting...');
 
