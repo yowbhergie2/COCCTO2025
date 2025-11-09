@@ -483,31 +483,37 @@ function updateHistoricalBalance(batchId, formData) {
  */
 function getHistoricalBalanceMonths(employeeId) {
   try {
+    Logger.log('getHistoricalBalanceMonths called for employeeId: ' + employeeId);
+
     // Query CreditBatches for this employee
     const batches = queryDocuments('creditBatches', 'employeeId', '==', parseInt(employeeId));
+    Logger.log('Found batches: ' + (batches ? batches.length : 0));
 
     if (!batches || batches.length === 0) {
       return [];
     }
 
     // Extract unique month/year combinations
-    const monthYears = batches.map(batch => ({
-      month: batch.earnedMonth,
-      year: batch.earnedYear
-    }));
-
-    // Remove duplicates (in case there are any)
     const unique = [];
     const seen = new Set();
 
-    monthYears.forEach(my => {
-      const key = `${my.month}-${my.year}`;
+    batches.forEach(batch => {
+      const month = batch.earnedMonth;
+      const year = batch.earnedYear;
+      const key = `${month}-${year}`;
+
       if (!seen.has(key)) {
         seen.add(key);
-        unique.push(my);
+        const monthYearObj = {
+          month: month,
+          year: year
+        };
+        Logger.log('Adding to unique: ' + JSON.stringify(monthYearObj));
+        unique.push(monthYearObj);
       }
     });
 
+    Logger.log('Returning unique months: ' + JSON.stringify(unique));
     return unique;
 
   } catch (error) {
