@@ -233,7 +233,9 @@ function listAllSheets() {
   Logger.log('📋 Listing all sheets in spreadsheet...\n');
 
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Use the database spreadsheet (defined in MigrationScript.gs)
+    const DATABASE_SPREADSHEET_ID = '1vulzS7jxl8jEpHHoXZfF4eaffIxz0m9RL7NAaSQbR0I';
+    const ss = SpreadsheetApp.openById(DATABASE_SPREADSHEET_ID);
     const sheets = ss.getSheets();
 
     Logger.log(`Total sheets: ${sheets.length}\n`);
@@ -261,7 +263,9 @@ function debugEmployeesSheet() {
 
   try {
     const sheetName = 'Employees';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Use the database spreadsheet (defined in MigrationScript.gs)
+    const DATABASE_SPREADSHEET_ID = '1vulzS7jxl8jEpHHoXZfF4eaffIxz0m9RL7NAaSQbR0I';
+    const ss = SpreadsheetApp.openById(DATABASE_SPREADSHEET_ID);
     const sheet = ss.getSheetByName(sheetName);
 
     if (!sheet) {
