@@ -490,36 +490,37 @@ function getHistoricalBalanceMonths(employeeId) {
     Logger.log('Found batches: ' + (batches ? batches.length : 0));
 
     if (!batches || batches.length === 0) {
+      Logger.log('No batches found, returning empty array');
       return [];
     }
 
-    // Extract unique month/year combinations
-    const unique = [];
-    const seen = new Set();
+    // Extract unique month/year combinations as simple array of objects
+    const monthYearMap = {};
 
     batches.forEach(batch => {
       const month = batch.earnedMonth;
       const year = batch.earnedYear;
-      const key = `${month}-${year}`;
+      const key = month + '-' + year;
 
-      if (!seen.has(key)) {
-        seen.add(key);
-        // Create object with explicit property assignment
-        unique.push({
-          month: String(month),
-          year: Number(year)
-        });
+      if (!monthYearMap[key]) {
+        monthYearMap[key] = {
+          month: month,
+          year: year
+        };
+        Logger.log('Added: month=' + month + ', year=' + year);
       }
     });
 
-    Logger.log('Returning unique months: ' + JSON.stringify(unique));
-
-    // Extra debugging: log the actual structure
-    if (unique.length > 0) {
-      Logger.log('First item structure - month: ' + unique[0].month + ' (type: ' + typeof unique[0].month + '), year: ' + unique[0].year + ' (type: ' + typeof unique[0].year + ')');
+    // Convert map to array
+    const result = [];
+    for (const key in monthYearMap) {
+      result.push(monthYearMap[key]);
     }
 
-    return unique;
+    Logger.log('Returning ' + result.length + ' unique months');
+    Logger.log('Result JSON: ' + JSON.stringify(result));
+
+    return result;
 
   } catch (error) {
     Logger.log('Error in getHistoricalBalanceMonths: ' + error.toString());
