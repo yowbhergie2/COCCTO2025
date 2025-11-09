@@ -48,8 +48,9 @@ const ID_FIELD_MAPPING = {
 /**
  * Get Firestore collection name from sheet name
  * This function now correctly uses the COLLECTION_MAPPING
+ * CACHE FIX: Renamed to _V2 to force Apps Script to use the new version.
  */
-function getCollectionName(sheetName) {
+function getCollectionName_V2(sheetName) {
   return COLLECTION_MAPPING[sheetName] || sheetName.toLowerCase();
 }
 
@@ -89,17 +90,18 @@ function getDbSheet(sheetName) {
  * Get all data from a collection (replaces getSheetData)
  * @param {string} sheetName - Sheet name (will be converted to collection name)
  * @returns {Array<Object>} Array of documents as objects
+ * CACHE FIX: Renamed to _V2 and calls getCollectionName_V2.
  */
-function getSheetData(sheetName) {
+function getSheetData_V2(sheetName) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const documents = getAllDocuments(collectionName);
 
     // Return documents as objects (no longer as arrays)
     return documents || [];
 
   } catch (error) {
-    Logger.log(`Error in getSheetData('${sheetName}'): ${error.message}`);
+    Logger.log(`Error in getSheetData_V2('${sheetName}'): ${error.message}`);
     return [];
   }
 }
@@ -112,7 +114,7 @@ function getSheetData(sheetName) {
  */
 function getSheetHeaders(sheetName) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const documents = getAllDocuments(collectionName);
 
     if (documents.length === 0) {
@@ -136,7 +138,7 @@ function getSheetHeaders(sheetName) {
  */
 function getNextId(sheetName, idColumn = 'A') {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const idFieldName = getIdFieldName(collectionName);
     const documents = getAllDocuments(collectionName);
 
@@ -166,7 +168,7 @@ function getNextId(sheetName, idColumn = 'A') {
  */
 function appendToSheet(sheetName, data) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const idFieldName = getIdFieldName(collectionName);
 
     // Convert array to object if needed (for backward compatibility)
@@ -281,7 +283,7 @@ function getFieldMapping(sheetName) {
  */
 function updateRowById(sheetName, id, updatedData, idColumn = 0) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const docId = String(id);
 
     // Convert array to object if needed
@@ -312,7 +314,7 @@ function updateRowById(sheetName, id, updatedData, idColumn = 0) {
  */
 function deleteRowById(sheetName, id, idColumn = 0) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const docId = String(id);
 
     deleteDocument(collectionName, docId);
@@ -333,7 +335,7 @@ function deleteRowById(sheetName, id, idColumn = 0) {
  */
 function findRows(sheetName, criteria) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     return findDocuments(collectionName, criteria);
 
   } catch (error) {
@@ -351,7 +353,7 @@ function findRows(sheetName, criteria) {
  */
 function getRowById(sheetName, id, idColumn = 0) {
   try {
-    const collectionName = getCollectionName(sheetName);
+    const collectionName = getCollectionName_V2(sheetName); // Use V2
     const docId = String(id);
 
     return getDocument(collectionName, docId);
@@ -393,4 +395,39 @@ function serializeDates(obj) {
   }
 
   return obj;
+}
+
+// =============================================================
+// OLD FUNCTIONS - Kept temporarily to avoid breaking the cache
+// DO NOT USE THESE. They will be removed later.
+// =============================================================
+function getCollectionName(sheetName) {
+  return COLLECTION_MAPPING[sheetName] || sheetName.toLowerCase();
+}
+function getSheetData(sheetName) {
+  try {
+    const collectionName = getCollectionName(sheetName);
+    const documents = getAllDocuments(collectionName);
+    return documents || [];
+  } catch (error) {
+    return [];
+  }
+}
+function getAllEmployees() {
+  const data = getSheetData('Employees');
+  return serializeDates(data);
+}
+function getEmployeesForDropdown() {
+  const employees = getAllEmployees();
+  return employees
+    .filter(emp => emp.status === 'Active')
+    .map(emp => {
+      const fullName = [emp.firstName, emp.middleInitial, emp.lastName, emp.suffix]
+        .filter(x => x).join(' ');
+      return {
+        id: emp.employeeId,
+        name: fullName
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
