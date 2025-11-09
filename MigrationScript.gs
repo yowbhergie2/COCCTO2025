@@ -840,7 +840,9 @@ function cleanupInvalidLedgerDocuments() {
 
 /**
  * Clean up old employee data that was migrated with incorrect structure
- * This removes employees that have createdDate/modifiedDate instead of createdAt/updatedAt
+ * This removes:
+ * - Employees with createdDate/modifiedDate instead of createdAt/updatedAt (old format)
+ * - Employees with invalid IDs like "undefined", "null", or empty strings
  */
 function cleanupOldEmployeeData() {
   Logger.log('🧹 Cleaning up old employee data with incorrect structure...\n');
@@ -851,40 +853,49 @@ function cleanupOldEmployeeData() {
 
     Logger.log(`Total employees in Firestore: ${rawDocs.length}\n`);
 
-    const oldEmployees = [];
-    const newEmployees = [];
+    const toDelete = [];
+    const toKeep = [];
 
     // Categorize employees
     rawDocs.forEach(doc => {
       const fields = doc.fields;
+      const pathParts = doc.name.split('/');
+      const docId = pathParts[pathParts.length - 1];
 
-      // Check if it has the old structure (createdDate) or new structure (createdAt)
+      // Delete if it has old structure (createdDate instead of createdAt)
       if (fields && fields.createdDate) {
-        // Old structure
-        const pathParts = doc.name.split('/');
-        const docId = pathParts[pathParts.length - 1];
-        oldEmployees.push(docId);
-      } else if (fields && fields.createdAt) {
-        // New structure
-        newEmployees.push(doc.name);
+        Logger.log(`  ❌ Delete: ${docId} (old format with createdDate)`);
+        toDelete.push(docId);
+        return;
       }
+
+      // Delete if it has invalid ID
+      if (!docId || docId === 'undefined' || docId === 'null' || docId === '') {
+        Logger.log(`  ❌ Delete: ${docId} (invalid ID)`);
+        toDelete.push(docId);
+        return;
+      }
+
+      // Keep valid employees with new format
+      Logger.log(`  ✅ Keep: ${docId} (valid)`);
+      toKeep.push(docId);
     });
 
-    Logger.log(`✅ New format employees (keep): ${newEmployees.length}`);
-    Logger.log(`❌ Old format employees (delete): ${oldEmployees.length}\n`);
+    Logger.log(`\n✅ Valid employees (keep): ${toKeep.length}`);
+    Logger.log(`❌ Invalid employees (delete): ${toDelete.length}\n`);
 
-    if (oldEmployees.length === 0) {
-      Logger.log('✅ No old employees to clean up!');
-      return { deleted: 0 };
+    if (toDelete.length === 0) {
+      Logger.log('✅ No invalid employees to clean up!');
+      return { deleted: 0, kept: toKeep.length };
     }
 
-    Logger.log('Deleting old employees...');
-    const deletedCount = batchDeleteDocuments('employees', oldEmployees);
+    Logger.log('Deleting invalid employees...');
+    const deletedCount = batchDeleteDocuments('employees', toDelete);
 
-    Logger.log(`\n✅ Deleted ${deletedCount} old employee(s)`);
-    Logger.log(`Remaining employees: ${newEmployees.length}`);
+    Logger.log(`\n✅ Deleted ${deletedCount} invalid employee(s)`);
+    Logger.log(`Remaining employees: ${toKeep.length}`);
 
-    return { deleted: deletedCount, remaining: newEmployees.length };
+    return { deleted: deletedCount, remaining: toKeep.length };
 
   } catch (error) {
     Logger.log(`❌ Error: ${error.message}`);
