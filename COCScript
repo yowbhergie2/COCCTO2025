@@ -3,7 +3,6 @@
 
   let rowCounter = 0;
   let existingDatabaseDates = [];
-  let existingHistoricalMonths = []; // BAGONG DAGDAG: Para sa historical balances
   let duplicateContext = null;
   let pendingDuplicateAction = null;
   let historicalBalanceMonths = []; // Stores months/years with historical balances
@@ -53,29 +52,33 @@
 
     if (empSelect) {
       empSelect.addEventListener('change', () => {
+        // OPTIMIZATION: Only load certified months, don't call other functions yet
         loadHistoricalBalanceMonths();
-        loadCOCProgress();
-        loadExistingDates();
-        loadHistoricalMonths(); // BAGONG DAGDAG: I-load ang historical months
-        checkAddDayButtonState();
-        // TANDAAN: Ang updateMonthOptionsForYear() ay tatawagin sa loob ng loadHistoricalMonths() success
+        // Reset month/year dependent data
+        existingDatabaseDates = [];
       });
     }
     if (monthSelect) {
       monthSelect.addEventListener('change', () => {
-        loadCOCProgress();
-        loadExistingDates();
+        // OPTIMIZATION: Only call if all required fields are present
+        if (empSelect?.value && monthSelect.value && yearSelectElem?.value) {
+          loadCOCProgress();
+          loadExistingDates();
+          checkAddDayButtonState();
+        }
         updateDateInputConstraints();
-        checkAddDayButtonState();
       });
     }
     if (yearSelectElem) {
       yearSelectElem.addEventListener('change', () => {
-        updateMonthOptionsForYear(); // I-call ulit para mag-apply ang filter para sa bagong taon
-        loadCOCProgress();
-        loadExistingDates();
+        updateMonthOptionsForYear(); // Update month options for new year
+        // OPTIMIZATION: Only call if all required fields are present
+        if (empSelect?.value && monthSelect?.value && yearSelectElem.value) {
+          loadCOCProgress();
+          loadExistingDates();
+          checkAddDayButtonState();
+        }
         updateDateInputConstraints();
-        checkAddDayButtonState();
       });
     }
 
@@ -114,31 +117,8 @@
       .getHistoricalBalanceMonths(parseInt(employeeId));
   }
 
-  /**
-   * BAGONG DAGDAG: Load historical balance months for the selected employee
-   */
-  function loadHistoricalMonths() {
-    const employeeId = document.getElementById('employeeId')?.value;
-
-    if (!employeeId) {
-      existingHistoricalMonths = [];
-      updateMonthOptionsForYear(); // I-update pa rin ang options (para alisin ang old disabled)
-      return;
-    }
-
-    google.script.run
-      .withSuccessHandler(months => {
-        existingHistoricalMonths = months || [];
-        console.log('Loaded historical months:', existingHistoricalMonths);
-        updateMonthOptionsForYear(); // I-update ang month options pagkatapos makuha ang data
-      })
-      .withFailureHandler(err => {
-        console.error('Error loading historical months:', err);
-        existingHistoricalMonths = [];
-        updateMonthOptionsForYear(); // I-update pa rin para i-reset
-      })
-      .getHistoricalBalanceMonths(parseInt(employeeId));
-  }
+  // REMOVED: loadHistoricalMonths() - duplicate of loadHistoricalBalanceMonths()
+  // The historicalBalanceMonths array already contains all certified months
 
 
   /**
@@ -215,16 +195,6 @@
       if (shouldDisable) {
         option.disabled = true;
         option.textContent = option.value + disableReason;
-        if (option.value === selectedMonth) {
-          shouldClearSelectedMonth = true;
-        }
-      }
-
-      // Check 2: Disable months with historical balance
-      const monthYearKey = `${option.value}-${selectedYear}`;
-      if (existingHistoricalMonths.includes(monthYearKey)) {
-        option.disabled = true;
-        option.textContent = option.value + ' (Logged)';
         if (option.value === selectedMonth) {
           shouldClearSelectedMonth = true;
         }
@@ -1078,7 +1048,6 @@
 
     rowCounter = 0;
     existingDatabaseDates = [];
-    existingHistoricalMonths = []; // BAGONG DAGDAG: I-reset din ito
     duplicateContext = null;
 
     // Reset button and overlay state
