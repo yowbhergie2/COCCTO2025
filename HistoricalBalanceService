@@ -25,16 +25,11 @@ function saveHistoricalBalance(formData) {
     }
 
     // *** BAGONG VALIDATION: Check for duplicates ***
-    // PABILIS-FIX: Changed getSheetData to getSheetData_V2 to use Firestore
-    const data = getSheetData_V2('CreditBatches');
-    
-    // PABILIS-FIX: Removed getSheetHeaders and ...Index variables
-    // Use object property access instead of array index
+    // OPTIMIZATION: Use queryDocuments to only get batches for this employee
+    const employeeBatches = queryDocuments('creditBatches', 'employeeId', '==', employeeId);
 
-    const isDuplicate = data.some(row => {
-      // PABILIS-FIX: Check object properties directly (using camelCase field names)
-      return row.employeeId === employeeId &&
-             row.earnedMonth === month &&
+    const isDuplicate = employeeBatches.some(row => {
+      return row.earnedMonth === month &&
              row.earnedYear === year &&
              row.notes && row.notes.toString().includes('Historical data migration');
     });
@@ -217,24 +212,25 @@ function getMonthNumber(monthName) {
 
 /**
  * Get employee's current total balance (sum of all Active RemainingHours)
+ * OPTIMIZED: Uses queryDocuments to only fetch batches for specific employee
  */
 function getEmployeeCurrentBalance(employeeId) {
-  // PABILIS-FIX: Use getSheetData_V2
-  const data = getSheetData_V2('CreditBatches');
-  if (!data || data.length === 0) {
+  // OPTIMIZATION: Query only this employee's batches instead of loading all
+  const employeeBatches = queryDocuments('creditBatches', 'employeeId', '==', employeeId);
+
+  if (!employeeBatches || employeeBatches.length === 0) {
     return 0;  // No data
   }
 
   let totalBalance = 0;
-  
-  // PABILIS-FIX: Use object properties (using camelCase field names)
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i];
-    if (row.employeeId === employeeId && row.status === 'Active') {
+
+  for (let i = 0; i < employeeBatches.length; i++) {
+    const row = employeeBatches[i];
+    if (row.status === 'Active') {
       totalBalance += parseFloat(row.remainingHours) || 0;
     }
   }
-  
+
   return totalBalance;
 }
 
